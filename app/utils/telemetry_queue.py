@@ -170,8 +170,8 @@ class TelemetryQueueManager:
             with self._lock:
                 self._memory_score_queue.append(score_data)
 
-        # In testing mode, flush immediately to satisfy synchronous test assertions
-        if self.is_testing:
+        # In testing or serverless mode (no worker thread), flush immediately
+        if self.is_testing or not self.running:
             self.flush()
 
         return score_data
@@ -254,7 +254,7 @@ class TelemetryQueueManager:
         with self._lock:
             self.sessions_ingested += 1
 
-        if self.is_testing:
+        if self.is_testing or not self.running:
             self.flush()
 
         return False, 'logged', {'status': 'logged', 'game': clean_game, 'session_id': session_id}
@@ -311,7 +311,7 @@ class TelemetryQueueManager:
         with self._lock:
             self.sessions_ingested += 1
 
-        if self.is_testing:
+        if self.is_testing or not self.running:
             self.flush()
 
         return {'status': 'ended', 'game': clean_game, 'duration_seconds': duration_seconds}

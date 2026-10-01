@@ -63,7 +63,9 @@ class Config:
 
     # Redis & Asynchronous High-Throughput Telemetry Queue
     REDIS_URL = os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/0')
-    TELEMETRY_QUEUE_ENABLED = os.environ.get('TELEMETRY_QUEUE_ENABLED', 'True').lower() in ('true', '1')
+    # Background worker threads are not supported in serverless lambdas (Vercel)
+    _is_serverless = bool(os.environ.get('VERCEL') or os.environ.get('AWS_LAMBDA_FUNCTION_NAME'))
+    TELEMETRY_QUEUE_ENABLED = os.environ.get('TELEMETRY_QUEUE_ENABLED', 'False' if _is_serverless else 'True').lower() in ('true', '1')
     TELEMETRY_BATCH_SIZE = int(os.environ.get('TELEMETRY_BATCH_SIZE', '25'))
     TELEMETRY_FLUSH_INTERVAL = float(os.environ.get('TELEMETRY_FLUSH_INTERVAL', '0.5'))  # seconds
 
