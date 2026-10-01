@@ -21,10 +21,18 @@ def create_app(config_name=None):
     template_dir = os.path.join(base_dir, 'templates')
     static_dir = os.path.join(base_dir, 'static')
 
+    is_serverless = bool(os.environ.get('VERCEL') or os.environ.get('AWS_LAMBDA_FUNCTION_NAME'))
+    if is_serverless:
+        instance_dir = '/tmp/instance'
+        os.makedirs(instance_dir, exist_ok=True)
+    else:
+        instance_dir = os.path.join(base_dir, 'instance')
+
     app = Flask(
         __name__,
         template_folder=template_dir,
-        static_folder=static_dir
+        static_folder=static_dir,
+        instance_path=instance_dir
     )
 
     # Load configuration
