@@ -53,3 +53,5 @@ Thumbs.db
 htmlcov/
 .tox/
 .nox/
+.vercel
+.env*
