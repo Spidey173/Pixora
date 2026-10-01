@@ -6,6 +6,8 @@
 
 A full-stack arcade gaming platform built with **Flask** and a **cyberpunk UI**. Features 17 playable mini-games, player authentication, real-time leaderboards powered by Redis, and an admin dashboard.
 
+🎮 **Live Demo:** [https://pixora-17.vercel.app](https://pixora-17.vercel.app)
+
 ---
 
 ## 🎮 Features
