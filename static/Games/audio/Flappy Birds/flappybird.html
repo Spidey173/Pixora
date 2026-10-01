@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flappy Bird</title>
+    <style>
+body {
+    font-family: 'Courier New', Courier, monospace;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    background: linear-gradient(135deg, #434343, #000000); /* Dark, cloudy sky gradient */
+    overflow: hidden;
+}
+
+#startScreen, #boardContainer {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+}
+
+#startScreen {
+    background: linear-gradient(135deg, #434343, #000000); /* Matching gradient */
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+h1 {
+    font-size: 5rem;
+    letter-spacing: 0.1em;
+    color: #d4d4d4; /* Light gray for a softer touch */
+    text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.3);
+    margin-bottom: 20px;
+    animation: slideIn 2s ease;
+}
+
+#startButton, #playButton {
+    display: inline-block;
+    margin-top: 20px;
+    padding: 15px 30px;
+    font-size: 1.5rem;
+    color: #fff;
+    background: #555555; /* Dark gray for button */
+    border: none;
+    border-radius: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0px 6px 12px rgba(0, 0, 0, 0.3);
+    width: 220px;
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+}
+
+#startButton:hover, #playButton:hover {
+    background: #777777; /* Lighter gray on hover */
+    transform: scale(1.1);
+}
+
+#startButton:after, #playButton:after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 200%;
+    height: 100%;
+    background: rgba(102, 102, 102, 0.3); /* Gray glow */
+    transform: skewX(-45deg);
+    transition: left 0.3s ease;
+    z-index: -1;
+}
+
+#startButton:hover::after, #playButton:hover::after {
+    left: 100%;
+}
+
+#board {
+    background-image: url("flappybg.webp");
+    background-size: 100% 100%;
+    width: 700px;
+    height: 450px;
+}
+
+#gameOverScreen {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: black; /* Light gray for softer touch */
+    font-size: 2.5em;
+    font-weight: bold;
+    text-align: center;
+    display: none;
+    animation: fadeIn 1.5s ease;
+}
+
+#scoreDisplay {
+    color: black; /* Match with game over text */
+    font-size: 1.8em;
+    margin-top: 10px;
+}
+
+#restartButton {
+    display: none;
+    margin-top: 20px;
+    padding: 10px 20px;
+    font-size: 1.5em;
+    color: #ffffff;
+    background-color: #555555; /* Same as button */
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+#restartButton:hover {
+    background-color: #777777; /* Lighter gray on hover */
+    color: #ffffff;
+}
+
+/* Animation */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes rain {
+    0% {
+        background-position: 0 0;
+    }
+    100% {
+        background-position: -100% 100%;
+    }
+}
+
+body::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: url('raindrop-image-url') repeat; /* Replace 'raindrop-image-url' with your raindrop image URL */
+    animation: rain 3s linear infinite;
+    opacity: 0.3; /* Light opacity for a gentle effect */
+}
+
+    </style>
+
+</head>
+<body>
+    <!-- Start Screen -->
+    <div id="startScreen">
+        <h1>Bird on a Mission, Always!</h1>
+        <button id="startButton" onclick="showPlayButton()">Start Game</button>
+    </div>
+
+    <!-- Game Board Container -->
+    <div id="boardContainer" style="display: none;">
+        <canvas id="board"></canvas>
+        <div id="playButtonContainer">
+            <button id="playButton" onclick="startGame()">Play</button>
+        </div>
+        <div id="gameOverScreen">
+            <div id="gameOverText">GAME OVER</div>
+            <div id="scoreText">Score: <span id="finalScore"></span></div>
+            <button id="restartButton" onclick="restartGame()">Restart</button>
+        </div>
+    </div>
+
+    <audio id="flyingSound" src="flap.mp3" loop></audio>
+    <audio id="deathSound" src="death.mp3"></audio>
+
+    <script>
+        let board;
+        let boardWidth = 700;
+        let boardHeight = 450;
+        let context;
+
+        let birdWidth = 50; 
+        let birdHeight = 35;
+        let birdX = boardWidth / 8;
+        let birdY = boardHeight / 2;
+
+        let birdFrames = [];
+        let currentFrame = 0;
+        let birdFrameDelay = 5;
+        let frameCounter = 0;
+
+        let bird = { x: birdX, y: birdY, width: birdWidth, height: birdHeight };
+        let pipeArray = [];
+        let pipeWidth = 64;
+        let pipeHeight = 256;
+        let pipeX = boardWidth;
+        let pipeY = 0;
+
+        let topPipeImg;
+        let bottomPipeImg;
+
+        let velocityX = -2;
+        let velocityY = 0;
+        let gravity = 0.4;
+
+        let gameOver = false;
+        let score = 0;
+
+        const flyingSound = document.getElementById("flyingSound");
+        const deathSound = document.getElementById("deathSound");
+
+        function showPlayButton() {
+            document.getElementById("startScreen").style.display = "none";
+            document.getElementById("boardContainer").style.display = "flex";
+        }
+
+        function startGame() {
+            document.getElementById("playButtonContainer").style.display = "none";
+            
+            board = document.getElementById("board");
+            board.width = boardWidth;
+            board.height = boardHeight;
+            context = board.getContext("2d");
+
+            for (let i = 1; i <= 4; i++) {
+                let img = new Image();
+                img.src = `flying_frame${i}.webp`;
+                birdFrames.push(img);
+            }
+
+            topPipeImg = new Image();
+            topPipeImg.src = "./toppipe.webp";
+
+            bottomPipeImg = new Image();
+            bottomPipeImg.src = "./bottompipe.webp";
+
+            requestAnimationFrame(update);
+            setInterval(placePipes, 1500);
+            document.addEventListener("keydown", moveBird);
+
+            flyingSound.play();
+        }
+
+        function update() {
+            requestAnimationFrame(update);
+            if (gameOver) return;
+
+            context.clearRect(0, 0, board.width, board.height);
+
+            frameCounter++;
+            if (frameCounter % birdFrameDelay === 0) {
+                currentFrame = (currentFrame + 1) % birdFrames.length;
+                frameCounter = 0;
+            }
+
+            velocityY += gravity;
+            bird.y = Math.max(bird.y + velocityY, 0);
+            context.drawImage(birdFrames[currentFrame], bird.x, bird.y, bird.width, bird.height);
+
+            if (bird.y > board.height) endGame();
+
+            for (let i = 0; i < pipeArray.length; i++) {
+                let pipe = pipeArray[i];
+pipe.x += velocityX;
+context.drawImage(pipe.img, pipe.x, pipe.y, pipe.width, pipe.height);
+
+if (!pipe.passed && bird.x > pipe.x + pipe.width) {
+    score += 0.5;
+    pipe.passed = true;
+}
+
+if (detectCollision(bird, pipe)) endGame();
+}
+
+while (pipeArray.length > 0 && pipeArray[0].x < -pipeWidth) {
+pipeArray.shift();
+}
+
+context.fillStyle = "white";
+context.font = "45px sans-serif";
+context.fillText(score, 5, 45);
+}
+
+function placePipes() {
+if (gameOver) return;
+
+let randomPipeY = pipeY - pipeHeight / 4 - Math.random() * (pipeHeight / 2);
+let openingSpace = board.height / 3;
+
+let topPipe = { img: topPipeImg, x: pipeX, y: randomPipeY, width: pipeWidth, height: pipeHeight, passed: false };
+pipeArray.push(topPipe);
+
+let bottomPipe = { img: bottomPipeImg, x: pipeX, y: randomPipeY + pipeHeight + openingSpace, width: pipeWidth, height: pipeHeight, passed: false };
+pipeArray.push(bottomPipe);
+}
+
+function moveBird(e) {
+if (e.code === "Space" || e.code === "ArrowUp" || e.code === "KeyX") {
+velocityY = -6;
+
+if (gameOver) restartGame();
+}
+}
+
+function detectCollision(a, b) {
+return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+}
+
+function endGame() {
+flyingSound.pause();
+flyingSound.currentTime = 0;
+deathSound.play();
+
+gameOver = true;
+document.getElementById("gameOverScreen").style.display = "block";
+document.getElementById("finalScore").innerText = score;
+setTimeout(() => {
+document.getElementById("restartButton").style.display = "block";
+}, 2000);
+}
+
+function restartGame() {
+bird.y = birdY;
+pipeArray = [];
+score = 0;
+velocityY = 0;
+gameOver = false;
+deathSound.pause();
+deathSound.currentTime = 0;
+flyingSound.play();
+document.getElementById("gameOverScreen").style.display = "none";
+document.getElementById("restartButton").style.display = "none";
+}
+</script>
+</body>
+</html>

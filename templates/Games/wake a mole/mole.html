@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wake the Mole!</title>
+    <style>
+        /* Updated CSS */
+         /* Updated CSS */
+         body {
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+            background-color: #8B4513; /* Brown background */
+            background-size: cover;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+        }
+        .start-container {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .game-title {
+            font-size: 4rem;
+            color: #ff4500;
+            text-transform: uppercase;
+            font-weight: bolder;
+            text-shadow: 3px 3px 8px #000;
+            margin-bottom: 20px;
+            animation: float 2s ease-in-out infinite, textShine 3s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @keyframes textShine {
+            0% { color: #ff4500; }
+            50% { color: #ffd700; }
+            100% { color: #ff4500; }
+        }
+        
+        .subtitle {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 30px;
+            color: #ffd700;
+            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);
+            animation: zoomIn 1s ease forwards;
+        }
+        
+        @keyframes zoomIn {
+            0% { transform: scale(0); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        .start-btn {
+            padding: 15px 30px;
+            font-size: 1.5rem;
+            background-color: #d35400;
+            color: #fff;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+            transition: transform 0.3s, background-color 0.3s ease;
+            animation: heartbeat 1.5s infinite;
+        }
+        
+        @keyframes heartbeat {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        .start-btn:hover {
+            background-color: #e74c3c;
+            transform: scale(1.2);
+        }
+        
+        .start-btn:active {
+            transform: scale(0.9);
+        }
+    </style>
+</head>
+<body>
+    <div class="start-container">
+        <h1 class="game-title">Mole Invasion: Whack Back!</h1>
+        <p class="subtitle">Get ready for some mole-smashing action!</p>
+        <button class="start-btn" onclick="startGame()">Start Game</button>
+    </div>
+
+    <script>
+        function startGame() {
+            window.location.href = '{{ url_for('mole2nd') }}';
+        }
+    </script>
+</body>
+</html>

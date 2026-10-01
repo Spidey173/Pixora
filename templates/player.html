@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ game.title }} | Pixora Play</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/cyberpunk.css') if false else '' }}">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-dark: #0a0c14;
+            --panel-bg: rgba(18, 22, 36, 0.85);
+            --neon-cyan: #00f2fe;
+            --neon-purple: #7928ca;
+            --neon-pink: #ff007f;
+            --text-main: #f0f4fc;
+            --text-dim: #7f8fa6;
+            --border-glow: rgba(0, 242, 254, 0.25);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Rajdhani', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* Top Nav */
+        header.platform-bar {
+            height: 60px;
+            background: rgba(10, 12, 20, 0.95);
+            border-bottom: 1px solid var(--border-glow);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+        }
+
+        .logo-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: var(--text-main);
+        }
+
+        .logo-group h1 {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.3rem;
+            letter-spacing: 2px;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-pink));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .back-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-glow);
+            color: var(--text-main);
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .back-btn:hover {
+            background: var(--neon-cyan);
+            color: #000;
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.4);
+        }
+
+        /* Theater Workspace (Full-Width Edge-to-Edge) */
+        main.theater-layout {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 20px;
+            padding: 18px 24px;
+            width: 100%;
+            max-width: 100%;
+            margin: 0;
+        }
+
+        @media (max-width: 1080px) {
+            main.theater-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Game Stage Screen */
+        .stage-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .screen-wrapper {
+            position: relative;
+            width: 100%;
+            height: calc(100vh - 180px);
+            min-height: 520px;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 242, 254, 0.15);
+            border: 1px solid rgba(0, 242, 254, 0.3);
+        }
+
+        .screen-wrapper iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+        }
+
+        /* Screen Controls Bar */
+        .stage-toolbar {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-glow);
+            border-radius: 10px;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .game-meta-summary h2 {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.4rem;
+            color: #fff;
+        }
+
+        .game-meta-summary .badge {
+            background: rgba(0, 242, 254, 0.15);
+            color: var(--neon-cyan);
+            font-size: 0.75rem;
+            padding: 3px 8px;
+            border-radius: 4px;
+            margin-left: 8px;
+            text-transform: uppercase;
+        }
+
+        .tool-buttons {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .tool-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-main);
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tool-btn:hover {
+            border-color: var(--neon-cyan);
+            color: var(--neon-cyan);
+            transform: translateY(-2px);
+        }
+
+        /* Sidebar Panels */
+        .theater-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .panel-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-glow);
+            border-radius: 12px;
+            padding: 18px;
+            backdrop-filter: blur(8px);
+        }
+
+        .panel-title {
+            font-family: 'Orbitron', monospace;
+            font-size: 1rem;
+            letter-spacing: 1px;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--neon-cyan);
+        }
+
+        /* Leaderboard list */
+        .leaderboard-items {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .leaderboard-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 6px;
+            font-size: 0.95rem;
+        }
+
+        .leaderboard-row.top-1 {
+            background: rgba(255, 215, 0, 0.1);
+            border-left: 3px solid #ffd700;
+        }
+
+        .score-val {
+            font-family: 'Orbitron', monospace;
+            font-weight: 700;
+            color: var(--neon-cyan);
+        }
+
+        /* High-Score Telemetry Matrix */
+        .records-matrix-strip {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .record-stat-box {
+            background: rgba(10, 12, 20, 0.85);
+            border-radius: 8px;
+            padding: 10px 12px;
+            border: 1px solid var(--border-glow);
+        }
+
+        .record-stat-box.personal-box {
+            border-color: rgba(0, 242, 254, 0.4);
+            background: radial-gradient(circle at 10% 10%, rgba(0, 242, 254, 0.12), transparent 70%), rgba(10, 12, 20, 0.9);
+        }
+
+        .record-stat-box.world-box {
+            border-color: rgba(255, 215, 0, 0.4);
+            background: radial-gradient(circle at 10% 10%, rgba(255, 215, 0, 0.12), transparent 70%), rgba(10, 12, 20, 0.9);
+        }
+
+        .rec-label {
+            font-family: 'Orbitron', monospace;
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .rec-value {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: var(--neon-cyan);
+            line-height: 1.1;
+        }
+
+        .world-box .rec-value {
+            color: #ffd700;
+        }
+
+        .rec-rank, .rec-pilot {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.82rem;
+            color: var(--text-dim);
+            margin-top: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Toast notifications */
+        #sdk-toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: rgba(18, 22, 36, 0.95);
+            border: 1px solid var(--neon-cyan);
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 242, 254, 0.3);
+            display: none;
+            z-index: 1000;
+            font-family: 'Orbitron', monospace;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Platform Navigation -->
+    <header class="platform-bar">
+        <a href="{{ url_for('main.games') }}" class="logo-group">
+            <i class="fa-solid fa-gamepad" style="color: var(--neon-cyan); font-size: 1.4rem;"></i>
+            <h1>PIXORA</h1>
+        </a>
+
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <span style="color: var(--text-dim); font-size: 0.9rem;">
+                Pilot: <strong style="color: var(--neon-cyan);">{{ current_user.username if current_user.is_authenticated else 'Guest' }}</strong>
+            </span>
+            <a href="{{ url_for('main.games') }}" class="back-btn">
+                <i class="fa-solid fa-arrow-left"></i> Arcade Lobby
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Theater Workspace -->
+    <main class="theater-layout">
+        <!-- Center Stage -->
+        <section class="stage-container">
+            <div class="screen-wrapper" id="screenWrapper">
+                <iframe 
+                    id="gameFrame" 
+                    src="{{ game.play_url }}" 
+                    allow="autoplay; fullscreen; keyboard; gamepad" 
+                    sandbox="allow-scripts allow-same-origin allow-pointer-lock allow-forms">
+                </iframe>
+            </div>
+
+            <div class="stage-toolbar">
+                <div class="game-meta-summary">
+                    <h2>{{ game.title }} <span class="badge">{{ game.category }}</span></h2>
+                    <p style="color: var(--text-dim); font-size: 0.9rem; margin-top: 4px;">{{ game.description or 'Ready for immediate simulation run.' }}</p>
+                </div>
+
+                <div class="tool-buttons">
+                    <button class="tool-btn" id="reloadBtn" title="Restart Game"><i class="fa-solid fa-rotate-right"></i></button>
+                    <button class="tool-btn" id="fullscreenBtn" title="Fullscreen Theater Mode"><i class="fa-solid fa-expand"></i></button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Side Telemetry & Leaderboard -->
+        <aside class="theater-sidebar">
+            <!-- Controls Guide -->
+            <div class="panel-card">
+                <div class="panel-title"><i class="fa-solid fa-keyboard"></i> Flight Controls</div>
+                <p style="color: var(--text-dim); line-height: 1.5; font-size: 0.95rem;">
+                    {{ game.controls_guide or 'Use Arrow Keys / WASD for movement. Spacebar to trigger primary action.' }}
+                </p>
+            </div>
+
+            <!-- Live High Scores & Player Telemetry Matrix -->
+            <div class="panel-card">
+                <div class="panel-title"><i class="fa-solid fa-trophy"></i> Hall of Fame</div>
+
+                <!-- High Score Records Matrix Strip -->
+                <div class="records-matrix-strip">
+                    <div class="record-stat-box personal-box">
+                        <div class="rec-label">// PERSONAL BEST</div>
+                        <div class="rec-value" id="userPbScore">--</div>
+                        <div class="rec-rank" id="userRankBadge">Unranked</div>
+                    </div>
+                    <div class="record-stat-box world-box">
+                        <div class="rec-label">// WORLD RECORD</div>
+                        <div class="rec-value" id="worldRecordScore">--</div>
+                        <div class="rec-pilot" id="worldRecordPilot">By: --</div>
+                    </div>
+                </div>
+
+                <div style="font-family: 'Orbitron', monospace; font-size: 0.72rem; color: var(--text-dim); letter-spacing: 1px; margin: 16px 0 8px; text-transform: uppercase;">
+                    Top Pilots Leaderboard
+                </div>
+                <ul class="leaderboard-items" id="leaderboardList">
+                    <li class="leaderboard-row"><span style="color: var(--text-dim);">Connecting telemetry...</span></li>
+                </ul>
+            </div>
+        </aside>
+    </main>
+
+    <div id="sdk-toast"></div>
+
+    <script>
+        const GAME_SLUG = {{ game.slug|tojson }};
+        const GAME_TITLE = {{ game.title|tojson }};
+        const CURRENT_USER = {{ (current_user.username if current_user.is_authenticated else 'Guest')|tojson }};
+        const CURRENT_USER_ID = {{ (current_user.id if current_user.is_authenticated else None)|tojson }};
+
+        let currentUserPb = null;
+        let currentWorldRecord = null;
+
+        // UI Elements
+        const gameFrame = document.getElementById('gameFrame');
+        const screenWrapper = document.getElementById('screenWrapper');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const reloadBtn = document.getElementById('reloadBtn');
+        const toast = document.getElementById('sdk-toast');
+        const leaderboardList = document.getElementById('leaderboardList');
+
+        function showToast(msg) {
+            toast.innerText = msg;
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, 3400);
+        }
+
+        // Fullscreen Toggle
+        fullscreenBtn.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                screenWrapper.requestFullscreen().catch(err => alert(err.message));
+            } else {
+                document.exitFullscreen();
+            }
+        });
+
+        // Restart Game
+        reloadBtn.addEventListener('click', () => {
+            gameFrame.src = gameFrame.src;
+            showToast('Game reloaded');
+            setTimeout(focusGame, 300);
+        });
+
+        // Auto-focus Game Iframe for instant Flight Controls response
+        function focusGame() {
+            try {
+                if (gameFrame && gameFrame.contentWindow) {
+                    gameFrame.contentWindow.focus();
+                }
+            } catch (e) {}
+        }
+        window.addEventListener('load', () => {
+            setTimeout(focusGame, 300);
+            setTimeout(focusGame, 1000);
+        });
+        screenWrapper.addEventListener('click', focusGame);
+
+        // Universal Game Bridge: Auto-inject SDK & monkey-patch score submission into same-origin game iframes
+        // Supports ALL 17 games with automatic score detection and submission
+        let _bridgeScoreSubmitted = false; // Prevent duplicate submissions per game session
+
+        function _submitScoreFromBridge(scoreVal) {
+            const num = Math.floor(Number(scoreVal));
+            if (isNaN(num) || num < 0 || _bridgeScoreSubmitted) return;
+            _bridgeScoreSubmitted = true;
+            console.log(`[Pixora Bridge] Auto-submitting score: ${num} for "${GAME_TITLE}"`);
+            window.postMessage({
+                source: 'PIXORA_GAME_CLIENT',
+                type: 'PIXORA_SUBMIT_SCORE',
+                payload: { game: GAME_TITLE, score: num, timestamp: Date.now() }
+            }, '*');
+            // Reset after 3 seconds to allow re-play score submission
+            setTimeout(() => { _bridgeScoreSubmitted = false; }, 3000);
+        }
+
+        function setupGameFrameBridge() {
+            try {
+                const doc = gameFrame.contentDocument || (gameFrame.contentWindow && gameFrame.contentWindow.document);
+                const win = gameFrame.contentWindow;
+                if (!win || !doc) return;
+
+                // 1. Expose Pixora and Glitch4ce SDK in the iframe window
+                const bridgeSDK = {
+                    init: function() {
+                        win.parent.postMessage({
+                            source: 'PIXORA_GAME_CLIENT',
+                            type: 'PIXORA_HANDSHAKE',
+                            payload: { gameId: GAME_SLUG, version: '2.0.0' }
+                        }, '*');
+                    },
+                    gameplayStart: function() {
+                        win.parent.postMessage({
+                            source: 'PIXORA_GAME_CLIENT',
+                            type: 'PIXORA_GAMEPLAY_START',
+                            payload: { game: GAME_TITLE, timestamp: Date.now() }
+                        }, '*');
+                    },
+                    gameplayStop: function() {
+                        win.parent.postMessage({
+                            source: 'PIXORA_GAME_CLIENT',
+                            type: 'PIXORA_GAMEPLAY_STOP',
+                            payload: { game: GAME_TITLE, timestamp: Date.now() }
+                        }, '*');
+                    },
+                    submitScore: function(val) {
+                        _submitScoreFromBridge(val);
+                    }
+                };
+
+                win.Pixora = win.Pixora || bridgeSDK;
+                win.Glitch4ce = win.Glitch4ce || bridgeSDK;
+
+                // 2. Intercept any direct fetch('/api/score...') inside the iframe
+                // For games that already have their own fetch submission (2048, Flappy, Pong Easy, MemoryMatch Easy),
+                // just let the original fetch go through – don't double-submit via bridge
+                if (win.fetch && !win._pixoraFetchHooked) {
+                    const originalFetch = win.fetch.bind(win);
+                    win.fetch = async function(...args) {
+                        try {
+                            const url = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url ? args[0].url : '');
+                            if (url.includes('/api/score')) {
+                                // Mark as submitted so bridge doesn't double-submit
+                                _bridgeScoreSubmitted = true;
+                                setTimeout(() => { _bridgeScoreSubmitted = false; }, 3000);
+                            }
+                        } catch (e) {}
+                        return originalFetch(...args);
+                    };
+                    win._pixoraFetchHooked = true;
+                }
+
+                // 3. Universal Score Monkey-Patching for ALL 16 same-origin games
+                // Each game type gets its end function wrapped to auto-submit scores
+                if (!win._pixoraScoreBridged) {
+                    win._pixoraScoreBridged = true;
+                    const slug = GAME_SLUG;
+
+                    // --- CANDY CRUSH: endGame() uses window.score ---
+                    if (slug === 'candy-crush') {
+                        const origEndGame = win.endGame;
+                        if (typeof origEndGame === 'function') {
+                            win.endGame = function() {
+                                origEndGame.apply(this, arguments);
+                                const s = win.score || 0;
+                                if (s > 0) _submitScoreFromBridge(s);
+                            };
+                        }
+                    }
+
+                    // --- SPEEDTYPE PRO: endGame() computes netWpm ---
+                    if (slug === 'speedtype') {
+                        const origEndGame = win.endGame;
+                        if (typeof origEndGame === 'function') {
+                            win.endGame = function(failReason) {
+                                origEndGame.apply(this, arguments);
+                                // Read netWpm from the results UI
+                                setTimeout(() => {
+                                    try {
+                                        const wpmEl = doc.getElementById('resWpm');
+                                        const wpm = wpmEl ? parseInt(wpmEl.textContent, 10) : 0;
+                                        if (wpm > 0) _submitScoreFromBridge(wpm);
+                                    } catch(e) {}
+                                }, 100);
+                            };
+                        }
+                    }
+
+                    // --- MOLE (all difficulties): showResult() uses window.score ---
+                    if (slug === 'mole') {
+                        const origShowResult = win.showResult;
+                        if (typeof origShowResult === 'function') {
+                            win.showResult = function() {
+                                origShowResult.apply(this, arguments);
+                                const s = win.score || 0;
+                                if (s > 0) _submitScoreFromBridge(s);
+                            };
+                        }
+                    }
+
+                    // --- PONG (all difficulties including football): showResult(winner) uses player1.score ---
+                    if (slug === 'pong') {
+                        const origShowResult = win.showResult;
+                        if (typeof origShowResult === 'function') {
+                            win.showResult = function(winner) {
+                                origShowResult.apply(this, arguments);
+                                try {
+                                    const p1 = win.player1 ? win.player1.score : 0;
+                                    const p2 = win.player2 ? win.player2.score : 0;
+                                    const maxScore = Math.max(p1, p2) * 100;
+                                    if (maxScore > 0) _submitScoreFromBridge(maxScore);
+                                } catch(e) {}
+                            };
+                        }
+                    }
+
+                    // --- MEMORY MATCH (all difficulties): gameOver() uses moves/time ---
+                    if (slug === 'memorymatch') {
+                        const origGameOver = win.gameOver;
+                        if (typeof origGameOver === 'function') {
+                            win.gameOver = function() {
+                                origGameOver.apply(this, arguments);
+                                try {
+                                    const m = win.moves || 0;
+                                    const t = win.time || 0;
+                                    const finalScore = Math.max(10, 1000 - (m * 15) - (t * 5));
+                                    _submitScoreFromBridge(finalScore);
+                                } catch(e) {}
+                            };
+                        }
+                    }
+
+                    // --- QUIZ (all categories): showFinalScore() uses correctAnswers ---
+                    if (slug === 'quiz') {
+                        const origShowFinal = win.showFinalScore;
+                        if (typeof origShowFinal === 'function') {
+                            win.showFinalScore = function() {
+                                origShowFinal.apply(this, arguments);
+                                const correct = win.correctAnswers || 0;
+                                // Score = correct answers * 100 for meaningful leaderboard values
+                                if (correct > 0) _submitScoreFromBridge(correct * 100);
+                            };
+                        }
+                    }
+
+                    // --- TRICKY: showFinalResult() uses window.score ---
+                    if (slug === 'tricky') {
+                        const origShowFinal = win.showFinalResult;
+                        if (typeof origShowFinal === 'function') {
+                            win.showFinalResult = function() {
+                                origShowFinal.apply(this, arguments);
+                                const s = win.score || 0;
+                                if (s > 0) _submitScoreFromBridge(s);
+                            };
+                        }
+                    }
+
+                    // --- RELATIONSHIP (easy/hard): showFinalResult() uses window.score ---
+                    if (slug === 'relationship') {
+                        const origShowFinal = win.showFinalResult;
+                        if (typeof origShowFinal === 'function') {
+                            win.showFinalResult = function() {
+                                origShowFinal.apply(this, arguments);
+                                const s = win.score || 0;
+                                if (s > 0) _submitScoreFromBridge(s);
+                            };
+                        }
+                    }
+
+                    // --- SEQUENCE: showFinalResult() uses window.score ---
+                    if (slug === 'sequence') {
+                        const origShowFinal = win.showFinalResult;
+                        if (typeof origShowFinal === 'function') {
+                            win.showFinalResult = function() {
+                                origShowFinal.apply(this, arguments);
+                                const s = win.score || 0;
+                                if (s > 0) _submitScoreFromBridge(s);
+                            };
+                        }
+                    }
+
+                    // --- TICTACTOE: Monitor resultDisplay for "X wins!" ---
+                    if (slug === 'tictactoe') {
+                        const resultEl = doc.getElementById('result');
+                        if (resultEl) {
+                            const observer = new MutationObserver(() => {
+                                const text = resultEl.textContent.trim().toLowerCase();
+                                if (text.includes('x wins')) {
+                                    // Player (X) won against AI - award 100 points
+                                    _submitScoreFromBridge(100);
+                                } else if (text.includes('draw')) {
+                                    // Draw - award 50 points
+                                    _submitScoreFromBridge(50);
+                                }
+                                // AI wins = no score submission (0 points)
+                            });
+                            observer.observe(resultEl, { childList: true, characterData: true, subtree: true });
+                        }
+                    }
+
+                    // --- TOWERBLOCK: Monitor #score element and CSS class "ended" on #container ---
+                    if (slug === 'towerblock') {
+                        const container = doc.getElementById('container');
+                        if (container) {
+                            const observer = new MutationObserver(() => {
+                                if (container.classList.contains('ended')) {
+                                    const scoreEl = doc.getElementById('score');
+                                    const s = scoreEl ? parseInt(scoreEl.textContent, 10) : 0;
+                                    if (s > 0) _submitScoreFromBridge(s);
+                                }
+                            });
+                            observer.observe(container, { attributes: true, attributeFilter: ['class'] });
+                        }
+                    }
+
+                    // --- MAZE (all difficulties): Monitor congratsBox visibility ---
+                    if (slug === 'maze') {
+                        // Poll for congratsBox appearing (maze completion)
+                        let mazeCheckInterval = setInterval(() => {
+                            try {
+                                const congratsBox = doc.getElementById('congratsBox') ||
+                                                    doc.querySelector('.congrats-box') ||
+                                                    doc.querySelector('[id*="congrats"]');
+                                if (congratsBox && congratsBox.style.display === 'block') {
+                                    const timeEl = doc.getElementById('timeTaken');
+                                    const timeTaken = timeEl ? parseFloat(timeEl.textContent) : 999;
+                                    // Score = inverse of time (faster = higher score)
+                                    const mazeScore = Math.max(10, Math.round(10000 / Math.max(1, timeTaken)));
+                                    _submitScoreFromBridge(mazeScore);
+                                    clearInterval(mazeCheckInterval);
+                                }
+                            } catch(e) {}
+                        }, 1000);
+                        // Safety: stop checking after 30 minutes
+                        setTimeout(() => clearInterval(mazeCheckInterval), 1800000);
+                    }
+
+                    // --- CROSSWORD: Monitor for successful completion ---
+                    if (slug === 'crossword') {
+                        const origCheck = win.checkCompletion;
+                        if (typeof origCheck === 'function') {
+                            win.checkCompletion = function() {
+                                origCheck.apply(this, arguments);
+                                try {
+                                    const statusEl = doc.querySelector('[id*="status"]') ||
+                                                     doc.querySelector('.status-message');
+                                    if (statusEl && statusEl.textContent.toLowerCase().includes('fantastic')) {
+                                        // Completed correctly - award 100 points
+                                        _submitScoreFromBridge(100);
+                                    }
+                                } catch(e) {}
+                            };
+                        }
+                    }
+
+                    // --- STONE PAPER SCISSORS: Track playerPoints in DOM ---
+                    if (slug === 'stonepapersissors') {
+                        // Track player wins and submit whenever they accumulate new wins
+                        let lastSubmittedSPS = 0;
+                        setInterval(() => {
+                            try {
+                                const pEl = doc.querySelector('.playerPoints');
+                                if (pEl) {
+                                    const pts = parseInt(pEl.textContent, 10);
+                                    if (pts > 0 && pts > lastSubmittedSPS) {
+                                        lastSubmittedSPS = pts;
+                                        // Submit each time a new milestone is reached
+                                        _submitScoreFromBridge(pts * 100);
+                                    }
+                                }
+                            } catch(e) {}
+                        }, 3000);
+                    }
+                }
+
+                // Focus game
+                focusGame();
+            } catch (err) {
+                // Cross-origin iframe (e.g. Neon Cyber Racer on Cloudflare R2 has its own embedded SDK)
+                focusGame();
+            }
+        }
+
+        gameFrame.addEventListener('load', () => {
+            // Delay bridge setup to ensure all game JS has executed and functions are available
+            setTimeout(setupGameFrameBridge, 600);
+            setTimeout(setupGameFrameBridge, 1500);
+        });
+
+        // Auto-Start Gameplay Session for EVERY game
+        fetch(`/start_game/${encodeURIComponent(GAME_TITLE)}`, { method: 'POST' }).catch(() => {});
+
+        // Auto-Record Session Duration on Exit
+        window.addEventListener('beforeunload', () => {
+            try {
+                navigator.sendBeacon(`/end_game/${encodeURIComponent(GAME_TITLE)}`);
+            } catch (e) {}
+        });
+
+        // Fetch Hall of Fame / Leaderboard
+        async function refreshLeaderboard() {
+            try {
+                const res = await fetch(`/api/leaderboard/${encodeURIComponent(GAME_TITLE)}`);
+                const data = await res.json();
+
+                // Update Personal Best Matrix Card
+                const pbElem = document.getElementById('userPbScore');
+                const rankElem = document.getElementById('userRankBadge');
+                if (data.user_best !== null && data.user_best !== undefined) {
+                    currentUserPb = data.user_best;
+                    pbElem.innerText = data.user_best.toLocaleString();
+                    rankElem.innerText = `Rank: #${data.user_rank || 1}`;
+                    rankElem.style.color = 'var(--neon-cyan)';
+                } else {
+                    currentUserPb = null;
+                    pbElem.innerText = '--';
+                    rankElem.innerText = 'Unranked';
+                    rankElem.style.color = 'var(--text-dim)';
+                }
+
+                // Update All-Time World Record Matrix Card
+                const wrElem = document.getElementById('worldRecordScore');
+                const wrPilot = document.getElementById('worldRecordPilot');
+                if (data.world_record) {
+                    currentWorldRecord = data.world_record.score;
+                    wrElem.innerText = data.world_record.score.toLocaleString();
+                    wrPilot.innerText = `By: ${data.world_record.username}`;
+                } else {
+                    currentWorldRecord = null;
+                    wrElem.innerText = '--';
+                    wrPilot.innerText = 'No record yet';
+                }
+
+                // Render Top Leaderboard List
+                leaderboardList.innerHTML = '';
+                if (!data.leaderboard || data.leaderboard.length === 0) {
+                    leaderboardList.innerHTML = '<li class="leaderboard-row"><span style="color: var(--text-dim);">No scores recorded yet. Be the first!</span></li>';
+                    return;
+                }
+
+                data.leaderboard.forEach((item, idx) => {
+                    const row = document.createElement('li');
+                    const isCurrentUser = (item.username === CURRENT_USER);
+                    row.className = `leaderboard-row ${idx === 0 ? 'top-1' : ''}`;
+                    if (isCurrentUser) {
+                        row.style.border = '1px solid rgba(0, 242, 254, 0.4)';
+                        row.style.background = 'rgba(0, 242, 254, 0.08)';
+                    }
+                    const rankMedal = idx === 0 ? '🥇' : (idx === 1 ? '🥈' : (idx === 2 ? '🥉' : `#${idx + 1}`));
+                    row.innerHTML = `
+                        <span><strong>${rankMedal}</strong> ${item.username} ${isCurrentUser ? '<span style="color: var(--neon-cyan); font-size: 0.72rem; font-weight: 700;">(YOU)</span>' : ''}</span>
+                        <span class="score-val">${item.score.toLocaleString()}</span>
+                    `;
+                    leaderboardList.appendChild(row);
+                });
+            } catch (e) {
+                console.error('Failed to load leaderboard', e);
+            }
+        }
+        refreshLeaderboard();
+        // Periodic telemetry poll
+        setInterval(refreshLeaderboard, 12000);
+
+
+
+        // Platform Shell Message Receiver (Pixora SDK Protocol)
+        window.addEventListener('message', async (event) => {
+            const data = event.data;
+            if (!data || (data.source !== 'PIXORA_GAME_CLIENT' && data.source !== 'GLITCH4CE_GAME_CLIENT')) return;
+
+            switch(data.type) {
+                case 'PIXORA_HANDSHAKE':
+                case 'GLITCH4CE_HANDSHAKE':
+                    try {
+                        gameFrame.contentWindow.postMessage({
+                            source: 'PIXORA_PLATFORM_SHELL',
+                            type: 'PIXORA_HANDSHAKE_ACK',
+                            payload: {
+                                player: { username: CURRENT_USER, id: CURRENT_USER_ID },
+                                sessionToken: 'pixora_live_token'
+                            }
+                        }, '*');
+                    } catch (e) {}
+                    break;
+
+                case 'PIXORA_SUBMIT_SCORE':
+                case 'GLITCH4CE_SUBMIT_SCORE':
+                    const score = data.payload.score;
+                    try {
+                        const response = await fetch('/api/scores', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                game_name: GAME_TITLE,
+                                score: score
+                            })
+                        });
+                        if (response.ok) {
+                            if (currentWorldRecord !== null && score > currentWorldRecord) {
+                                showToast(`👑 NEW WORLD RECORD! Flight Distance: ${score.toLocaleString()} KM!`);
+                            } else if (currentUserPb !== null && score > currentUserPb) {
+                                showToast(`🔥 NEW PERSONAL BEST! Flight Distance: ${score.toLocaleString()} KM!`);
+                            } else {
+                                showToast(`🏆 Flight Score ${score.toLocaleString()} recorded to Hall of Fame!`);
+                            }
+                            refreshLeaderboard();
+                        }
+                    } catch (err) {
+                        console.error('Score submission error:', err);
+                    }
+                    break;
+
+                case 'PIXORA_GAMEPLAY_START':
+                case 'GLITCH4CE_GAMEPLAY_START':
+                    fetch(`/start_game/${encodeURIComponent(GAME_TITLE)}`, { method: 'POST' }).catch(() => {});
+                    break;
+
+                case 'PIXORA_GAMEPLAY_STOP':
+                case 'GLITCH4CE_GAMEPLAY_STOP':
+                    fetch(`/end_game/${encodeURIComponent(GAME_TITLE)}`, { method: 'POST' }).catch(() => {});
+                    break;
+            }
+        });
+    </script>
+</body>
+</html>

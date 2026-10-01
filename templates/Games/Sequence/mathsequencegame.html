@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guess the Sequence</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: radial-gradient(circle, #6a11cb, #2575fc);
+            color: #fff;
+            overflow: hidden;
+        }
+
+        .game-container {
+            text-align: center;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 15px;
+            box-shadow: 0px 10px 20px rgba(0, 0, 0, 0.5);
+            padding: 30px;
+            width: 90%;
+            max-width: 800px;
+            position: relative;
+        }
+
+        .timer {
+            font-size: 1.2rem;
+            font-weight: bold;
+            background: #4caf50;
+            padding: 10px 20px;
+            border-radius: 8px;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+
+        .question {
+            font-size: 1.8rem;
+            margin-top: 60px;
+            margin-bottom: 30px;
+        }
+
+        .options {
+            display: flex;
+            justify-content: space-around;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .option {
+            padding: 15px 20px;
+            font-size: 1.3rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background: #4e54c8;
+            color: white;
+            transition: transform 0.3s ease, background 0.3s ease;
+        }
+
+        .option:hover {
+            transform: scale(1.05);
+            background: #8e2de2;
+        }
+        .result {
+            font-size: 1.5rem;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .result.correct {
+            color: #4caf50;
+            font-size: 2rem;
+        }
+
+        .result.wrong {
+            color: #f44336;
+            font-size: 2rem;
+
+        }
+
+        .result-box {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(145deg, #6a11cb, #2575fc); /* Purple gradient */
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.6), 0 0 50px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            color: white;
+            opacity: 0;
+            animation: popIn 0.6s ease forwards;
+            width: 80%;
+            max-width: 500px;
+            animation-delay: 0.5s;
+        }
+        
+        @keyframes popIn {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.6);
+            }
+            100% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+        
+        .result-box h1 {
+            font-size: 2.2rem;
+            margin-bottom: 15px; /* Reduced margin to make it closer to text */
+            font-weight: bold;
+            text-transform: uppercase;
+            color: #fff;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.8), 0 0 20px rgba(255, 255, 255, 0.6);
+        }
+        
+        .result-box p {
+            font-size: 1.5rem;
+            margin-bottom: 40px; /* Increased margin to create space between text and button */
+            color: #f5f5f5;
+            font-weight: 600;
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 0, 0, 0.4);
+        }
+        
+        .restart-button {
+            padding: 15px 30px;
+            font-size: 1.4rem;
+            cursor: pointer;
+            background: linear-gradient(145deg, #ff4081, #f50057); /* Pink gradient for button */
+            border: none;
+            border-radius: 50px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: absolute;
+            left: 50%;
+            bottom: 15px;
+            transform: translateX(-50%);
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.6);
+            outline: none;
+            margin-top: 20px; /* Adds space between the button and the text above */
+        }
+        
+        .restart-button:hover {
+            background: linear-gradient(145deg, #ff80ab, #f50057); /* Lighter pink hover effect */
+            transform: translateX(-50%) scale(1.1);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+        }
+        
+        .restart-button:focus {
+            outline: none;
+        }
+        
+        
+        @keyframes slideLeft {
+            0% {
+                left: 50%;
+            }
+            100% {
+                left: 10%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="timer" id="timer">60</div>
+        <div class="question" id="question">What is the next number in the sequence: 2, 4, 6, ?</div>
+        <div class="options" id="options">
+            <button class="option" onclick="checkAnswer('A')">A. 8</button>
+            <button class="option" onclick="checkAnswer('B')">B. 10</button>
+            <button class="option" onclick="checkAnswer('C')">C. 12</button>
+            <button class="option" onclick="checkAnswer('D')">D. 14</button>
+        </div>
+        <div class="result" id="result"></div>
+        <div class="next-message" id="nextMessage" style="display: none;">Next question loading...</div>
+    </div>
+
+    <!-- Result Box -->
+    <div class="result-box" id="resultBox">
+        <h1 id="resultComment"></h1>
+        <p id="finalScore"></p>
+        <button class="restart-button" id="restartButton" onclick="restartGame()">Restart</button>
+    </div>
+
+    <script>
+        const questions = [
+            { text: 'What is the next number in the sequence: 2, 4, 6, 8, __?', correct: 'B', options: ['9', '10', '12', '14'] },
+            { text: 'What is the next number in the sequence: 1, 3, 5, 7, __?, ?', correct: 'C', options: ['11', '8', '9', '10'] },
+            { text: 'What is the next number in the sequence: 1, 4, 7, 10, __?', correct: 'A', options: ['13', '12', '11', '14'] },
+            { text: 'What is the next number in the sequence: 5, 10, 15, 20, __?', correct: 'A', options: ['25', '30', '26', '28'] },
+            { text: 'What is the next number in the sequence: 3, 6, 9, 12, __?', correct: 'B', options: ['18', '15', '16', '20'] },
+            { text: 'What is the next number in the sequence: 12, 23, 34, 45, 56, __?', correct: 'B', options: ['68', '67', '66', '65'] },
+            { text: 'What is the next number in the sequence: 2, 6, 12, 20, __?', correct: 'C', options: ['24', '36', '30', '28'] },
+            { text: 'What is the next number in the sequence: 5, 10, 20, 40, __?', correct: 'A', options: ['80', '60', '65', '70'] },
+            { text: 'What is the next number in the sequence: 3, 8, 15, 24, __?', correct: 'D', options: ['36', '34', '33', '35'] },
+            { text: 'What is the next number in the sequence: 3, 7, 13, 21, __?', correct: 'B', options: ['28', '31', '30', '29'] },
+            { text: 'What is the next number in the sequence: 2, 6, 12, 20, 30, ?', correct: 'C', options: ['40', '44', '42', '45'] },
+            { text: 'What is the next number in the sequence: 10, 21, 34, 49, __?', correct: 'D', options: ['67', '64', '65', '66'] },
+            { text: 'What is the next number in the sequence: 3, 6, 18, 72, __?', correct: 'A', options: ['360', '144', '216', '300'] },
+            { text: 'What is the next number in the sequence: 1, 4, 9, 16, 25, __?', correct: 'C', options: ['35', '34', '36', '37'] },
+            { text: 'What is the next number in the sequence: 2, 3, 5, 7, 11, 13, __?', correct: 'C', options: ['15', '16', '17', '18'] },
+            { text: 'What is the next number in the sequence: 1, 3, 6, 10, 15, __?', correct: 'B', options: ['22', '21', '23', '24'] },
+            { text: 'What is the next number in the sequence: 11, 23, 39, 59, __?', correct: 'A', options: ['83', '81', '79', '85'] },
+            { text: 'What is the next number in the sequence: 1, 2, 6, 24, 120, __?', correct: 'D', options: ['480', '240', '360', '720'] },
+            { text: 'What is the next number in the sequence: 3, 13, 31, 57, __?', correct: 'A', options: ['91', '83', '85', '87'] },
+            { text: 'What is the next number in the sequence: 1, 1, 2, 3, 5, 8, 13, __?', correct: 'C', options: ['25', '26', '21', '23'] },
+            { text: 'What is the next number in the sequence: 2, 5, 10, 17, 26, __?', correct: 'B', options: ['36', '37', '38', '39'] },
+            { text: 'What is the next number in the sequence: 1, 3, 7, 15, 31, __?', correct: 'A', options: ['63', '61', '62', '64'] },
+            { text: 'What is the next number in the sequence: 1, 2, 4, 7, 11, 16, __?', correct: 'B', options: ['21', '22', '23', '24'] },
+            { text: 'What is the next number in the sequence: 6, 11, 21, 36, 56, __?', correct: 'A', options: ['81', '86', '76', '80'] },
+            { text: 'What is the next number in the sequence: 0, 1, 8, 27, 64, __?', correct: 'D', options: ['120', '100', '128', '125'] },
+        ];
+
+        let currentQuestion = 0;
+            let score = 0;
+            let timeLeft = 60;
+            let timer;
+    
+            function startTimer() {
+                const timerElement = document.getElementById('timer');
+                timer = setInterval(() => {
+                    if (timeLeft > 0) {
+                        timeLeft--;
+                        timerElement.textContent = timeLeft;
+                    } else {
+                        clearInterval(timer);
+                        checkAnswer(null, true); // Trigger timeout action
+                    }
+                }, 1000);
+            }
+    
+            function loadQuestion() {
+                const questionElement = document.getElementById('question');
+                const optionsElement = document.getElementById('options');
+                const resultElement = document.getElementById('result');
+                const nextMessage = document.getElementById('nextMessage');
+    
+                const question = questions[currentQuestion];
+                questionElement.textContent = question.text;
+    
+                resultElement.style.display = 'none';
+                nextMessage.style.display = 'none';
+    
+                loadOptions(question.options);
+    
+                timeLeft = 60;
+                startTimer();
+            }
+    
+            function loadOptions(options) {
+                const optionsElement = document.getElementById('options');
+                optionsElement.innerHTML = options
+                    .map((option, index) => `<button class="option" onclick="checkAnswer('${String.fromCharCode(65 + index)}')">${String.fromCharCode(65 + index)}. ${option}</button>`)
+                    .join('');
+            }
+    
+    
+            
+            function checkAnswer(selected, isTimeout = false) {
+                clearInterval(timer);
+                const resultElement = document.getElementById('result');
+                const nextMessage = document.getElementById('nextMessage');
+                const correct = questions[currentQuestion].correct;
+            
+                if (isTimeout) {
+                    resultElement.textContent = `Time Up! The correct answer was ${correct}.`;
+                    resultElement.className = 'result wrong';
+                } else if (selected === correct) {
+                    resultElement.textContent = 'Correct!';
+                    resultElement.className = 'result correct';
+                    score++;
+                } else {
+                    resultElement.textContent = `Wrong! The correct answer was ${correct}.`;
+                    resultElement.className = 'result wrong';
+                }
+            
+                resultElement.style.display = 'block';
+                nextMessage.style.display = 'block';
+            
+                setTimeout(nextQuestion, 3000); // Automatically load the next question
+            }
+            
+            function nextQuestion() {
+                currentQuestion++;
+                if (currentQuestion < questions.length) {
+                    loadQuestion();
+                } else {
+                    showFinalResult();
+                }
+            }
+            
+    
+            function showFinalResult() {
+                const resultBox = document.getElementById('resultBox');
+                const resultComment = document.getElementById('resultComment');
+                const finalScore = document.getElementById('finalScore');
+    
+                let comment;
+                if (score === 25) {
+                    comment = 'You are a god! You scored 25 out of 25!';
+                } else if (score > 20) {
+                    comment = `Amazing! Your score: ${score}`;
+                } else if (score >= 15) {
+                    comment = `You are good! Your score: ${score}`;
+                } else if (score >= 10) {
+                    comment = `Could do better! Your score: ${score}`;
+                } else {
+                    comment = `Better luck next time! Your score: ${score}`;
+                }
+    
+                resultComment.textContent = comment;
+                finalScore.textContent = `Final Score: ${score} / ${questions.length}`;
+    
+                resultBox.style.display = 'block';
+    
+                // Center restart button initially
+                const restartButton = document.getElementById('restartButton');
+                restartButton.style.display = 'block';
+    
+                setTimeout(() => {
+                    restartButton.classList.add('restart-left');
+                }, 5000);
+            }
+    
+            function restartGame() {
+                score = 0;
+                currentQuestion = 0;
+                loadQuestion();
+                document.getElementById('resultBox').style.display = 'none';
+            }
+    
+            // Initial call
+            loadQuestion();
+        </script>
+    </body>
+    </html>

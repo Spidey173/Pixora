@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mole Invasion: Whack Back!</title>
+<style>
+    /* Body styling */
+body {
+    font-family: 'Comic Sans MS', cursive, sans-serif; /* Fun, playful font */
+    text-align: center;
+    margin: 0;
+    padding: 0;
+    background: linear-gradient(to bottom, #8B4513, #D2B48C); /* Background gradient */
+    background-size: cover;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column; /* Align everything vertically */
+}
+
+/* Mode text styling */
+.mode-text {
+    font-size: 3rem; /* Larger font size for better visibility */
+    color: #FF4500; /* Vibrant orange color */
+    font-weight: bold;
+    margin-bottom: 40px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6); /* Adding a little shadow for better visibility */
+}
+
+/* Container for buttons */
+.button-container {
+    display: flex;
+    justify-content: space-around;
+    width: 100%;
+    max-width: 700px; /* Maximum width to prevent it from being too stretched on large screens */
+    gap: 20px;
+    margin: 0 20px;
+}
+
+/* General button styles */
+.mode-btn {
+    display: inline-block;
+    padding: 20px 40px;
+    font-size: 2rem;
+    color: #800020; /* Rich Burgundy text */
+    background-color: transparent;
+    border: 2px solid #800020;
+    border-radius: 50px;
+    text-decoration: none;
+    font-weight: bold;
+    text-transform: uppercase;
+    transition: all 0.3s ease-in-out;
+}
+
+.mode-btn:hover {
+    background-color: #800020;
+    color: white;
+    box-shadow: 0 0 15px #800020;
+}
+
+.mode-btn:active {
+    transform: translateY(2px);
+}
+
+
+/* Easy button with unique color */
+.easy {
+    background-color: #32CD32; /* Lime green */
+}
+
+/* Medium button with unique color */
+.medium {
+    background-color: #FFD700; /* Golden yellow */
+}
+
+/* Hard button with unique color */
+.hard {
+    background-color: #DC143C; /* Crimson red */
+}
+
+/* Button hover effect */
+.mode-btn:hover {
+    transform: scale(1.1); /* Slightly enlarge the button */
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.5); /* Glow effect */
+}
+
+/* Button click effect */
+.mode-btn:active {
+    transform: scale(0.95); /* Slightly shrink the button */
+}
+
+/* Optional responsive adjustments for smaller screens */
+@media (max-width: 768px) {
+    .mode-btn {
+        font-size: 1.8rem; /* Smaller font on mobile */
+        padding: 15px 30px;
+    }
+
+    .mode-text {
+        font-size: 2.5rem; /* Slightly smaller title on mobile */
+    }
+
+    .button-container {
+        flex-direction: column; /* Stack buttons vertically on mobile */
+        gap: 20px;
+    }
+}
+
+</style>>
+</head>
+<body>
+    <div class="mode-selection">
+        <p class="mode-text">Select a Mode:</p>
+        <div class="button-container">
+            <a href="{{ url_for('moleeasy') }}" class="mode-btn">Easy</a>
+            <a href="{{ url_for('molemedium') }}" class="mode-btn">Medium</a>
+            <a href="{{ url_for('molehard') }}" class="mode-btn">Hard</a>
+        </div>
+    </div>
+</body>
+</html>

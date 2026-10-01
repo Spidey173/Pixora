@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flip & Find</title>
+    <style>
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Press Start 2P', cursive;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: #000;
+    background: linear-gradient(135deg, #000428 25%, #004e92 50%, #000428 75%);
+    background-size: 200% 200%;
+    animation: backgroundMove 10s linear infinite;
+    overflow: hidden;
+}
+
+@keyframes backgroundMove {
+    0% { background-position: 0 0; }
+    100% { background-position: 100% 100%; }
+}
+
+.container {
+    padding: 40px;
+    border-radius: 15px;
+    text-align: center;
+    animation: fadeIn 2s ease;
+}
+
+.title {
+    font-size: 5rem;
+    font-weight: bold;
+    color: #00ff00;
+    text-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00;
+    margin-bottom: 20px;
+    animation: neonGlow 1.5s infinite alternate;
+}
+
+@keyframes neonGlow {
+    0% { text-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00; }
+    100% { text-shadow: 0 0 20px #00ff00, 0 0 40px #00ff00; }
+}
+
+.start-button {
+    display: inline-block;
+    padding: 15px 30px;
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: white;
+    background: linear-gradient(45deg, #00ff00, #ff1493);
+    border: none;
+    border-radius: 25px;
+    text-decoration: none;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.start-button:hover {
+    transform: scale(1.2);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.5);
+}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">Flip & Find: The Ultimate Memory Challenge</h1>
+        <a href="{{ url_for('memorymatch2nd') }}" class="start-button">Start Game</a>
+    </div>
+</body>
+</html>

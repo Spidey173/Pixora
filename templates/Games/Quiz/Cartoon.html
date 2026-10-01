@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cartoon</title>
+<style>
+    /* General Styles */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;700&display=swap');
+
+body {
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: linear-gradient(to right, #ff9a9e, #fad0c4, #fbc2eb); /* Anime dreamy gradient */
+    background-size: cover;
+    background-position: center center;
+    background-attachment: fixed;
+    font-family: 'Poppins', sans-serif;
+    overflow: hidden;
+}
+
+/* Game container styles */
+#game-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+/* Anime-themed game box */
+#game-box {
+    background: rgba(255, 255, 255, 0.85);
+    padding: 30px;
+    width: 480px;
+    border-radius: 20px;
+    text-align: center;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    position: relative;
+    animation: floaty 3s infinite ease-in-out;
+    border: 4px solid #ff4b2b;
+}
+
+/* Floating animation */
+@keyframes floaty {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+    100% { transform: translateY(0px); }
+}
+
+/* Timer and title styles */
+.timer {
+    font-size: 2rem;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    color: #ff4b2b;
+    font-weight: bold;
+}
+
+h2 {
+    font-size: 2rem;
+    color: #ff4b2b;
+    text-shadow: 2px 2px #ffc1cc;
+}
+
+/* Input field */
+input[type="text"] {
+    padding: 12px;
+    width: 80%;
+    font-size: 1.1rem;
+    margin-bottom: 20px;
+    border: 2px solid #ff4b2b;
+    border-radius: 12px;
+    outline: none;
+    text-align: center;
+    transition: 0.3s;
+    box-shadow: 0 0 10px rgba(255, 75, 43, 0.3);
+}
+
+input[type="text"]:focus {
+    border-color: #ff416c;
+    box-shadow: 0 0 15px rgba(255, 65, 108, 0.5);
+}
+
+/* Buttons */
+button {
+    padding: 12px 25px;
+    background: linear-gradient(to right, #ff416c, #ff4b2b);
+    color: white;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 1.3rem;
+    font-weight: bold;
+    transition: 0.3s;
+    box-shadow: 0 5px 15px rgba(255, 65, 108, 0.4);
+}
+
+button:hover {
+    background: linear-gradient(to right, #ff6b6b, #ff9a9e);
+    transform: scale(1.05);
+    box-shadow: 0 10px 20px rgba(255, 105, 105, 0.5);
+}
+
+/* Feedback styles */
+#feedback {
+    margin-top: 20px;
+    font-size: 1.3rem;
+    color: #333;
+    font-weight: bold;
+}
+
+img {
+    margin-top: 20px;
+    width: 200px;
+    height: auto;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Anime mascot (Optional) */
+.anime-mascot {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    width: 150px;
+    height: auto;
+    animation: pulse 3s infinite ease-in-out;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+/* Result screen */
+#result-screen {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    background: rgba(34, 34, 34, 0.9);
+    padding: 60px;
+    border-radius: 12px;
+    box-shadow: 0 0 30px rgba(255, 75, 43, 0.7);
+    color: white;
+    font-family: 'Poppins', sans-serif;
+    transition: all 0.3s ease-in-out;
+}
+
+#result-screen h1 {
+    font-size: 2.8rem;
+    font-weight: bold;
+    text-shadow: 2px 2px #ff416c;
+    margin-bottom: 20px;
+}
+
+/* Result button */
+#result-screen button {
+    background-color: #f44336;
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    font-size: 1.3em;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: background-color 0.3s ease, transform 0.2s;
+}
+
+#result-screen button:hover {
+    background-color: #d32f2f;
+    transform: scale(1.1);
+}
+
+/* Score-based styling */
+.extraordinary {
+    background-color: #ffeb3b;
+    color: #222;
+}
+
+.good {
+    background-color: #03a9f4;
+    color: white;
+}
+
+.better-luck {
+    background-color: #ff9800;
+    color: white;
+}
+.back-button {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 8px 15px;
+  font-size: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.3s, transform 0.3s;
+  z-index: 1000; /* Ensure it's on top */
+}
+
+.back-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateX(5px);
+}
+
+
+
+    </style>
+</head>
+<body>
+  <button class="back-button" onclick="goBack()">← Back</button>
+
+    <div id="game-container">
+        <div id="game-box">
+            <div class="timer" id="timer">30</div>
+            <h2 id="question">What is 2 + 2?</h2>
+            <input type="text" id="answer" placeholder="Type your answer here">
+            <button id="submit-btn">Submit Answer</button>
+            <div id="feedback"></div>
+            <img id="answer-image" src="" alt="" style="display:none;">
+        </div>
+    </div>
+
+    <audio id="thinking-sound" src="thinking.mp3" loop></audio>
+    <audio id="congrats-sound" src="congrats.mp3"></audio>
+    <audio id="wrong-sound" src="wrong.mp3"></audio>
+    <audio id="submit-sound" src="submit.mp3"></audio>
+    <audio id="last-result-sound" src="result.mp3"></audio>
+
+
+    <!-- Final result screen -->
+    <div id="result-screen" style="display: none;">
+        <h1 id="result-text"></h1>
+        <button onclick="location.reload()">Try Again</button>
+    </div>
+
+    <script>
+        // Set up variables for the game
+let timeLeft = 30;
+let timerInterval;
+let currentRiddleIndex = 0;
+let correctAnswers = 0;
+let wrongAnswers = 0;
+
+
+const riddles = [
+    {
+        question: "What is the name of the yellow Pokémon that can generate electricity?",
+        answers: ["Pikachu"],  // Single correct answer
+        image: "/static/Games/Quiz/Cartoon/Pikachu.webp",
+        wrongImage: "/static/Games/Quiz/Cartoon/Pikachu.webp",
+        feedbackCorrect: "Well Done!",
+        feedbackWrong: "The correct answer is Pikachu"
+    },
+    {
+        question: "In 'Shinchan,' what is the name of Shinchan’s pet dog",
+        answers: ["Shiro"],  // Single correct answer
+        image: "/static/Games/Quiz/Cartoon/Shiro.webp",
+        wrongImage: "/static/Games/Quiz/Cartoon/Shiro.webp",
+        feedbackCorrect: "Well Done!",
+        feedbackWrong: "The correct answer is Shiro"
+    },
+    {
+        question: "Who is Mickey Mouse’s best friend",
+        answers: ["Donald Duck","DonaldDuck"],  // Single correct answer
+        image: "/static/Games/Quiz/Cartoon/Donald Duck.webp",
+        wrongImage: "/static/Games/Quiz/Cartoon/Donald Duck.webp",
+        feedbackCorrect: "Well Done!",
+        feedbackWrong: "The correct answer is Donald Duck"
+    },
+    {
+        question: "Who is the evil scientist in 'Phineas and Ferb'",
+        answers: ["Dr.Doofenshmirtz","Doofenshmirtz"],  // Single correct answer
+        image: "/static/Games/Quiz/Cartoon/Doofenshmirtz.webp",
+        wrongImage: "/static/Games/Quiz/Cartoon/Doofenshmirtz.webp",
+        feedbackCorrect: "Well Done!",
+        feedbackWrong: "The correct answer is Dr. Doofenshmirtz"
+    },
+    {
+        question: "What is the name of Dora the Explorer’s monkey friend",
+        answers: ["boots"],  // Single correct answer
+        image: "/static/Games/Quiz/Cartoon/boots.webp",
+        wrongImage: "/static/Games/Quiz/Cartoon/boots.webp",
+        feedbackCorrect: "Well Done!",
+        feedbackWrong: "The correct answer is Boots"
+    },
+    {
+        question: "Which anime features a cat-like robot from the future?",
+        answers: ["Doraemon"],  // Single correct answer
+        image: "/static/Games/Quiz/Cartoon/Doraemon.webp",
+        wrongImage: "/static/Games/Quiz/Cartoon/Doraemon.webp",
+        feedbackCorrect: "Well Done!",
+        feedbackWrong: "The correct answer is Doraemon"
+    },
+    {
+        question: "Who is the famous mouse created by Walt Disney?",
+        answers: ["Mickey Mouse","MickeyMouse"],  // Single correct answer
+        image: "/static/Games/Quiz/Cartoon/Mickey Mouse.webp",
+        wrongImage: "/static/Games/Quiz/Cartoon/Mickey Mouse.webp",
+        feedbackCorrect: "Well Done!",
+        feedbackWrong: "The correct answer is Mickey Mouse"
+    },
+    {
+        question: "Which cartoon features a cat and a mouse always chasing each other?",
+        answers: ["Tom and Jerry"],  // Single correct answer
+        image: "/static/Games/Quiz/Cartoon/Tom and Jerry.webp",
+        wrongImage: "/static/Games/Quiz/Cartoon/Tom and Jerry.webp",
+        feedbackCorrect: "Well Done!",
+        feedbackWrong: "The correct answer is Tom and Jerry"
+    },
+    {
+        question: "Which cartoon features a secret agent platypus?",
+        answers: ["Phineas and Ferb"],  // Single correct answer
+        image: "/static/Games/Quiz/Cartoon/Phineas and Ferb.webp",
+        wrongImage: "/static/Games/Quiz/Cartoon/Phineas and Ferb.webp",
+        feedbackCorrect: "Well Done!",
+        feedbackWrong: "The correct answer is Phineas and Ferb"
+    },
+    {
+        question: "What is the name of Ben 10’s alien watch?",
+        answers: ["Omnitrix"],  // Single correct answer
+        image: "/static/Games/Quiz/Cartoon/Omnitrix.webp",
+        wrongImage: "/static/Games/Quiz/Cartoon/Omnitrix.webp",
+        feedbackCorrect: "Well Done!",
+        feedbackWrong: "The correct answer is Omnitrix"
+    },
+    {
+        question: "What kind of animal is Scooby-Doo?",
+        answers: ["dog"],  // Single correct answer
+        image: "/static/Games/Quiz/Cartoon/dog.webp",
+        wrongImage: "/static/Games/Quiz/Cartoon/dog.webp",
+        feedbackCorrect: "Well Done!",
+        feedbackWrong: "The correct answer is A dog"
+    },
+    {
+        question: "Who is the fastest superhero in the Justice League?",
+        answers: ["The Flash","Flash"],  // Single correct answer
+        image: "/static/Games/Quiz/Cartoon/Flash.webp",
+        wrongImage: "/static/Games/Quiz/Cartoon/Flash.webp",
+        feedbackCorrect: "Well Done!",
+        feedbackWrong: "The correct answer is The Flash"
+    },
+    {
+        question: "Which superhero wears a black suit and fights crime in Gotham?",
+        answers: ["Batman"],  // Single correct answer
+        image: "/static/Games/Quiz/Cartoon/Batman.webp",
+        wrongImage: "/static/Games/Quiz/Cartoon/Batman.webp",
+        feedbackCorrect: "Well Done!",
+        feedbackWrong: "The correct answer is Batman"
+    },
+    {
+        question: "What kind of animal is Peppa in 'Peppa Pig'?",
+        answers: ["pig"],  // Single correct answer
+        image: "/static/Games/Quiz/Cartoon/pig.webp",
+        wrongImage: "/static/Games/Quiz/Cartoon/pig.webp",
+        feedbackCorrect: "Well Done!",
+        feedbackWrong: "The correct answer is A pig "
+    },
+    {
+        question: "Who is the strong sailor who eats spinach?",
+        answers: ["Popeye the Sailor","Popeye"],  // Single correct answer
+        image: "/static/Games/Quiz/Cartoon/Popeye.webp",
+        wrongImage: "/static/Games/Quiz/Cartoon/Popeye.webp",
+        feedbackCorrect: "Well Done!",
+        feedbackWrong: "The correct answer is Popeye the Sailor"
+    },
+];
+
+
+let thinkingSound = document.getElementById('thinking-sound');
+let congratsSound = document.getElementById('congrats-sound');
+let wrongSound = document.getElementById('wrong-sound');
+let lastResultSound = document.getElementById('last-result-sound'); // Sound for final result
+
+let submitBtn = document.getElementById('submit-btn');
+let timerElement = document.getElementById('timer');
+let feedbackElement = document.getElementById('feedback');
+let answerImage = document.getElementById('answer-image');
+let questionElement = document.getElementById('question');
+let answerInput = document.getElementById('answer');
+
+// Add event listener to submit button and handle Enter key
+submitBtn.addEventListener('click', () => checkAnswer(false));
+answerInput.addEventListener('keypress', function (event) {
+    if (event.key === 'Enter') {
+        checkAnswer(false);
+    }
+});
+
+// Start the game
+function startGame() {
+    correctAnswers = 0;
+    wrongAnswers = 0;
+    loadRiddle();
+    thinkingSound.play();  // Play thinking sound as soon as the game starts
+    startTimer();  // Start timer when game begins
+}
+
+// Start a new timer for each riddle
+function startTimer() {
+    timeLeft = 30;  // Reset timer to 30 seconds for the next riddle
+    timerElement.textContent = timeLeft;
+    if (timerInterval) {
+        clearInterval(timerInterval);  // Clear any previous interval
+    }
+    timerInterval = setInterval(updateTimer, 1000);  // Start the timer
+}
+
+// Update the timer every second
+function updateTimer() {
+    if (timeLeft > 0) {
+        timeLeft--;
+        timerElement.textContent = timeLeft;
+    } else {
+        clearInterval(timerInterval);
+        if (currentRiddleIndex < riddles.length) {
+            checkAnswer(true);  // Check answer when time runs out and mark it as wrong
+        }
+    }
+}
+
+// Load the riddle and reset the input box
+function loadRiddle() {
+    if (currentRiddleIndex < riddles.length) {
+        let riddle = riddles[currentRiddleIndex];
+        questionElement.textContent = riddle.question;
+        answerInput.value = '';
+        feedbackElement.textContent = '';
+        answerImage.style.display = 'none';
+        thinkingSound.play();  // Ensure thinking sound plays for each riddle
+        submitBtn.disabled = false; // Enable submit button for the current riddle
+        startTimer();  // Start timer every time a new riddle is loaded
+    } else {
+        showFinalScore();  // Show final score when all riddles are answered
+    }
+}
+
+// Check the answer and provide feedback
+function checkAnswer(timeExpired = false) {
+    // If the timer has expired and the submit button was clicked, ignore the click
+    if (timeLeft === 0 && !timeExpired) {
+        return; // Exit if time is already expired and user clicks submit
+    }
+
+    let riddle = riddles[currentRiddleIndex];
+    let answer = answerInput.value.trim().toLowerCase();  // Convert answer to lowercase
+
+    // Stop the thinking sound and timer immediately after submission
+    thinkingSound.pause();
+    clearInterval(timerInterval);  // Stop the timer
+
+    let resultMessage = '';
+    let imageSrc = '';
+
+    if (timeExpired) {
+        // If time expired, consider the answer wrong
+        resultMessage = `Time's up! ${riddle.feedbackWrong}`;
+        wrongSound.play();
+        wrongAnswers++;
+        imageSrc = riddle.wrongImage;
+    } else if (riddle.answers.some(correctAnswer => correctAnswer.toLowerCase() === answer)) {  // Check if the answer matches any correct answers (case insensitive)
+        resultMessage = riddle.feedbackCorrect;
+        congratsSound.play();
+        correctAnswers++;
+        imageSrc = riddle.image;
+    } else {
+        resultMessage = `${riddle.feedbackWrong}`;
+        wrongSound.play();
+        wrongAnswers++;
+        imageSrc = riddle.wrongImage;
+    }
+
+    feedbackElement.textContent = resultMessage;
+    answerImage.src = imageSrc;
+    answerImage.style.display = 'block';
+
+    currentRiddleIndex++;
+    submitBtn.disabled = true; // Disable submit after answer
+
+    setTimeout(() => {
+        if (currentRiddleIndex < riddles.length) {
+            loadRiddle(); // Load next riddle after a short delay (5 seconds)
+        } else {
+            showFinalScore(); // Show final score when all riddles are done
+        }
+    }, 5000);  // 5 seconds delay before the next riddle
+}
+
+// Show final score
+function showFinalScore() {
+    let resultText = '';
+    let resultClass = '';
+
+    if (correctAnswers > wrongAnswers) {
+        resultText = `You got ${correctAnswers} out of ${riddles.length} correct. Amazing!`;
+        resultClass = 'extraordinary';
+    } else if (correctAnswers === wrongAnswers) {
+        resultText = `You got ${correctAnswers} out of ${riddles.length}. Good job!`;
+        resultClass = 'good';
+    } else {
+        resultText = `You got ${correctAnswers} out of ${riddles.length}. Better luck next time!`;
+        resultClass = 'better-luck';
+    }
+
+    let resultScreen = document.getElementById('result-screen');
+    resultScreen.querySelector('h1').textContent = resultText;
+    resultScreen.classList.add(resultClass);
+    resultScreen.style.display = 'block';  // Show the result screen
+    document.getElementById('game-container').style.display = 'none';  // Hide the game screen
+
+    lastResultSound.play();  // Play the final result sound
+}
+
+// Start the game when the page is loaded
+startGame();
+        function goBack() {
+    window.history.back();
+}
+
+    </script>
+</body>
+</html>

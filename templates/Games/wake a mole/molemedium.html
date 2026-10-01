@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Whac a Mole</title>
+<style>
+    body {
+    font-family: Arial, Helvetica, sans-serif;
+    text-align: center;
+    margin: 0;
+    padding: 0;
+    background: linear-gradient(to bottom, #8B4513, #D2B48C);
+    background-size: cover;
+    height: 100vh;
+}
+
+h1 {
+    color: white;
+    margin-top: 20px;
+}
+
+h2 {
+    color: white;
+    font-size: 24px;
+}
+
+#board {
+    width: 540px;
+    height: 540px;
+    margin: 20px auto;
+    display: flex;
+    flex-wrap: wrap;
+    background: url("static/Games/wake a mole/soil.png");
+    background-size: cover;
+    border: 3px solid white;
+    border-radius: 25px;
+}
+
+#board div {
+    width: 180px;
+    height: 180px;
+    background-image: url("static/Games/wake a mole/pipe.png");
+    background-size: cover;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#board div img {
+    width: 100px;
+    height: 100px;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+.hidden {
+    display: none;
+}
+
+#result-box {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 400px;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    border: 3px solid white;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 0 15px rgba(255, 255, 0, 0.7);
+    animation: crazy 2s infinite;
+}
+
+#result-box h2 {
+    font-size: 28px;
+    margin-bottom: 20px;
+}
+
+#restart-btn {
+    padding: 10px 20px;
+    font-size: 18px;
+    background: linear-gradient(45deg, #FF4500, #FF6347);
+    border: none;
+    border-radius: 10px;
+    color: white;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+#restart-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 10px white;
+}
+
+@keyframes crazy {
+    0%, 100% {
+        transform: translate(-50%, -50%) scale(1);
+        box-shadow: 0 0 15px rgba(255, 255, 0, 0.7);
+    }
+    50% {
+        transform: translate(-50%, -50%) scale(1.1);
+        box-shadow: 0 0 30px rgba(255, 0, 255, 0.9);
+    }
+}
+
+.back-button {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    padding: 8px 15px;
+    font-size: 16px;
+    background: rgba(255, 255, 255, 0.1);
+          border: 2px solid rgba(255, 255, 255, 0.3);
+          color: white;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+
+  .back-button:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateX(5px);
+  }
+</style>> 
+</head>
+<body>
+  <button class="back-button" onclick="goBack()">← Back</button>
+
+    <h1>Whac a Mole</h1>
+    <h2 id="score">0</h2>
+    <div id="board"></div>
+    <div id="result-box" class="hidden">
+        <h2 id="result-message"></h2>
+        <button id="restart-btn">Restart</button>
+    </div>
+    <script>
+        let currMoleTile;
+let currPlantTile;
+let score = 0;
+let gameOver = false;
+let moleInterval, plantInterval;
+
+// Create audio objects for hit and game over sounds
+const hitSound = new Audio("bonk.mp3"); // Path to your "hit" sound
+const gameOverSound = new Audio("moleend.mp3"); // Path to your "game over" sound
+
+window.onload = function () {
+    setGame(); // Start the game when the window loads
+    document.addEventListener("keydown", handleKeyPress); // Enable key press handling
+};
+
+function setGame() {
+    const board = document.getElementById("board");
+    board.innerHTML = ""; // Reset the board content
+    for (let i = 0; i < 9; i++) {
+        let tile = document.createElement("div");
+        tile.id = i.toString();
+        tile.addEventListener("click", selectTile);
+        board.appendChild(tile);
+    }
+    score = 0;
+    gameOver = false;
+    document.getElementById("score").innerText = score.toString();
+    document.getElementById("result-box").classList.add("hidden");
+
+    // Clear existing intervals to avoid multiple setInterval calls
+    clearInterval(moleInterval);
+    clearInterval(plantInterval);
+
+    // Reset intervals for Medium mode (faster speeds)
+    moleInterval = setInterval(setMole, 700);  // Mole appears every 700ms
+    plantInterval = setInterval(setPlant, 1500); // Plant appears every 1500ms
+}
+
+function handleKeyPress(event) {
+    if (gameOver) return;
+
+    // Map number keys to new pot layout (1-9)
+    const keyMapping = {
+        7: 0, // Top left
+        8: 1, // Top center
+        9: 2, // Top right
+        4: 3, // Middle left
+        5: 4, // Middle center
+        6: 5, // Middle right
+        1: 6, // Bottom left
+        2: 7, // Bottom center
+        3: 8  // Bottom right
+    };
+
+    const key = parseInt(event.key);
+    if (key >= 1 && key <= 9) {
+        const tileIndex = keyMapping[key];
+        const tile = document.getElementById(tileIndex.toString());
+        selectTile.call(tile);
+    }
+}
+
+function getRandomTile() {
+    let num = Math.floor(Math.random() * 9); // Random number from 0 to 8
+    return num.toString();
+}
+
+function setMole() {
+    if (gameOver) return;
+
+    if (currMoleTile) currMoleTile.innerHTML = ""; // Clear previous mole
+
+    let mole = document.createElement("img");
+    mole.src = "static/Games/wake a mole/monty-mole.png"; // Path to mole image
+
+    let num = getRandomTile();
+    if (currPlantTile && currPlantTile.id === num) return; // Don't overlap with plant
+
+    currMoleTile = document.getElementById(num); // Find the tile to place the mole
+    currMoleTile.appendChild(mole);
+}
+
+function setPlant() {
+    if (gameOver) return;
+
+    if (currPlantTile) currPlantTile.innerHTML = ""; // Clear previous plant
+
+    let plant = document.createElement("img");
+    plant.src = "static/Games/wake a mole/piranha-plant.png"; // Path to plant image
+
+    let num = getRandomTile();
+    if (currMoleTile && currMoleTile.id === num) return; // Don't overlap with mole
+
+    currPlantTile = document.getElementById(num); // Find the tile to place the plant
+    currPlantTile.appendChild(plant);
+}
+
+function selectTile() {
+    if (gameOver) return;
+
+    // If mole is clicked, score increases by 1 and play the hit sound
+    if (this === currMoleTile) {
+        score += 1;
+        document.getElementById("score").innerText = score.toString();
+        hitSound.play(); // Play hit sound
+        currMoleTile.innerHTML = ""; // Remove the mole
+    }
+    // If plant is clicked, game is over and play the game over sound
+    else if (this === currPlantTile) {
+        gameOver = true;
+        gameOverSound.play(); // Play game over sound
+        showResult(); // Show the result screen
+    }
+}
+
+function showResult() {
+    clearInterval(moleInterval); // Stop mole interval
+    clearInterval(plantInterval); // Stop plant interval
+
+    const resultBox = document.getElementById("result-box");
+    document.getElementById("result-message").innerText = `GAME OVER! Your Score: ${score}`;
+    resultBox.classList.remove("hidden"); // Show the result box
+
+    // Set up restart button
+    document.getElementById("restart-btn").onclick = setGame; // Restart the game
+}
+function goBack() {
+    window.location.href = "{{ url_for('mole2nd') }}"; // Change "index.html" to your desired page
+  }
+    </script>
+</body>
+</html>

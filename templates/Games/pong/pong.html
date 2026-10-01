@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pong Wars: Fight for the Win</title>
+    <style>
+        /* Vibrant animated gradient background */
+        body {
+            background: linear-gradient(135deg, #ff6a00, #ff8c00, #ffeb3b, #c2185b);
+            background-size: 400% 400%;
+            animation: gradientAnimation 6s infinite alternate;
+            font-family: 'Arial', sans-serif;
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            text-align: center;
+        }
+
+        @keyframes gradientAnimation {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 100% 50%; }
+        }
+
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
+
+h1 {
+    font-size: 80px;
+    font-family: 'Bebas Neue', sans-serif;
+    background: black; /* Luxury gold */
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    margin-bottom: 40px;
+    animation: titleEffect 4s ease-in-out;
+}
+/* Animation to make the title disappear and come back */
+@keyframes titleEffect {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0;
+        transform: scale(1.2);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+
+        /* Start button styling */
+        .start-btn {
+            padding: 18px 50px;
+            font-size: 24px;
+            font-weight: bold;
+            background: linear-gradient(90deg, #ff1744, #d500f9);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.3s ease-in-out;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Button hover effect */
+        .start-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Active button effect */
+        .start-btn:active {
+            transform: scale(0.95);
+            background: linear-gradient(90deg, #c51162, #6a1b9a);
+        }
+    </style>
+</head>
+<body>
+    <h1>Pong Wars: Fight for the Win</h1>
+    <button class="start-btn" onclick="window.location.href='{{ url_for('pongstart') }}'">Start Game</button>
+</body>
+</html>

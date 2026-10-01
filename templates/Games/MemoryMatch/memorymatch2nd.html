@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flip & Find</title>
+    <style>
+        /* memorymatch.css */
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Press Start 2P', cursive;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: #000;
+    background: linear-gradient(135deg, #000428 25%, #004e92 50%, #000428 75%);
+    background-size: 200% 200%;
+    animation: backgroundMove 10s linear infinite;
+    overflow: hidden;
+}
+
+@keyframes backgroundMove {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+.container {
+    text-align: center;
+    color: white;
+    text-shadow: 2px 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.title {
+    font-size: 4rem;
+    font-weight: bold;
+    letter-spacing: 3px;
+    margin-bottom: 40px;
+}
+
+.button-container {
+    display: flex;
+    justify-content: center;
+    gap: 20px;  /* Space between buttons */
+}
+
+.option-button {
+    display: inline-block;
+    padding: 15px 30px;
+    font-size: 2rem;
+    font-weight: bold;
+    color: white;
+    background: linear-gradient(45deg, #00ff00, #ff1493);
+    border: none;
+    border-radius: 25px;
+    text-decoration: none;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.option-button:hover {
+    transform: scale(1.2);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.5);
+}
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">Select a mode</h1>
+        <div class="button-container">
+            <a href="{{ url_for('matchingeasy') }}" class="option-button">Easy</a>
+            <a href="{{ url_for('matchingmedium') }}" class="option-button">Medium</a>
+            <a href="{{ url_for('matchinghard') }}" class="option-button">Hard</a>
+            <a href="{{ url_for('matchinginsane') }}" class="option-button">Insane</a>
+
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quiz</title>
+  <style>
+    /* Global Styles */
+body {
+    font-family: 'Arial', sans-serif;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: linear-gradient(135deg, #ff6ec4, #7873f5, #51c8ef, #ff9a8b);
+    background-size: 400% 400%; /* Creates a moving gradient effect */
+    animation: gradientAnimation 8s ease infinite;
+    color: #fff;
+}
+
+@keyframes gradientAnimation {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+#start-page {
+    text-align: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    height: 100%; /* Ensures the page takes up full height */
+    width: 100%; /* Ensures the page takes up full width */
+}
+
+.title {
+    font-size: 4rem;
+    text-align: center;
+    text-shadow: 4px 4px 8px rgba(0, 0, 0, 0.5);
+    margin-bottom: 30px;
+    color: #ffe94a; /* Bright yellow to contrast with the background */
+    animation: bounceIn 3s ease-out;
+    font-weight: bold;
+}
+
+button {
+    background: linear-gradient(to right, #34e89e, #0f3443); /* Teal to dark navy gradient */
+    color: #fdfdfd;
+    font-size: 1.8rem;
+    padding: 15px 40px;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.4s ease;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+    font-weight: bold;
+}
+
+button:hover {
+    transform: scale(1.15);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7);
+    background: linear-gradient(to right, #0f3443, #34e89e); /* Reversed gradient for hover effect */
+}
+
+button:focus {
+    outline: none;
+    box-shadow: 0 0 5px 2px #34e89e;
+}
+
+@keyframes bounceIn {
+    0% { transform: translateY(-300px); opacity: 0; }
+    60% { transform: translateY(30px); opacity: 1; }
+    100% { transform: translateY(0); }
+}
+
+  </style>
+</head>
+<body>
+  <!-- First Page -->
+  <div id="start-page">
+    <h1 class="title">Trivia Madness<br>The Ultimate Smarts Showdown</h1>
+    <button id="start-button">Start Game</button>
+  </div>
+  <script>
+    // Linking the "Start Game" button to the next page
+document.getElementById("start-button").addEventListener("click", function() {
+    // Simulate navigating to the next page
+    window.location.href = "{{ url_for('quiz2ndpage') }}";  // Replace with actual link when ready
+  });
+  
+  </script>
+</body>
+</html>

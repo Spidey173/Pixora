@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Stone, Paper, Scissors</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins&display=swap');
+    body {
+      background: #2d2a3d;
+      color: #fff;
+      font-family: "Poppins";
+    }
+    .message {
+      margin: 5em 0 2em;
+      text-align: center;
+    }
+    .images {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      text-align: center;
+      height: 200px;
+    }
+    .computer img,
+    .player img {
+      width: 75%;
+    }
+    .points {
+      margin: 2em 0;
+      text-align: center;
+    }
+    .options {
+      margin-top: 5em;
+      display: flex;
+      justify-content: space-around;
+    }
+    .options img {
+      width: 150px;
+      cursor: pointer;
+      border: 1px solid #fff;
+      border-radius: 7px;
+      padding: 1em;
+      transition: 0.2s all linear;
+    }
+    .options img:hover {
+      background-color: darkcyan;
+      border: 1px solid darkcyan;
+    }
+    @keyframes shakeComputer {
+      0% { transform: rotate(-30deg); }
+      25% { transform: rotate(30deg); }
+      50% { transform: rotate(-30deg); }
+      75% { transform: rotate(30deg); }
+      100% { transform: rotate(0deg); }
+    }
+    @keyframes shakePlayer {
+      0% { transform: rotate(30deg); }
+      25% { transform: rotate(-30deg); }
+      50% { transform: rotate(30deg); }
+      75% { transform: rotate(-30deg); }
+      100% { transform: rotate(0deg); }
+    }
+    .shakeComputer {
+      animation: shakeComputer 0.8s linear;
+    }
+    .shakePlayer {
+      animation: shakePlayer 0.8s linear;
+    }
+        .result {
+      font-size: 1.5em;
+      margin: 1em 0;
+      font-weight: bold;
+      text-align: center;
+    }
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="message">CHOOSE AN OPTION</div>
+    <div class="images">
+      <div class="computer">
+        <!-- Initial computer image -->
+        <img src="static/Games/Stone Paper Scissors/stoneComputer.png" alt="Computer Choice" />
+      </div>
+      <div class="player">
+        <!-- Initial player image -->
+        <img src="static/Games/Stone Paper Scissors/stonePlayer.png" alt="Player Choice" />
+      </div>
+    </div>
+    <div class="points">
+      COMPUTER <span class="computerPoints">0</span> /
+      <span class="playerPoints">0</span> PLAYER
+    </div>
+        <div class="result" id="resultMessage"></div>
+
+    <div class="options">
+      <!-- Replace these src attributes with your own images if needed -->
+      <img src="static/Games/Stone Paper Scissors/stonePlayer.png" alt="STONE" data-choice="STONE" />
+      <img src="static/Games/Stone Paper Scissors/paperPlayer.png" alt="PAPER" data-choice="PAPER" />
+      <img src="static/Games/Stone Paper Scissors/scissorsPlayer.png" alt="SCISSORS" data-choice="SCISSORS" />
+    </div>
+  </div>
+  <script>
+    const computer = document.querySelector(".computer img");
+    const player = document.querySelector(".player img");
+    const computerPoints = document.querySelector(".computerPoints");
+    const playerPoints = document.querySelector(".playerPoints");
+    const options = document.querySelectorAll(".options img");
+
+    options.forEach((option) => {
+      option.addEventListener("click", () => {
+        computer.classList.add("shakeComputer");
+        player.classList.add("shakePlayer");
+
+        setTimeout(() => {
+          computer.classList.remove("shakeComputer");
+          player.classList.remove("shakePlayer");
+
+          // Get player's choice from the data attribute
+          const playerChoice = option.getAttribute("data-choice");
+          // Updated image source without "./images/"
+          player.src = "static/Games/Stone Paper Scissors/" + playerChoice.toLowerCase() + "Player.png";
+
+          const choices = ["STONE", "PAPER", "SCISSORS"];
+          const randomIndex = Math.floor(Math.random() * 3);
+          const computerChoice = choices[randomIndex];
+          computer.src = "static/Games/Stone Paper Scissors/" + computerChoice.toLowerCase() + "Computer.png";
+
+          let cPoints = parseInt(computerPoints.innerHTML);
+          let pPoints = parseInt(playerPoints.innerHTML);
+
+          // Determine winner
+          if (playerChoice === computerChoice) {
+            resultMessage.textContent = "It's a tie!";
+            resultMessage.style.color = "yellow";
+          } else if (
+            (playerChoice === "STONE" && computerChoice === "SCISSORS") ||
+            (playerChoice === "PAPER" && computerChoice === "STONE") ||
+            (playerChoice === "SCISSORS" && computerChoice === "PAPER")
+          ) {
+            playerPoints.innerHTML = pPoints + 1;
+            resultMessage.textContent = "Player wins this round! ✅";
+            resultMessage.style.color = "green";
+          } else {
+            computerPoints.innerHTML = cPoints + 1;
+            resultMessage.textContent = "Computer wins this round! ❌";
+            resultMessage.style.color = "red";
+          }
+        }, 900);
+      });
+    });
+  </script>
+</body>
+</html>

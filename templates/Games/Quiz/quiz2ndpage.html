@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz</title>
+    <style>
+        /* Global Styles */
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #ff6ec4, #7873f5, #51c8ef, #ff9a8b);
+            color: #fff;
+            background-size: 400% 400%;
+            animation: gradientMove 10s ease infinite;
+        }
+
+        @keyframes gradientMove {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Container for "Select an Option" */
+        .select-option {
+            width: 100%;
+            text-align: center;
+            font-size: 3rem;
+            color: #fff; /* Match the title color */
+            font-weight: bold;
+            padding: 20px 0;
+        }
+
+        /* Style for start page container */
+        #start-page {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            width: 100%;
+            padding: 20px;
+            margin-top: 10px;
+            overflow-y: auto; /* Allow scrolling when necessary */
+        }
+
+        .item {
+            width: 30%;
+            margin: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .item:hover {
+            transform: scale(1.1); /* 1.webps in on hover */
+        }
+
+        .item img {
+            width: 100%;
+            height: 200px;
+            border-radius: 15px;
+            margin-bottom: 10px;
+            transition: transform 0.3s ease;
+        }
+
+        .item h3 {
+            font-size: 1.5rem;
+            margin: 0;
+            font-weight: bold;
+            color: #fff; /* Color matches the background */
+        }
+
+        .item a {
+            display: block;
+            color: inherit; /* Inherits color from title */
+            text-decoration: none; /* Removes underline */
+        }
+
+        /* Responsive design for smaller screens */
+        @media (max-width: 768px) {
+            .item {
+                width: 45%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .item {
+                width: 90%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Select an Option Text -->
+    <div class="select-option">
+        Select an Option
+    </div>
+
+    <!-- Start Page -->
+    <div id="start-page">
+        <div class="item">
+            <a href="{{ url_for('aanimal') }}">
+                <img src="/static/Games/Quiz/Images/animal.webp" alt="Animal">
+                <h3>Animal</h3>
+            </a>
+        </div>
+        <div class="item">
+            <a href="{{ url_for('food') }}">
+                <img src="/static/Games/Quiz/Images/food.webp" alt="Food">
+                <h3>Food</h3>
+            </a>
+        </div>
+        <div class="item">
+            <a href="{{ url_for('gk') }}">
+                <img src="/static/Games/Quiz/Images/gk.webp" alt="Gk">
+                <h3>Gk</h3>
+            </a>
+        </div>
+        <div class="item">
+            <a href="{{ url_for('history') }}">
+                <img src="/static/Games/Quiz/Images/history.webp" alt="History">
+                <h3>History</h3>
+            </a>
+        </div>
+
+        <div class="item">
+            <a href="{{ url_for('indiansport') }}">
+                <img src="/static/Games/Quiz/Images/indiansport.webp" alt="Indiansport">
+                <h3>Indian Sports</h3>
+            </a>
+        </div>
+        <div class="item">
+            <a href="{{ url_for('place') }}">
+                <img src="/static/Games/Quiz/Images/places.webp" alt="Places">
+                <h3>Places</h3>
+            </a>
+        </div>
+        <div class="item">
+            <a href="{{ url_for('movies') }}">
+                <img src="/static/Games/Quiz/Images/movie.webp" alt="Movies">
+                <h3>Movies</h3>
+            </a>
+        </div>
+        <div class="item">
+            <a href="{{ url_for('riddle') }}">
+                <img src="/static/Games/Quiz/Images/riddle.webp" alt="Riddle">
+                <h3>Riddle</h3>
+            </a>
+        </div>    
+        <div class="item">
+            <a href="{{ url_for('cartoon') }}">
+            <img src="/static/Games/Quiz/Images/cartoon.webp" alt="Cartoon">
+            <h3>Cartoon</h3>
+            </a>
+        </div>
+    </div>
+</body>
+</html>
+

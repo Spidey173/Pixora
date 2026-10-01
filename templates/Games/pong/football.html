@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Two-Player Football Pong Game</title>
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background-color: black; /* Background for the screen */
+      font-family: Arial, sans-serif;
+    }
+
+    canvas {
+      background-color: transparent; /* Canvas background will be an image */
+      border: 4px solid #00ffcc;
+      border-radius: 10px;
+    }
+
+    #nameBox, #resultBox {
+      position: absolute;
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(135deg, #ff7f50, #6a5acd);
+      box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.5);
+      color: red;
+      padding: 30px;
+      border-radius: 15px;
+      text-align: center;
+      animation: fadeIn 0.5s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from {
+        transform: scale(0.7);
+        opacity: 0;
+      }
+      to {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    #nameBox h2, #resultBox h2 {
+      font-size: 2rem;
+      margin-bottom: 15px;
+    }
+
+    #nameBox input {
+      padding: 10px;
+      font-size: 16px;
+      margin: 5px 0;
+      border-radius: 10px;
+      border: none;
+      outline: none;
+    }
+
+    #nameBox button, #resultBox button {
+      background-color: #00ffcc;
+      color: black;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 25px;
+      font-size: 18px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    #nameBox button:hover, #resultBox button:hover {
+      background-color: #1e90ff;
+      color: white;
+    }
+    .back-button {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 8px 15px;
+      font-size: 16px;
+      background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .back-button:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: translateX(5px);
+    }
+
+    </style>
+</head>
+<body>
+
+  <button class="back-button" onclick="goBack()">← Back</button>
+  <canvas id="pongCanvas"></canvas>
+  <div id="nameBox">
+    <h2>Enter Player Names</h2>
+    <input type="text" id="player1Name" placeholder="Player 1 Name" />
+    <input type="text" id="player2Name" placeholder="Player 2 Name" />
+    <button id="startGameButton">Start Game</button>
+  </div>
+  <div id="resultBox">
+    <h2 id="winnerText"></h2>
+    <p id="scoreboardText"></p>
+    <button id="restartButton">Restart Game</button>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('pongCanvas');
+    const ctx = canvas.getContext('2d');
+
+    canvas.width = 800;
+    canvas.height = 500;
+
+    const paddleWidth = 10;
+    const paddleHeight = 100;
+    const ballSize = 10;
+
+    const goalHeight = 150;
+    const initialBallSpeed = 8;
+    let ballSpeed = initialBallSpeed;
+
+    const player1 = { x: 10, y: canvas.height / 2 - paddleHeight / 2, score: 0, name: "Player 1" };
+    const player2 = { x: canvas.width - 20, y: canvas.height / 2 - paddleHeight / 2, score: 0, name: "Player 2" };
+
+    const ball = {
+      x: canvas.width / 2,
+      y: canvas.height / 2,
+      dx: ballSpeed,
+      dy: ballSpeed,
+      moving: false,
+    };
+
+    const keys = { w: false, s: false, ArrowUp: false, ArrowDown: false };
+    document.addEventListener('keydown', (e) => (keys[e.key] = true));
+    document.addEventListener('keyup', (e) => (keys[e.key] = false));
+
+    const nameBox = document.getElementById('nameBox');
+    const resultBox = document.getElementById('resultBox');
+    const player1NameInput = document.getElementById('player1Name');
+    const player2NameInput = document.getElementById('player2Name');
+    const startGameButton = document.getElementById('startGameButton');
+    const winnerText = document.getElementById('winnerText');
+    const scoreboardText = document.getElementById('scoreboardText');
+    const restartButton = document.getElementById('restartButton');
+
+    startGameButton.addEventListener('click', startGame);
+    restartButton.addEventListener('click', restartGame);
+
+    player1NameInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') player2NameInput.focus();
+    });
+
+    player2NameInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') startGame();
+    });
+
+    // Load the background image
+    const backgroundImage = new Image();
+    backgroundImage.src = '/static/Games/pong/football.png'; // Replace with the path to your background image
+
+    function startGame() {
+      player1.name = player1NameInput.value || "Player 1";
+      player2.name = player2NameInput.value || "Player 2";
+      nameBox.style.display = 'none';
+      ball.moving = true;
+      gameLoop();
+    }
+
+    function drawRect(x, y, w, h, color) {
+      ctx.fillStyle = color;
+      ctx.fillRect(x, y, w, h);
+    }
+
+    function drawCircle(x, y, r, color) {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function drawText(text, x, y, color) {
+      ctx.fillStyle = color;
+      ctx.font = '20px Arial';
+      ctx.fillText(text, x, y);
+    }
+
+    function movePaddles() {
+      if (keys.w && player1.y > 0) player1.y -= 6;
+      if (keys.s && player1.y < canvas.height - paddleHeight) player1.y += 6;
+      if (keys.ArrowUp && player2.y > 0) player2.y -= 6;
+      if (keys.ArrowDown && player2.y < canvas.height - paddleHeight) player2.y += 6;
+    }
+
+    function moveBall() {
+      if (!ball.moving) return;
+
+      ball.x += ball.dx;
+      ball.y += ball.dy;
+
+      if (ball.y <= 0 || ball.y >= canvas.height - ballSize) ball.dy *= -1;
+
+      if (
+        ball.x <= player1.x + paddleWidth &&
+        ball.y > player1.y &&
+        ball.y < player1.y + paddleHeight
+      ) ball.dx *= -1;
+
+      if (
+        ball.x + ballSize >= player2.x &&
+        ball.y > player2.y &&
+        ball.y < player2.y + paddleHeight
+      ) ball.dx *= -1;
+
+      // Scoring logic for goals
+      if (ball.x <= 0 && ball.y >= canvas.height / 2 - goalHeight / 2 && ball.y <= canvas.height / 2 + goalHeight / 2) {
+        player2.score++;
+        checkWinner();
+        resetBall();
+      } else if (ball.x <= 0) {
+        ball.dx *= -1; // Bounce back if outside goal area
+      }
+
+      if (ball.x >= canvas.width && ball.y >= canvas.height / 2 - goalHeight / 2 && ball.y <= canvas.height / 2 + goalHeight / 2) {
+        player1.score++;
+        checkWinner();
+        resetBall();
+      } else if (ball.x >= canvas.width) {
+        ball.dx *= -1; // Bounce back if outside goal area
+      }
+    }
+
+    function resetBall() {
+      ball.x = canvas.width / 2;
+      ball.y = canvas.height / 2;
+      ball.dx = initialBallSpeed * (Math.random() > 0.5 ? 1 : -1);
+      ball.dy = initialBallSpeed * (Math.random() > 0.5 ? 1 : -1);
+    }
+
+    function checkWinner() {
+      if (player1.score === 3 || player2.score === 3) {
+        ball.moving = false;
+        showResult(player1.score === 3 ? player1.name : player2.name);
+      }
+    }
+
+    function showResult(winner) {
+      winnerText.innerText = `${winner} Wins!`;
+      scoreboardText.innerText = `${player1.name}: ${player1.score} | ${player2.name}: ${player2.score}`;
+      resultBox.style.display = 'flex';
+    }
+
+    function restartGame() {
+      player1.score = 0;
+      player2.score = 0;
+      resetBall();
+      resultBox.style.display = 'none';
+      ball.moving = true;
+      gameLoop();
+    }
+
+    function gameLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw the background image
+      ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
+
+      // Draw the game elements
+      drawRect(0, canvas.height / 2 - goalHeight / 2, 10, goalHeight, '#ff0000');
+      drawRect(canvas.width - 10, canvas.height / 2 - goalHeight / 2, 10, goalHeight, '#ff0000');
+      drawRect(canvas.width / 2 - 2, 0, 4, canvas.height, '#00ffcc');
+
+      drawRect(player1.x, player1.y, paddleWidth, paddleHeight, '#ffffff');
+      drawRect(player2.x, player2.y, paddleWidth, paddleHeight, '#ffffff');
+      drawCircle(ball.x, ball.y, ballSize, '#ffffff');
+
+      drawText(`${player1.name}: ${player1.score}`, 50, 30, '#ffffff');
+      drawText(`${player2.name}: ${player2.score}`, canvas.width - 150, 30, '#ffffff');
+
+      movePaddles();
+      moveBall();
+
+      if (ball.moving) requestAnimationFrame(gameLoop);
+    }
+
+    nameBox.style.display = 'flex';
+    function goBack() {
+  window.location.href = '{{ url_for('pongstart') }}'; // Change "index.html" to your desired page
+}
+
+
+  </script>
+</body>
+</html>
+

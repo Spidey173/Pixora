@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Riddle</title>
+    <style>
+        /* General Styles */
+body {
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: linear-gradient(to right, #6a11cb, #2575fc); /* New vibrant gradient */
+    background-size: cover;
+}
+
+#game-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+}
+
+#game-box {
+    background-color: rgba(255, 255, 255, 0.9);
+    padding: 30px;
+    width: 450px;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    position: relative;
+    animation: slideIn 0.5s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.timer {
+    font-size: 2rem;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+}
+
+h2 {
+    font-size: 1.8rem;
+    margin-bottom: 20px;
+}
+
+input[type="text"] {
+    padding: 10px;
+    width: 80%;
+    font-size: 1rem;
+    margin-bottom: 20px;
+    border: 2px solid #ccc;
+    border-radius: 8px;
+    outline: none;
+}
+
+button {
+    padding: 10px 20px;
+    background-color: #ff4b2b;
+    color: white;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: 0.3s;
+}
+
+button:hover {
+    background-color: #ff416c;
+}
+
+#feedback {
+    margin-top: 20px;
+    font-size: 1.2rem;
+    color: #333;
+}
+
+img {
+    margin-top: 20px;
+    width: 200px;
+    height: auto;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Final result screen styles */
+#result-screen {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    background-color: #222;
+    padding: 50px;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+    color: white;
+    font-family: 'Roboto', sans-serif;
+    transition: all 0.3s ease-in-out;
+}
+
+#result-screen h1 {
+    font-size: 2.5em;
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+#result-screen button {
+    background-color: #f44336;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 1.2em;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: background-color 0.3s ease;
+}
+
+#result-screen button:hover {
+    background-color: #d32f2f;
+}
+
+/* Styling based on the score */
+.extraordinary {
+    background-color: #4caf50;
+    color: #fff;
+}
+
+.good {
+    background-color: #2196f3;
+    color: #fff;
+}
+
+.better-luck {
+    background-color: #ff9800;
+    color: #fff;
+}
+
+        .back-button {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 8px 15px;
+      font-size: 16px;
+      background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .back-button:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: translateX(5px);
+    }
+    </style>
+</head>
+<body>
+  <button class="back-button" onclick="goBack()">← Back</button>
+
+    <div id="game-container">
+        <div id="game-box">
+            <div class="timer" id="timer">30</div>
+            <h2 id="question">What is 2 + 2?</h2>
+            <input type="text" id="answer" placeholder="Type your answer here">
+            <button id="submit-btn">Submit Answer</button>
+            <div id="feedback"></div>
+            <img id="answer-image" src="" alt="" style="display:none;">
+        </div>
+    </div>
+
+    <audio id="thinking-sound" src="thinking.mp3" loop></audio>
+    <audio id="congrats-sound" src="congrats.mp3"></audio>
+    <audio id="wrong-sound" src="wrong.mp3"></audio>
+    <audio id="submit-sound" src="submit.mp3"></audio>
+    <audio id="last-result-sound" src="result.mp3"></audio>
+
+
+    <!-- Final result screen -->
+    <div id="result-screen" style="display: none;">
+        <h1 id="result-text"></h1>
+        <button onclick="location.reload()">Try Again</button>
+    </div>
+
+    <script>
+        // Set up variables for the game
+let timeLeft = 30;
+let timerInterval;
+let currentRiddleIndex = 0;
+let correctAnswers = 0;
+let wrongAnswers = 0;
+
+const riddles = [
+    { 
+        question: "I’m tall when I’m young, and I’m short when I’m old. What am I?", 
+        answers: ["Candle", "Candles"],  // Multiple correct answers
+        image: "/static/Games/Quiz/riddle/candle.webp", 
+        wrongImage: "/static/Games/Quiz/riddle/candle.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Candle" 
+    },
+    { 
+        question: "What month of the year has 28 days?", 
+        answers: ["All","All of them","every"],  // Single correct answer
+        image: "/static/Games/Quiz/riddle/calender.webp", 
+        wrongImage: "/static/Games/Quiz/riddle/calender.webp",   
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is All of Them" 
+    },
+    { 
+        question: "What can you break, even if you never pick it up or touch it?", 
+        answers: ["Promise",],  // Multiple correct answers
+        image: "/static/Games/Quiz/riddle/promise.webp", 
+        wrongImage: "/static/Games/Quiz/riddle/promise.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Promise" 
+    },
+    { 
+        question: "What goes up but never comes down?", 
+        answers: ["Age","your age"],  // Single correct answer
+        image: "/static/Games/Quiz/riddle/age.webp", 
+        wrongImage: "/static/Games/Quiz/riddle/age.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Age " 
+    },
+    { 
+        question: "A man who was outside in the rain without an umbrella or hat didn’t get a single hair on his head wet. Why?", 
+        answers: ["he was bald","bald","no hair","motte"],  // Single correct answer
+        image: "/static/Games/Quiz/riddle/baldman.webp", 
+        wrongImage: "/static/Games/Quiz/riddle/baldman.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is He is a Bald Man " 
+    },
+    { 
+        question: "I shave every day, but my beard stays the same. What am I?", 
+        answers: ["Barber"],  // Single correct answer
+        image: "/static/Games/Quiz/riddle/barber.webp", 
+        wrongImage: "/static/Games/Quiz/riddle/barber.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Barber " 
+    },
+    { 
+        question: "The more of this there is, the less you see. What is it?", 
+        answers: ["Darkness"],  // Single correct answer
+        image: "/static/Games/Quiz/riddle/darkness.webp", 
+        wrongImage: "/static/Games/Quiz/riddle/darkness.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Darkness" 
+    },
+    { 
+        question: "I follow you all the time and copy your every move, but you can’t touch me or catch me. What am I?", 
+        answers: ["Shadow"],  // Single correct answer
+        image: "/static/Games/Quiz/riddle/shadow.webp", 
+        wrongImage: "/static/Games/Quiz/riddle/shadow.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Shadow" 
+    },
+    { 
+        question: "What has many keys but can’t open a single lock?", 
+        answers: ["piano"],  // Single correct answer
+        image: "/static/Games/Quiz/riddle/piano.webp", 
+        wrongImage: "/static/Games/Quiz/riddle/piano.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Piano" 
+    },
+    { 
+        question: "Where does today come before yesterday?", 
+        answers: ["dictionary"],  // Single correct answer
+        image: "/static/Games/Quiz/riddle/dictionary.webp", 
+        wrongImage: "/static/Games/Quiz/riddle/dictionary.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Dictionary" 
+    },
+    { 
+        question: "What invention lets you look right through a wall?", 
+        answers: ["Window",],  // Single correct answer
+        image: "/static/Games/Quiz/riddle/window.webp", 
+        wrongImage: "/static/Games/Quiz/riddle/window.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Window" 
+    },
+    { 
+        question: "What goes up and down but doesn’t move?", 
+        answers: ["staircase","stairs","steps"],  // Single correct answer
+        image: "/static/Games/Quiz/riddle/staircase.webp", 
+        wrongImage: "/static/Games/Quiz/riddle/staircase.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Staircase" 
+    },
+    { 
+        question: "It belongs to you, but other people use it more than you do. What is it?", 
+        answers: ["name"],  // Single correct answer
+        image: "/static/Games/Quiz/riddle/name.webp", 
+        wrongImage: "/static/Games/Quiz/riddle/name.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Your Name" 
+    },
+    { 
+        question: "What has lots of eyes, but can’t see?", 
+        answers: ["Potato","Aloo"],  // Single correct answer
+        image: "/static/Games/Quiz/riddle/potato.webp", 
+        wrongImage: "/static/Games/Quiz/riddle/potato.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Potato" 
+    },
+    { 
+        question: "What has hands, but can’t clap?", 
+        answers: ["Clock"],  // Single correct answer
+        image: "/static/Games/Quiz/riddle/clock.webp", 
+        wrongImage: "/static/Games/Quiz/riddle/clock.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Clock" 
+    },
+    { 
+        question: "What has legs, but doesn’t walk?", 
+        answers: ["table"],  // Single correct answer
+        image: "/static/Games/Quiz/riddle/table.webp", 
+        wrongImage: "/static/Games/Quiz/riddle/table.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Table" 
+    },
+    { 
+        question: "What has one head, one foot and four legs?", 
+        answers: ["bed"],  // Single correct answer
+        image: "/static/Games/Quiz/riddle/bed.webp", 
+        wrongImage: "/static/Games/Quiz/riddle/bed.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Bed" 
+    },
+    { 
+        question: "I am an odd number. Take away a letter and I become even. What number am I?", 
+        answers: ["seven","7"],  // Single correct answer
+        image: "/static/Games/Quiz/riddle/seven.webp", 
+        wrongImage: "/static/Games/Quiz/riddle/seven.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Seven" 
+    },
+    { 
+        question: "Mary has four daughters, and each of her daughters has a brother. How many children does Mary have?", 
+        answers: ["five","5"],  // Single correct answer
+        image: "/static/Games/Quiz/riddle/five.webp", 
+        wrongImage: "/static/Games/Quiz/riddle/five.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Five" 
+    },
+    { 
+        question: "Three doctors said that Bill was their brother. Bill says he has no brothers. How many brothers does Bill actually have?", 
+        answers: ["none","zero","0"],  // Single correct answer
+        image: "/static/Games/Quiz/riddle/zero.webp", 
+        wrongImage: "/static/Games/Quiz/riddle/zero.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Zero(he has 3 sisters)" 
+    },
+    { 
+        question: "What is the end of everything?", 
+        answers: ["G"],  // Single correct answer
+        image: "/static/Games/Quiz/riddle/g.webp", 
+        wrongImage: "/static/Games/Quiz/riddle/g.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is The letter G" 
+    },
+    { 
+        question: "What can fill a room but takes up no space?", 
+        answers: ["light"],  // Single correct answer
+        image: "/static/Games/Quiz/riddle/light.webp", 
+        wrongImage: "/static/Games/Quiz/riddle/light.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Light" 
+    },
+    { 
+        question: " If you drop me I’m sure to crack, but give me a smile and I’ll always smile back. What am I?", 
+        answers: ["Mirror"],  // Single correct answer
+        image: "/static/Games/Quiz/riddle/mirror.webp", 
+        wrongImage: "/static/Games/Quiz/riddle/mirror", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Mirror" 
+    },
+    { 
+        question: "The more you take, the more you leave behind. What are they", 
+        answers: ["footsteps"],  // Single correct answer
+        image: "/static/Games/Quiz/riddle/footsteps.webp", 
+        wrongImage: "/static/Games/Quiz/riddle/footsteps.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Footsteps" 
+    },
+    { 
+        question: " I am always hungry and will die if not fed, but whatever I touch will soon turn red. What am I?", 
+        answers: ["Fire"],  // Single correct answer
+        image: "/static/Games/Quiz/riddle/fire.webp", 
+        wrongImage: "/static/Games/Quiz/riddle/fire.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Fire" 
+    },
+];
+
+let thinkingSound = document.getElementById('thinking-sound');
+let congratsSound = document.getElementById('congrats-sound');
+let wrongSound = document.getElementById('wrong-sound');
+let lastResultSound = document.getElementById('last-result-sound'); // Sound for final result
+
+let submitBtn = document.getElementById('submit-btn');
+let timerElement = document.getElementById('timer');
+let feedbackElement = document.getElementById('feedback');
+let answerImage = document.getElementById('answer-image');
+let questionElement = document.getElementById('question');
+let answerInput = document.getElementById('answer');
+
+// Add event listener to submit button and handle Enter key
+submitBtn.addEventListener('click', () => checkAnswer(false));
+answerInput.addEventListener('keypress', function (event) {
+    if (event.key === 'Enter') {
+        checkAnswer(false);
+    }
+});
+
+// Start the game
+function startGame() {
+    correctAnswers = 0;
+    wrongAnswers = 0;
+    loadRiddle();
+    thinkingSound.play();  // Play thinking sound as soon as the game starts
+    startTimer();  // Start timer when game begins
+}
+
+// Start a new timer for each riddle
+function startTimer() {
+    timeLeft = 30;  // Reset timer to 30 seconds for the next riddle
+    timerElement.textContent = timeLeft;
+    if (timerInterval) {
+        clearInterval(timerInterval);  // Clear any previous interval
+    }
+    timerInterval = setInterval(updateTimer, 1000);  // Start the timer
+}
+
+// Update the timer every second
+function updateTimer() {
+    if (timeLeft > 0) {
+        timeLeft--;
+        timerElement.textContent = timeLeft;
+    } else {
+        clearInterval(timerInterval);
+        if (currentRiddleIndex < riddles.length) {
+            checkAnswer(true);  // Check answer when time runs out and mark it as wrong
+        }
+    }
+}
+
+// Load the riddle and reset the input box
+function loadRiddle() {
+    if (currentRiddleIndex < riddles.length) {
+        let riddle = riddles[currentRiddleIndex];
+        questionElement.textContent = riddle.question;
+        answerInput.value = '';
+        feedbackElement.textContent = '';
+        answerImage.style.display = 'none';
+        thinkingSound.play();  // Ensure thinking sound plays for each riddle
+        submitBtn.disabled = false; // Enable submit button for the current riddle
+        startTimer();  // Start timer every time a new riddle is loaded
+    } else {
+        showFinalScore();  // Show final score when all riddles are answered
+    }
+}
+
+// Check the answer and provide feedback
+function checkAnswer(timeExpired = false) {
+    // If the timer has expired and the submit button was clicked, ignore the click
+    if (timeLeft === 0 && !timeExpired) {
+        return; // Exit if time is already expired and user clicks submit
+    }
+
+    let riddle = riddles[currentRiddleIndex];
+    let answer = answerInput.value.trim().toLowerCase();  // Convert answer to lowercase
+
+    // Stop the thinking sound and timer immediately after submission
+    thinkingSound.pause();
+    clearInterval(timerInterval);  // Stop the timer
+    
+    let resultMessage = '';
+    let imageSrc = '';
+
+    if (timeExpired) {
+        // If time expired, consider the answer wrong
+        resultMessage = `Time's up! ${riddle.feedbackWrong}`;
+        wrongSound.play();
+        wrongAnswers++;
+        imageSrc = riddle.wrongImage;
+    } else if (riddle.answers.some(correctAnswer => correctAnswer.toLowerCase() === answer)) {  // Check if the answer matches any correct answers (case insensitive)
+        resultMessage = riddle.feedbackCorrect;
+        congratsSound.play();
+        correctAnswers++;
+        imageSrc = riddle.image;
+    } else {
+        resultMessage = `${riddle.feedbackWrong}`;
+        wrongSound.play();
+        wrongAnswers++;
+        imageSrc = riddle.wrongImage;
+    }
+
+    feedbackElement.textContent = resultMessage;
+    answerImage.src = imageSrc;
+    answerImage.style.display = 'block';
+
+    currentRiddleIndex++;
+    submitBtn.disabled = true; // Disable submit after answer
+
+    setTimeout(() => {
+        if (currentRiddleIndex < riddles.length) {
+            loadRiddle(); // Load next riddle after a short delay (5 seconds)
+        } else {
+            showFinalScore(); // Show final score when all riddles are done
+        }
+    }, 5000);  // 5 seconds delay before the next riddle
+}
+
+// Show final score
+function showFinalScore() {
+    let resultText = '';
+    let resultClass = '';
+
+    if (correctAnswers > wrongAnswers) {
+        resultText = `You got ${correctAnswers} out of ${riddles.length} correct. Amazing!`;
+        resultClass = 'extraordinary';
+    } else if (correctAnswers === wrongAnswers) {
+        resultText = `You got ${correctAnswers} out of ${riddles.length}. Good job!`;
+        resultClass = 'good';
+    } else {
+        resultText = `You got ${correctAnswers} out of ${riddles.length}. Better luck next time!`;
+        resultClass = 'better-luck';
+    }
+
+    let resultScreen = document.getElementById('result-screen');
+    resultScreen.querySelector('h1').textContent = resultText;
+    resultScreen.classList.add(resultClass);
+    resultScreen.style.display = 'block';  // Show the result screen
+    document.getElementById('game-container').style.display = 'none';  // Hide the game screen
+
+    lastResultSound.play();  // Play the final result sound
+}
+
+// Start the game when the page is loaded
+startGame();
+                            function goBack() {
+      window.location.href = "{{ url_for('quiz2ndpage') }}"; // Change "index.html" to your desired page
+    }
+
+    </script>
+
+</body>
+</html>

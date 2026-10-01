@@ -1,0 +1,1573 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpeedType Pro | Pixora Arcade</title>
+    <link rel="icon" type="image/webp" href="/static/Pixora.webp">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&family=JetBrains+Mono:wght@400;600;800&family=Inter:wght@400;600;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --neon-cyan: #00f3ff;
+            --neon-pink: #ff007f;
+            --neon-purple: #9d00ff;
+            --neon-yellow: #ffe600;
+            --neon-green: #00ff88;
+            --neon-red: #ff3355;
+            --dark-bg: #070712;
+            --card-bg: rgba(14, 14, 26, 0.88);
+            --char-inactive: #4d5775;
+            --char-correct: #00f3ff;
+            --char-wrong: #ff3355;
+            --char-wrong-bg: rgba(255, 51, 85, 0.25);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--dark-bg);
+            background-image:
+                radial-gradient(circle at 10% 20%, rgba(0, 243, 255, 0.12) 0%, transparent 45%),
+                radial-gradient(circle at 90% 80%, rgba(255, 0, 127, 0.12) 0%, transparent 45%),
+                radial-gradient(circle at 50% 50%, rgba(157, 0, 255, 0.08) 0%, transparent 60%);
+            color: #ffffff;
+            font-family: 'JetBrains Mono', 'Share Tech Mono', monospace;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* 3D Synthwave Grid Floor */
+        .cyber-grid-floor {
+            position: fixed;
+            bottom: -50px;
+            left: -50%;
+            width: 200%;
+            height: 55vh;
+            background-image:
+                linear-gradient(rgba(0, 243, 255, 0.18) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 243, 255, 0.18) 1px, transparent 1px);
+            background-size: 50px 50px;
+            transform: perspective(350px) rotateX(70deg);
+            transform-origin: bottom center;
+            animation: gridMove 12s linear infinite;
+            mask-image: linear-gradient(to top, rgba(0, 0, 0, 1) 5%, rgba(0, 0, 0, 0) 80%);
+            -webkit-mask-image: linear-gradient(to top, rgba(0, 0, 0, 1) 5%, rgba(0, 0, 0, 0) 80%);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        @keyframes gridMove {
+            0% {
+                background-position: 0 0;
+            }
+
+            100% {
+                background-position: 0 500px;
+            }
+        }
+
+        /* Ambient Glowing Nebula Orbs */
+        .ambient-glow {
+            position: fixed;
+            width: 500px;
+            height: 500px;
+            border-radius: 50%;
+            filter: blur(140px);
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.45;
+        }
+
+        .glow-1 {
+            top: 5%;
+            left: 10%;
+            background: radial-gradient(circle, rgba(0, 243, 255, 0.4), transparent 70%);
+        }
+
+        .glow-2 {
+            bottom: 5%;
+            right: 10%;
+            background: radial-gradient(circle, rgba(255, 0, 127, 0.4), transparent 70%);
+        }
+
+        /* Scanlines */
+        .scanlines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(to bottom,
+                    transparent 0px,
+                    transparent 2px,
+                    rgba(0, 0, 0, 0.1) 3px,
+                    rgba(0, 0, 0, 0.1) 4px);
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        /* Canvas Particle Sparks */
+        #particleCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 3;
+        }
+
+        /* Top Header */
+        .game-header {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            background: rgba(10, 10, 20, 0.85);
+            backdrop-filter: blur(15px);
+            border-bottom: 1.5px solid rgba(0, 243, 255, 0.3);
+            box-shadow: 0 4px 25px rgba(0, 243, 255, 0.15);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+        }
+
+        .brand-icon {
+            font-size: 1.6rem;
+            filter: drop-shadow(0 0 10px var(--neon-cyan));
+        }
+
+        .brand-text {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 900;
+            font-size: 1.35rem;
+            letter-spacing: 2px;
+            background: linear-gradient(45deg, var(--neon-cyan), var(--neon-pink));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .brand-sub {
+            font-size: 0.75rem;
+            background: rgba(255, 0, 127, 0.2);
+            color: #ff99cc;
+            border: 1px solid rgba(255, 0, 127, 0.4);
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-family: 'Press Start 2P', monospace;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn-cyber {
+            background: rgba(0, 243, 255, 0.08);
+            border: 1px solid rgba(0, 243, 255, 0.4);
+            color: #ffffff;
+            padding: 7px 16px;
+            border-radius: 8px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.82rem;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.25s ease;
+        }
+
+        .btn-cyber:hover {
+            background: rgba(0, 243, 255, 0.25);
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .btn-pink {
+            background: rgba(255, 0, 127, 0.08);
+            border-color: rgba(255, 0, 127, 0.4);
+            color: #ff99cc;
+        }
+
+        .btn-pink:hover {
+            background: rgba(255, 0, 127, 0.25);
+            border-color: var(--neon-pink);
+            box-shadow: 0 0 15px rgba(255, 0, 127, 0.4);
+        }
+
+        /* Main Game Container */
+        .main-container {
+            position: relative;
+            z-index: 10;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 1.5rem 1.5rem 3rem 1.5rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        /* Mode & Category Bar */
+        .controls-panel {
+            background: var(--card-bg);
+            border: 1px solid rgba(0, 243, 255, 0.25);
+            border-radius: 16px;
+            padding: 1rem 1.4rem;
+            backdrop-filter: blur(12px);
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .pill-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 4px 6px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .pill-label {
+            font-size: 0.75rem;
+            color: #8899bb;
+            font-family: 'Share Tech Mono', monospace;
+            padding: 0 6px;
+            text-transform: uppercase;
+        }
+
+        .pill-btn {
+            background: transparent;
+            border: none;
+            color: #a0aec0;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-family: 'Share Tech Mono', monospace;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .pill-btn:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .pill-btn.active {
+            background: linear-gradient(135deg, rgba(0, 243, 255, 0.3), rgba(157, 0, 255, 0.3));
+            color: var(--neon-cyan);
+            border: 1px solid var(--neon-cyan);
+            font-weight: 700;
+            box-shadow: 0 0 12px rgba(0, 243, 255, 0.35);
+        }
+
+        /* Live HUD Stats Dashboard */
+        .hud-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 1rem;
+        }
+
+        .hud-card {
+            background: var(--card-bg);
+            border: 1px solid rgba(0, 243, 255, 0.2);
+            border-radius: 14px;
+            padding: 1rem;
+            backdrop-filter: blur(12px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .hud-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--neon-cyan);
+        }
+
+        .hud-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
+        }
+
+        .hud-card.pink::after {
+            background: linear-gradient(90deg, transparent, var(--neon-pink), transparent);
+        }
+
+        .hud-card.yellow::after {
+            background: linear-gradient(90deg, transparent, var(--neon-yellow), transparent);
+        }
+
+        .hud-card.green::after {
+            background: linear-gradient(90deg, transparent, var(--neon-green), transparent);
+        }
+
+        .hud-title {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #8899bb;
+            font-family: 'Orbitron', sans-serif;
+            margin-bottom: 0.35rem;
+        }
+
+        .hud-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.1rem;
+            font-weight: 900;
+            color: #ffffff;
+            text-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+            line-height: 1;
+        }
+
+        .hud-value.cyan {
+            color: var(--neon-cyan);
+            text-shadow: 0 0 20px rgba(0, 243, 255, 0.6);
+        }
+
+        .hud-value.pink {
+            color: var(--neon-pink);
+            text-shadow: 0 0 20px rgba(255, 0, 127, 0.6);
+        }
+
+        .hud-value.yellow {
+            color: var(--neon-yellow);
+            text-shadow: 0 0 20px rgba(255, 230, 0, 0.6);
+        }
+
+        .hud-value.green {
+            color: var(--neon-green);
+            text-shadow: 0 0 20px rgba(0, 255, 136, 0.6);
+        }
+
+        .hud-sub {
+            font-size: 0.72rem;
+            color: #718096;
+            margin-top: 4px;
+        }
+
+        /* Streak & Combo Flame */
+        .combo-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--neon-yellow);
+            background: rgba(255, 230, 0, 0.12);
+            border: 1px solid rgba(255, 230, 0, 0.35);
+            padding: 4px 12px;
+            border-radius: 20px;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.04);
+            }
+        }
+
+        /* Interactive Typing Field Arena */
+        .typing-arena {
+            background: var(--card-bg);
+            border: 2px solid rgba(0, 243, 255, 0.35);
+            border-radius: 20px;
+            padding: 2.2rem 2.5rem;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7), inset 0 0 30px rgba(0, 243, 255, 0.05);
+            position: relative;
+            min-height: 240px;
+            cursor: text;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        .typing-arena.focused {
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 35px rgba(0, 243, 255, 0.3), inset 0 0 30px rgba(0, 243, 255, 0.08);
+        }
+
+        .typing-arena.shake {
+            animation: arenaShake 0.25s cubic-bezier(.36, .07, .19, .97) both;
+            border-color: var(--neon-red);
+            box-shadow: 0 0 35px rgba(255, 51, 85, 0.4);
+        }
+
+        @keyframes arenaShake {
+
+            10%,
+            90% {
+                transform: translate3d(-2px, 0, 0);
+            }
+
+            20%,
+            80% {
+                transform: translate3d(3px, 0, 0);
+            }
+
+            30%,
+            50%,
+            70% {
+                transform: translate3d(-5px, 0, 0);
+            }
+
+            40%,
+            60% {
+                transform: translate3d(5px, 0, 0);
+            }
+        }
+
+        /* Hidden Input capture */
+        #typingInput {
+            position: absolute;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            pointer-events: none;
+            width: 1px;
+            height: 1px;
+        }
+
+        /* Words Container */
+        .words-wrapper {
+            position: relative;
+            font-size: 1.55rem;
+            line-height: 2.1;
+            letter-spacing: 0.05em;
+            max-height: 170px;
+            overflow: hidden;
+            display: flex;
+            flex-wrap: wrap;
+            align-content: flex-start;
+            gap: 12px;
+            font-weight: 500;
+        }
+
+        .word {
+            display: inline-flex;
+            position: relative;
+            transition: opacity 0.2s;
+        }
+
+        .char {
+            position: relative;
+            color: var(--char-inactive);
+            transition: color 0.12s, text-shadow 0.12s;
+        }
+
+        .char.correct {
+            color: var(--char-correct);
+            text-shadow: 0 0 10px rgba(0, 243, 255, 0.55);
+        }
+
+        .char.incorrect {
+            color: var(--char-wrong);
+            background: var(--char-wrong-bg);
+            border-radius: 3px;
+            text-shadow: 0 0 12px rgba(255, 51, 85, 0.8);
+        }
+
+        /* Caret Cursor */
+        .cyber-caret {
+            position: absolute;
+            width: 3px;
+            height: 1.7rem;
+            background: var(--neon-cyan);
+            border-radius: 2px;
+            box-shadow: 0 0 12px var(--neon-cyan), 0 0 20px var(--neon-cyan);
+            transition: left 0.08s ease, top 0.08s ease;
+            animation: caretBlink 1s infinite;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        @keyframes caretBlink {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.25;
+            }
+        }
+
+        /* Click to focus banner */
+        .focus-banner {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(7, 7, 18, 0.85);
+            backdrop-filter: blur(8px);
+            border-radius: 18px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            z-index: 20;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+
+        .focus-banner.hidden {
+            display: none;
+        }
+
+        .focus-text {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.3rem;
+            color: var(--neon-cyan);
+            letter-spacing: 2px;
+            animation: glowText 1.5s infinite alternate;
+        }
+
+        @keyframes glowText {
+            from {
+                text-shadow: 0 0 10px rgba(0, 243, 255, 0.4);
+            }
+
+            to {
+                text-shadow: 0 0 25px rgba(0, 243, 255, 0.9);
+            }
+        }
+
+        .focus-hint {
+            font-size: 0.85rem;
+            color: #8899bb;
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        /* Keyboard Live Heatmap / Quick Row */
+        .key-hints-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.6rem 1rem;
+            font-size: 0.8rem;
+            color: #718096;
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        .shortcut-badge {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 2px 7px;
+            border-radius: 5px;
+            color: #d1d5db;
+            font-size: 0.75rem;
+            margin: 0 4px;
+        }
+
+        /* Results / Performance Summary Modal */
+        .results-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(5, 5, 12, 0.92);
+            backdrop-filter: blur(16px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            padding: 20px;
+        }
+
+        .results-overlay.active {
+            display: flex;
+            animation: modalPop 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes modalPop {
+            0% {
+                opacity: 0;
+                transform: scale(0.9) translateY(20px);
+            }
+
+            100% {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        .results-card {
+            background: rgba(14, 14, 28, 0.95);
+            border: 2px solid var(--neon-cyan);
+            border-radius: 24px;
+            max-width: 720px;
+            width: 100%;
+            padding: 2.2rem;
+            box-shadow: 0 0 60px rgba(0, 243, 255, 0.35);
+            display: flex;
+            flex-direction: column;
+            gap: 1.8rem;
+            position: relative;
+        }
+
+        .results-header {
+            text-align: center;
+            position: relative;
+        }
+
+        .results-rank {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 0.95rem;
+            color: var(--neon-pink);
+            letter-spacing: 2px;
+            margin-bottom: 0.5rem;
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 8px;
+            background: rgba(255, 0, 127, 0.15);
+            border: 1px solid var(--neon-pink);
+        }
+
+        .results-title {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 900;
+            font-size: 2.4rem;
+            background: linear-gradient(45deg, var(--neon-cyan), #ffffff, var(--neon-pink));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.3rem;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+
+        .res-stat-box {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
+            padding: 1.1rem;
+            text-align: center;
+        }
+
+        .res-stat-label {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.72rem;
+            color: #8899bb;
+            letter-spacing: 1px;
+            margin-bottom: 0.35rem;
+        }
+
+        .res-stat-val {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2rem;
+            font-weight: 900;
+            color: #fff;
+        }
+
+        .results-footer {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .btn-restart {
+            background: linear-gradient(135deg, var(--neon-cyan), #00aaff);
+            color: #000;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 900;
+            font-size: 1rem;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 0 25px rgba(0, 243, 255, 0.5);
+            transition: all 0.25s;
+        }
+
+        .btn-restart:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 40px rgba(0, 243, 255, 0.8);
+        }
+
+        /* Audio synthesizer toggler */
+        .sound-icon {
+            font-size: 1.1rem;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 3D Synthwave Grid Floor -->
+    <div class="cyber-grid-floor"></div>
+
+    <!-- Ambient Glowing Orbs -->
+    <div class="ambient-glow glow-1"></div>
+    <div class="ambient-glow glow-2"></div>
+
+    <!-- Scanline Raster Overlay -->
+    <div class="scanlines"></div>
+
+    <!-- Particle Sparks Canvas -->
+    <canvas id="particleCanvas"></canvas>
+
+    <!-- Top Header Navigation -->
+    <header class="game-header">
+        <div class="brand">
+            <span class="brand-icon">⚡</span>
+            <div>
+                <span class="brand-text">SPEEDTYPE PRO</span>
+                <span class="brand-sub">ARCADE V2.0</span>
+            </div>
+        </div>
+
+        <div class="header-actions">
+            <button class="btn-cyber" id="soundToggle" onclick="toggleSound()">
+                <span class="sound-icon" id="soundIcon">🔊</span>
+                <span id="soundText">AUDIO ON</span>
+            </button>
+            <button class="btn-cyber" onclick="toggleFullscreen()">
+                <span>⛶</span> FULLSCREEN
+            </button>
+            <a href="/games" class="btn-cyber btn-pink" onclick="logExitAndReturn(event)">
+                <span>🚪</span> ARCADE HUB
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="main-container">
+        <!-- Controls & Mode Selector Panel -->
+        <div class="controls-panel">
+            <!-- Mode / Timer selection -->
+            <div class="pill-group">
+                <span class="pill-label">MODE:</span>
+                <button class="pill-btn active" data-mode="time" data-val="15" onclick="setMode('time', 15)">15s</button>
+                <button class="pill-btn" data-mode="time" data-val="30" onclick="setMode('time', 30)">30s</button>
+                <button class="pill-btn" data-mode="time" data-val="60" onclick="setMode('time', 60)">60s</button>
+                <button class="pill-btn" data-mode="words" data-val="25" onclick="setMode('words', 25)">25w</button>
+                <button class="pill-btn" data-mode="words" data-val="50" onclick="setMode('words', 50)">50w</button>
+            </div>
+
+            <!-- Category selector -->
+            <div class="pill-group">
+                <span class="pill-label">THEME:</span>
+                <button class="pill-btn active" data-cat="cyber" onclick="setCategory('cyber')">⚡ CYBER</button>
+                <button class="pill-btn" data-cat="code" onclick="setCategory('code')">💻 CODE</button>
+                <button class="pill-btn" data-cat="scifi" onclick="setCategory('scifi')">🚀 SCI-FI</button>
+                <button class="pill-btn" data-cat="words" onclick="setCategory('words')">🔤 TOP WORDS</button>
+            </div>
+
+            <!-- Sudden Death toggle -->
+            <div class="pill-group">
+                <button class="pill-btn" id="suddenDeathBtn" onclick="toggleSuddenDeath()">
+                    💀 SUDDEN DEATH: <span id="sdStatus">OFF</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Live HUD Stats -->
+        <div class="hud-grid">
+            <div class="hud-card">
+                <span class="hud-title">LIVE WPM</span>
+                <span class="hud-value cyan" id="hudWpm">0</span>
+                <span class="hud-sub">WORDS / MIN</span>
+            </div>
+
+            <div class="hud-card pink">
+                <span class="hud-title">ACCURACY</span>
+                <span class="hud-value pink" id="hudAccuracy">100%</span>
+                <span class="hud-sub">PRECISION</span>
+            </div>
+
+            <div class="hud-card yellow">
+                <span class="hud-title" id="timerLabel">TIME LEFT</span>
+                <span class="hud-value yellow" id="hudTimer">15s</span>
+                <span class="hud-sub" id="timerSub">REMAINING</span>
+            </div>
+
+            <div class="hud-card green">
+                <span class="hud-title">STREAK</span>
+                <span class="hud-value green" id="hudStreak">0x</span>
+                <span class="hud-sub">COMBO MULTIPLIER</span>
+            </div>
+        </div>
+
+        <!-- Typing Arena -->
+        <div class="typing-arena" id="typingArena" onclick="focusInput()">
+            <!-- Focus Click Banner -->
+            <div class="focus-banner" id="focusBanner" onclick="focusInput()">
+                <span class="focus-text">⚡ CLICK TO ENGAGE TERMINAL ⚡</span>
+                <span class="focus-hint">OR START TYPING IMMEDIATELY</span>
+            </div>
+
+            <!-- Hidden Input for Mobile / Key Capture -->
+            <input type="text" id="typingInput" autocomplete="off" autocapitalize="off" spellcheck="false">
+
+            <!-- Cyber Animated Caret -->
+            <div class="cyber-caret" id="cyberCaret"></div>
+
+            <!-- Text Display Wrapper -->
+            <div class="words-wrapper" id="wordsWrapper">
+                <!-- Dynamically generated word & character spans -->
+            </div>
+        </div>
+
+        <!-- Keyboard Key Hints Bar -->
+        <div class="key-hints-bar">
+            <div>
+                <span>Quick Restart: <span class="shortcut-badge">Tab</span> + <span class="shortcut-badge">Enter</span> or <span class="shortcut-badge">Esc</span></span>
+            </div>
+            <div>
+                <span id="sessionStatus">STATUS: <span style="color: var(--neon-green)">READY FOR INPUT</span></span>
+            </div>
+        </div>
+    </main>
+
+    <!-- Performance Summary / Results Modal -->
+    <div class="results-overlay" id="resultsModal">
+        <div class="results-card">
+            <div class="results-header">
+                <div class="results-rank" id="resRank">RANK: S+ MASTER NETRUNNER</div>
+                <h2 class="results-title">PERFORMANCE METRICS</h2>
+            </div>
+
+            <div class="results-grid">
+                <div class="res-stat-box">
+                    <div class="res-stat-label">NET SPEED</div>
+                    <div class="res-stat-val" style="color: var(--neon-cyan)" id="resWpm">0</div>
+                    <div class="hud-sub">WPM</div>
+                </div>
+
+                <div class="res-stat-box">
+                    <div class="res-stat-label">ACCURACY</div>
+                    <div class="res-stat-val" style="color: var(--neon-pink)" id="resAcc">100%</div>
+                    <div class="hud-sub">PRECISION</div>
+                </div>
+
+                <div class="res-stat-box">
+                    <div class="res-stat-label">RAW SPEED</div>
+                    <div class="res-stat-val" style="color: var(--neon-yellow)" id="resRawWpm">0</div>
+                    <div class="hud-sub">WPM</div>
+                </div>
+
+                <div class="res-stat-box">
+                    <div class="res-stat-label">CHARACTERS</div>
+                    <div class="res-stat-val" id="resChars">0 / 0</div>
+                    <div class="hud-sub">CORRECT / ERRORS</div>
+                </div>
+
+                <div class="res-stat-box">
+                    <div class="res-stat-label">MAX STREAK</div>
+                    <div class="res-stat-val" style="color: var(--neon-green)" id="resStreak">0x</div>
+                    <div class="hud-sub">CONSECUTIVE KEYS</div>
+                </div>
+
+                <div class="res-stat-box">
+                    <div class="res-stat-label">BEST RECORD</div>
+                    <div class="res-stat-val" style="color: #ff99cc" id="resBest">0 WPM</div>
+                    <div class="hud-sub">ALL-TIME BEST</div>
+                </div>
+            </div>
+
+            <div class="results-footer">
+                <button class="btn-restart" onclick="restartGame()">⚡ RESTART RUN [Tab + Enter]</button>
+                <button class="btn-cyber" onclick="shareScore()">📋 COPY REPORT</button>
+                <a href="/games" class="btn-cyber btn-pink" onclick="logExitAndReturn(event)">🏠 ARCADE HUB</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Web Audio Synthesizer & Game Logic -->
+    <script>
+        // Sound Synthesis via Web Audio API (zero missing files)
+        class CyberAudio {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContext) {
+                        this.ctx = new AudioContext();
+                    }
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playKeyClick() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'triangle';
+                const freq = 450 + Math.random() * 120;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(80, this.ctx.currentTime + 0.04);
+
+                gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.04);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.04);
+            }
+
+            playError() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(140, this.ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(90, this.ctx.currentTime + 0.1);
+
+                gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.001, this.ctx.currentTime + 0.1);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.1);
+            }
+
+            playMilestone() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime + i * 0.06);
+                    gain.gain.setValueAtTime(0.1, this.ctx.currentTime + i * 0.06);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + i * 0.06 + 0.15);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(this.ctx.currentTime + i * 0.06);
+                    osc.stop(this.ctx.currentTime + i * 0.06 + 0.15);
+                });
+            }
+        }
+
+        const audio = new CyberAudio();
+
+        function toggleSound() {
+            audio.enabled = !audio.enabled;
+            audio.init();
+            document.getElementById('soundIcon').textContent = audio.enabled ? '🔊' : '🔇';
+            document.getElementById('soundText').textContent = audio.enabled ? 'AUDIO ON' : 'MUTED';
+        }
+
+        // Keystroke Spark Particle FX
+        class SparkParticles {
+            constructor() {
+                this.canvas = document.getElementById('particleCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.particles = [];
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+                this.animate();
+            }
+
+            resize() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+            }
+
+            burst(x, y, color = '#00f3ff') {
+                for (let i = 0; i < 8; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = Math.random() * 4 + 1.5;
+                    this.particles.push({
+                        x, y,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        alpha: 1,
+                        size: Math.random() * 2.5 + 1.5,
+                        color
+                    });
+                }
+            }
+
+            animate() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    const p = this.particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.alpha -= 0.035;
+                    if (p.alpha <= 0) {
+                        this.particles.splice(i, 1);
+                        continue;
+                    }
+                    this.ctx.beginPath();
+                    this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    this.ctx.fillStyle = p.color;
+                    this.ctx.globalAlpha = p.alpha;
+                    this.ctx.fill();
+                }
+                this.ctx.globalAlpha = 1;
+                requestAnimationFrame(() => this.animate());
+            }
+        }
+
+        const sparks = new SparkParticles();
+
+        // Cyber Content Datasets
+        const TEXT_DATA = {
+            cyber: [
+                "neural matrix cyberspace overclock mainframe firewall quantum decrypt terminal protocol synthetic mainframe glitch bandwidth access override cyberspace netrunner vector daemon",
+                "infiltrating corporate subnets using zero day payloads while encrypting data streams with quantum keys through deep orbital satellite uplinks across decentralized meshes",
+                "the neon city glows under heavy acid rain as cybernetic hackers bypass biometric security protocols to liberate corrupted artificial intelligence memory banks",
+                "cyber decks synchronize with high speed optical relays executing recursive algorithms to neutralize rogue synthetic entities before the grid triggers emergency lockdown"
+            ],
+            code: [
+                "function optimizeGrid(matrix, threshold) { return matrix.filter(node => node.speed > threshold).map(node => node.connect()); }",
+                "const decryptStream = async (payload) => { const hash = await crypto.subtle.digest('SHA-256', payload); return hash.buffer; };",
+                "class CyberAgent: def __init__(self, alias): self.alias = alias; self.power = 100; def breach(self): self.power -= 10",
+                "SELECT player_id, MAX(wpm) AS top_speed FROM leaderboard WHERE status = 'ACTIVE' GROUP BY player_id ORDER BY top_speed DESC;"
+            ],
+            scifi: [
+                "all those moments will be lost in time like tears in rain time to die the future is already here it is just not evenly distributed across the sectors",
+                "i have seen things you people would not believe attack ships on fire off the shoulder of orion c beams glitter in the dark near the tannhauser gate",
+                "we are the architects of our own digital destiny standing on the precipice of technological singularity where human minds fuse with eternal machines",
+                "artificial intelligence does not hate us nor does it love us but we are made of atoms which it can use for something far more efficient"
+            ],
+            words: [
+                "about above after again against among animal another answer because become before began begin behind better between cannot change children city close country course direct early earth enough every family father figure follow force front great group heard heart house important interest learn leave letter light little might mountain music never number often order picture place plant point power problem public right school second sentence several small state still story study system table thought through together under water where which while white without woman world young"
+            ]
+        };
+
+        // Game State Variables
+        let currentMode = 'time'; // 'time' or 'words'
+        let modeValue = 15;
+        let currentCategory = 'cyber';
+        let suddenDeath = false;
+
+        let wordsList = [];
+        let wordIndex = 0;
+        let charIndex = 0;
+        let correctChars = 0;
+        let totalTypedChars = 0;
+        let errorCount = 0;
+        let streak = 0;
+        let maxStreak = 0;
+
+        let isRunning = false;
+        let isFinished = false;
+        let startTime = null;
+        let timerInterval = null;
+        let timeLeft = 15;
+
+        const inputEl = document.getElementById('typingInput');
+        const arenaEl = document.getElementById('typingArena');
+        const wordsWrapper = document.getElementById('wordsWrapper');
+        const caretEl = document.getElementById('cyberCaret');
+        const focusBanner = document.getElementById('focusBanner');
+
+        // Initialize Session with Pixora Server
+        function logGameStart() {
+            fetch('/start_game/SpeedType%20Pro', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => console.log('SpeedType Pro session started:', data))
+                .catch(err => console.log('Session init offline:', err));
+        }
+
+        function logGameEnd() {
+            fetch('/end_game/SpeedType%20Pro', { method: 'POST' })
+                .catch(err => console.log('Session close error:', err));
+        }
+
+        function logExitAndReturn(e) {
+            e.preventDefault();
+            logGameEnd();
+            window.location.href = '/games';
+        }
+
+        window.addEventListener('beforeunload', () => {
+            navigator.sendBeacon('/end_game/SpeedType%20Pro');
+        });
+
+        // Setup Game Board
+        function initGame() {
+            clearInterval(timerInterval);
+            isRunning = false;
+            isFinished = false;
+            wordIndex = 0;
+            charIndex = 0;
+            correctChars = 0;
+            totalTypedChars = 0;
+            errorCount = 0;
+            streak = 0;
+            maxStreak = 0;
+            startTime = null;
+
+            if (currentMode === 'time') {
+                timeLeft = modeValue;
+                document.getElementById('timerLabel').textContent = 'TIME LEFT';
+                document.getElementById('hudTimer').textContent = `${timeLeft}s`;
+                document.getElementById('timerSub').textContent = 'REMAINING';
+            } else {
+                document.getElementById('timerLabel').textContent = 'PROGRESS';
+                document.getElementById('hudTimer').textContent = `0 / ${modeValue}`;
+                document.getElementById('timerSub').textContent = 'WORDS COMPLETED';
+            }
+
+            document.getElementById('hudWpm').textContent = '0';
+            document.getElementById('hudAccuracy').textContent = '100%';
+            document.getElementById('hudStreak').textContent = '0x';
+            document.getElementById('sessionStatus').innerHTML = 'STATUS: <span style="color: var(--neon-green)">READY FOR INPUT</span>';
+            document.getElementById('resultsModal').classList.remove('active');
+
+            generateWords();
+            renderWords();
+            updateCaret();
+            inputEl.value = '';
+        }
+
+        function generateWords() {
+            const rawPool = TEXT_DATA[currentCategory] || TEXT_DATA.cyber;
+            const fullPool = rawPool.join(' ').split(/\s+/).filter(w => w.length > 0);
+
+            wordsList = [];
+            const neededCount = currentMode === 'words' ? modeValue + 5 : 80;
+
+            for (let i = 0; i < neededCount; i++) {
+                const randomWord = fullPool[Math.floor(Math.random() * fullPool.length)];
+                wordsList.push(randomWord);
+            }
+        }
+
+        function renderWords() {
+            wordsWrapper.innerHTML = '';
+            wordsList.forEach((word, wIdx) => {
+                const wordSpan = document.createElement('span');
+                wordSpan.className = 'word';
+                wordSpan.dataset.wordIndex = wIdx;
+
+                for (let cIdx = 0; cIdx < word.length; cIdx++) {
+                    const charSpan = document.createElement('span');
+                    charSpan.className = 'char';
+                    charSpan.textContent = word[cIdx];
+                    charSpan.dataset.charIndex = cIdx;
+                    wordSpan.appendChild(charSpan);
+                }
+
+                wordsWrapper.appendChild(wordSpan);
+            });
+        }
+
+        function focusInput() {
+            audio.init();
+            inputEl.focus();
+            arenaEl.classList.add('focused');
+            focusBanner.classList.add('hidden');
+        }
+
+        arenaEl.addEventListener('click', focusInput);
+
+        inputEl.addEventListener('blur', () => {
+            if (!isFinished) {
+                arenaEl.classList.remove('focused');
+                focusBanner.classList.remove('hidden');
+            }
+        });
+
+        // Typing Loop & Input Handling
+        window.addEventListener('keydown', (e) => {
+            // Restart shortcut (Tab + Enter or Esc)
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                restartGame();
+                return;
+            }
+
+            if (e.key === 'Enter' && isFinished) {
+                e.preventDefault();
+                restartGame();
+                return;
+            }
+
+            if (isFinished) return;
+
+            // Ensure input element retains focus
+            if (document.activeElement !== inputEl && !e.ctrlKey && !e.metaKey && e.key.length === 1) {
+                focusInput();
+            }
+        });
+
+        inputEl.addEventListener('input', handleTyping);
+
+        function handleTyping(e) {
+            if (isFinished) return;
+
+            if (!isRunning) {
+                startGame();
+            }
+
+            const currentTyped = inputEl.value;
+            const currentTargetWord = wordsList[wordIndex];
+            const currentWordEl = wordsWrapper.children[wordIndex];
+            if (!currentWordEl) return;
+
+            // Check if space pressed (word completion)
+            if (currentTyped.endsWith(' ')) {
+                const typedWord = currentTyped.trim();
+                const charSpans = currentWordEl.querySelectorAll('.char');
+
+                // Mark un-typed chars in word as incorrect if skipped
+                for (let i = typedWord.length; i < currentTargetWord.length; i++) {
+                    if (charSpans[i]) {
+                        charSpans[i].classList.add('incorrect');
+                        errorCount++;
+                    }
+                }
+
+                // Check whole word correctness
+                if (typedWord === currentTargetWord) {
+                    streak++;
+                    correctChars++; // for space
+                    if (streak % 10 === 0) audio.playMilestone();
+                } else {
+                    if (suddenDeath) {
+                        triggerGameOver('SUDDEN DEATH: TYPO ON WORD SUBMISSION');
+                        return;
+                    }
+                    streak = 0;
+                }
+
+                totalTypedChars++;
+                wordIndex++;
+                inputEl.value = '';
+
+                // Handle words target mode completion
+                if (currentMode === 'words') {
+                    document.getElementById('hudTimer').textContent = `${wordIndex} / ${modeValue}`;
+                    if (wordIndex >= modeValue) {
+                        endGame();
+                        return;
+                    }
+                }
+
+                // Check if approaching end of words list
+                if (wordIndex >= wordsList.length - 10) {
+                    const extraPool = TEXT_DATA[currentCategory].join(' ').split(/\s+/);
+                    for (let k = 0; k < 20; k++) {
+                        const extraWord = extraPool[Math.floor(Math.random() * extraPool.length)];
+                        wordsList.push(extraWord);
+                        const wordSpan = document.createElement('span');
+                        wordSpan.className = 'word';
+                        wordSpan.dataset.wordIndex = wordsList.length - 1;
+                        for (let c = 0; c < extraWord.length; c++) {
+                            const charSpan = document.createElement('span');
+                            charSpan.className = 'char';
+                            charSpan.textContent = extraWord[c];
+                            wordSpan.appendChild(charSpan);
+                        }
+                        wordsWrapper.appendChild(wordSpan);
+                    }
+                }
+
+                // Auto-scroll words container
+                const nextWordEl = wordsWrapper.children[wordIndex];
+                if (nextWordEl && nextWordEl.offsetTop > currentWordEl.offsetTop + 10) {
+                    wordsWrapper.scrollTop = nextWordEl.offsetTop - 15;
+                }
+
+                updateHUD();
+                updateCaret();
+                return;
+            }
+
+            // Character by character evaluation
+            const charSpans = currentWordEl.querySelectorAll('.char');
+            const typedLen = currentTyped.length;
+
+            totalTypedChars++;
+
+            // Check the last typed character
+            const lastChar = currentTyped[typedLen - 1];
+            const targetChar = currentTargetWord[typedLen - 1];
+
+            if (lastChar === targetChar) {
+                correctChars++;
+                streak++;
+                audio.playKeyClick();
+
+                // Particle sparks at caret
+                const caretRect = caretEl.getBoundingClientRect();
+                sparks.burst(caretRect.left + 2, caretRect.top + caretRect.height / 2, '#00f3ff');
+            } else {
+                errorCount++;
+                streak = 0;
+                audio.playError();
+                arenaEl.classList.add('shake');
+                setTimeout(() => arenaEl.classList.remove('shake'), 260);
+
+                if (suddenDeath) {
+                    triggerGameOver('SUDDEN DEATH: TYPO DETECTED');
+                    return;
+                }
+            }
+
+            if (streak > maxStreak) maxStreak = streak;
+
+            // Update visual character classes
+            for (let i = 0; i < currentTargetWord.length; i++) {
+                const span = charSpans[i];
+                if (!span) continue;
+
+                if (i < typedLen) {
+                    if (currentTyped[i] === currentTargetWord[i]) {
+                        span.className = 'char correct';
+                    } else {
+                        span.className = 'char incorrect';
+                    }
+                } else {
+                    span.className = 'char';
+                }
+            }
+
+            updateHUD();
+            updateCaret();
+        }
+
+        function updateCaret() {
+            const currentWordEl = wordsWrapper.children[wordIndex];
+            if (!currentWordEl) return;
+
+            const charSpans = currentWordEl.querySelectorAll('.char');
+            const typedLen = inputEl.value.length;
+
+            let targetLeft = 0;
+            let targetTop = 0;
+
+            if (typedLen < charSpans.length) {
+                const targetChar = charSpans[typedLen];
+                targetLeft = targetChar.offsetLeft;
+                targetTop = targetChar.offsetTop;
+            } else if (charSpans.length > 0) {
+                const lastChar = charSpans[charSpans.length - 1];
+                targetLeft = lastChar.offsetLeft + lastChar.offsetWidth;
+                targetTop = lastChar.offsetTop;
+            } else {
+                targetLeft = currentWordEl.offsetLeft;
+                targetTop = currentWordEl.offsetTop;
+            }
+
+            caretEl.style.left = `${targetLeft}px`;
+            caretEl.style.top = `${targetTop + 4}px`;
+        }
+
+        function startGame() {
+            isRunning = true;
+            startTime = Date.now();
+            logGameStart();
+            document.getElementById('sessionStatus').innerHTML = 'STATUS: <span style="color: var(--neon-cyan)">LIVE TRANSMISSION</span>';
+
+            if (currentMode === 'time') {
+                timerInterval = setInterval(() => {
+                    timeLeft--;
+                    document.getElementById('hudTimer').textContent = `${timeLeft}s`;
+
+                    if (timeLeft <= 0) {
+                        endGame();
+                    }
+                }, 1000);
+            }
+        }
+
+        function updateHUD() {
+            const elapsedSec = Math.max(1, (Date.now() - (startTime || Date.now())) / 1000);
+            const elapsedMin = elapsedSec / 60;
+
+            // Standard WPM = (all correct keystrokes / 5) / time in minutes
+            const rawWpm = Math.round((totalTypedChars / 5) / elapsedMin) || 0;
+            const netWpm = Math.max(0, Math.round(((correctChars / 5) - (errorCount)) / elapsedMin)) || 0;
+            const accuracy = totalTypedChars > 0 ? Math.round((correctChars / totalTypedChars) * 100) : 100;
+
+            document.getElementById('hudWpm').textContent = isRunning ? rawWpm : 0;
+            document.getElementById('hudAccuracy').textContent = `${accuracy}%`;
+            document.getElementById('hudStreak').textContent = `${streak}x`;
+        }
+
+        function triggerGameOver(reason) {
+            endGame(reason);
+        }
+
+        function endGame(failReason = null) {
+            isFinished = true;
+            isRunning = false;
+            clearInterval(timerInterval);
+
+            const elapsedSec = Math.max(1, (Date.now() - (startTime || Date.now())) / 1000);
+            const elapsedMin = elapsedSec / 60;
+
+            const netWpm = Math.max(0, Math.round(((correctChars / 5) - (errorCount)) / elapsedMin)) || 0;
+            const rawWpm = Math.round((totalTypedChars / 5) / elapsedMin) || 0;
+            const accuracy = totalTypedChars > 0 ? Math.round((correctChars / totalTypedChars) * 100) : 100;
+
+            logGameEnd();
+            audio.playMilestone();
+
+            // Store high score locally
+            const bestKey = `speedtype_best_${currentCategory}_${currentMode}_${modeValue}`;
+            const previousBest = parseInt(localStorage.getItem(bestKey) || '0', 10);
+            if (netWpm > previousBest) {
+                localStorage.setItem(bestKey, netWpm.toString());
+            }
+            const currentBest = Math.max(netWpm, previousBest);
+
+            // Determine Rank
+            let rankText = "D // GLITCHED REBOOT";
+            if (failReason) {
+                rankText = `💀 FAIL // ${failReason}`;
+            } else if (netWpm >= 110) {
+                rankText = "👑 S+ // CYBER GOD TRANSCENDENCE";
+            } else if (netWpm >= 85) {
+                rankText = "⚡ S // MASTER NETRUNNER";
+            } else if (netWpm >= 65) {
+                rankText = "💠 A // DECK SPECIALIST";
+            } else if (netWpm >= 45) {
+                rankText = "🔋 B // TECHIE OPERATIVE";
+            } else if (netWpm >= 25) {
+                rankText = "⚙️ C // SCRIPT NOVICE";
+            }
+
+            document.getElementById('resRank').textContent = rankText;
+            document.getElementById('resWpm').textContent = netWpm;
+            document.getElementById('resAcc').textContent = `${accuracy}%`;
+            document.getElementById('resRawWpm').textContent = rawWpm;
+            document.getElementById('resChars').textContent = `${correctChars} / ${errorCount}`;
+            document.getElementById('resStreak').textContent = `${maxStreak}x`;
+            document.getElementById('resBest').textContent = `${currentBest} WPM`;
+
+            document.getElementById('resultsModal').classList.add('active');
+        }
+
+        function restartGame() {
+            initGame();
+            focusInput();
+        }
+
+        function setMode(mode, val) {
+            currentMode = mode;
+            modeValue = val;
+
+            document.querySelectorAll('[data-mode]').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.mode === mode && parseInt(btn.dataset.val) === val);
+            });
+
+            restartGame();
+        }
+
+        function setCategory(cat) {
+            currentCategory = cat;
+
+            document.querySelectorAll('[data-cat]').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.cat === cat);
+            });
+
+            restartGame();
+        }
+
+        function toggleSuddenDeath() {
+            suddenDeath = !suddenDeath;
+            const btn = document.getElementById('suddenDeathBtn');
+            const status = document.getElementById('sdStatus');
+            btn.classList.toggle('active', suddenDeath);
+            status.textContent = suddenDeath ? 'ON' : 'OFF';
+            restartGame();
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+            }
+        }
+
+        function shareScore() {
+            const wpm = document.getElementById('resWpm').textContent;
+            const acc = document.getElementById('resAcc').textContent;
+            const rank = document.getElementById('resRank').textContent;
+            const text = `⚡ Pixora SpeedType Pro\n🚀 WPM: ${wpm} | Accuracy: ${acc}\n🏆 ${rank}\nPlay at: ${window.location.origin}/speedtype`;
+
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text).then(() => {
+                    alert('Speed score report copied to clipboard!');
+                });
+            } else {
+                alert(text);
+            }
+        }
+
+        // Initialize on Load
+        document.addEventListener('DOMContentLoaded', () => {
+            initGame();
+        });
+    </script>
+</body>
+
+</html>

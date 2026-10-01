@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Memory Match Game</title>
+  <style>
+    body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+        margin: 0;
+        padding: 0;
+        background: linear-gradient(135deg, #ffb347, #ffcc33);
+        color: #4e342e;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        flex-direction: column;
+    }
+
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(8, 120px); /* 8 columns */
+        grid-template-rows: repeat(5, 120px); /* 5 rows */
+        gap: 2px;
+        justify-content: center;
+        margin-top: 20px;
+    }
+      
+    .timer, .moves {
+        font-size: 30px;
+        margin-top: 10px;
+    }
+      
+    .card {
+      width: 110px;
+      height: 110px;
+      background-color: #333;
+      color: white;
+      font-size: 48px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-radius: 10px;
+      cursor: pointer;
+      transform: scale(1);
+      transition: transform 0.2s;
+    }
+    .card:hover {
+      transform: scale(1.1);
+    }
+    .card.flipped {
+      background-color: lightblue;
+      color: #333;
+      pointer-events: none;
+    }
+    .result-box {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: rgba(0, 0, 0, 0.85);
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      display: none;
+      width: 80%;
+      max-width: 400px;
+    }
+    .result-box h2 {
+      font-size: 30px;
+      margin-bottom: 10px;
+      color: #f5ba13;
+      animation: pop 0.5s ease-in-out;
+    }
+    .result-box p {
+      font-size: 18px;
+      margin: 10px 0;
+    }
+    .restart-btn {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 18px;
+      background-color: #f5ba13;
+      color: #1e1e2f;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .restart-btn:hover {
+      background-color: #d4a110;
+    }
+    @keyframes pop {
+      0% {
+        transform: scale(0.8);
+      }
+      50% {
+        transform: scale(1.1);
+      }
+      100% {
+        transform: scale(1);
+      }
+    }
+    .back-button {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 8px 15px;
+      font-size: 16px;
+      background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .back-button:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: translateX(5px);
+    }
+  </style>
+</head>
+<body>
+  <button class="back-button" onclick="goBack()">← Back</button>
+
+  <div class="timer" id="time">Time: 0s</div>
+  <div class="grid" id="grid"></div>
+  <div class="moves" id="moves">Moves: 0</div>
+  <div class="result-box" id="result-box">
+    <h2 id="result-title"></h2>
+    <p id="result-details"></p>
+    <button class="restart-btn" onclick="restartGame()">Restart</button>
+  </div>
+
+  <script>
+    const emojis = ['🍎', '🍎', '🐶', '🐶', '⚽', '⚽', '🚗', '🚗', '🌟', '🌟', 
+                    '🎈', '🎈', '🎵', '🎵', '🍫', '🍫', '🍔', '🍔', '🍉', '🍉', 
+                    '🍍', '🍍', '🐱', '🐱', '🌞', '🌞', '🌻', '🌻', '🌈', '🌈', 
+                    '🐥', '🐥', '🐸', '🐸', '🌮', '🌮', '🎂', '🎂', '🏀', '🏀']; // 40 items for 5x8 grid
+    emojis.sort(() => 0.5 - Math.random());
+
+    const grid = document.getElementById('grid');
+    const movesCounter = document.getElementById('moves');
+    const timeCounter = document.getElementById('time');
+    const resultBox = document.getElementById('result-box');
+    const resultTitle = document.getElementById('result-title');
+    const resultDetails = document.getElementById('result-details');
+
+    let firstCard, secondCard;
+    let lockBoard = false;
+    let moves = 0;
+    let time = 0;
+    let timerInterval;
+    let matchedPairs = 0;
+
+    function startTimer() {
+      timerInterval = setInterval(() => {
+        time++;
+        timeCounter.textContent = `Time: ${time}s`;
+      }, 1000);
+    }
+
+    emojis.forEach((emoji) => {
+      const card = document.createElement('div');
+      card.classList.add('card');
+      card.dataset.emoji = emoji;
+      card.innerHTML = '?'; // Default face-down
+      grid.appendChild(card);
+
+      card.addEventListener('click', () => flipCard(card));
+    });
+
+    function flipCard(card) {
+      if (lockBoard || card === firstCard) return;
+
+      if (time === 0) startTimer(); // Start timer on first flip
+
+      card.innerHTML = card.dataset.emoji;
+      card.classList.add('flipped');
+
+      if (!firstCard) {
+        firstCard = card;
+        return;
+      }
+
+      secondCard = card;
+      lockBoard = true;
+      moves++;
+      movesCounter.textContent = `Moves: ${moves}`;
+
+      checkForMatch();
+    }
+
+    function checkForMatch() {
+      if (firstCard.dataset.emoji === secondCard.dataset.emoji) {
+        keepCardsFlipped();
+      } else {
+        unflipCards();
+      }
+    }
+
+    function keepCardsFlipped() {
+      firstCard = null;
+      secondCard = null;
+      lockBoard = false;
+      matchedPairs++;
+
+      if (matchedPairs === emojis.length / 2) {
+        gameOver();
+      }
+    }
+
+    function unflipCards() {
+      setTimeout(() => {
+        firstCard.innerHTML = '?';
+        secondCard.innerHTML = '?';
+        firstCard.classList.remove('flipped');
+        secondCard.classList.remove('flipped');
+        resetBoard();
+      }, 1000);
+    }
+
+    function resetBoard() {
+      [firstCard, secondCard] = [null, null];
+      lockBoard = false;
+    }
+
+    function gameOver() {
+      clearInterval(timerInterval); // Stop the timer
+      resultBox.style.display = 'block'; // Show the result box
+
+      // Hide the timer and moves counters
+      timeCounter.style.display = 'none';
+      movesCounter.style.display = 'none';
+
+      let titleMessage;
+      if (moves < 60) {
+        titleMessage = 'Amazing!';
+      } else if (moves <= 80) {
+        titleMessage = 'Well Done!';
+      } else {
+        titleMessage = 'Good!';
+      }
+
+      resultTitle.textContent = titleMessage;
+      resultDetails.textContent = `You used ${moves} moves and finished in ${time}s.`;
+    }
+
+    function restartGame() {
+      time = 0;
+      moves = 0;
+      matchedPairs = 0;
+      firstCard = null;
+      secondCard = null;
+      lockBoard = false;
+
+      timeCounter.textContent = 'Time: 0s';
+      movesCounter.textContent = 'Moves: 0';
+
+      timeCounter.style.display = 'block';
+      movesCounter.style.display = 'block';
+
+      resultBox.style.display = 'none';
+
+      clearInterval(timerInterval);
+
+      const cards = document.querySelectorAll('.card');
+      cards.forEach(card => {
+        card.innerHTML = '?';
+        card.classList.remove('flipped');
+      });
+
+      emojis.sort(() => 0.5 - Math.random());
+      const gridCards = document.querySelectorAll('.card');
+      gridCards.forEach((card, index) => {
+        card.dataset.emoji = emojis[index];
+      });
+    }
+
+    function goBack() {
+      window.location.href = "{{ url_for('memorymatch2nd') }}"; // Change "index.html" to your desired page
+    }
+  </script>
+</body>
+</html>

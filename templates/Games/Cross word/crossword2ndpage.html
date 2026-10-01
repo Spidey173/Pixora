@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crossword Game</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            height: 100vh;
+            background-color: #001f3f; /* Dark blue background */
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Cloud container to arrange three clouds per row */
+        .cloud-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 40px;
+            width: 80vw;
+            height: 60vh;
+        }
+
+        .cloud {
+            width: 100%;
+            height: 250px;
+            background-image: url('/static/Games/Crossword/cloud.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            color:red;
+            text-decoration: none;
+            text-align: center;
+            transition: transform 0.3s;
+            margin-top: -20px; /* Moves each cloud 20px higher */
+        }
+        
+        .cloud:hover {
+            transform: scale(1.1);
+        }
+
+        .snowflake, .raindrop {
+            position: absolute;
+            background-color: white;
+            opacity: 0.7;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: fall linear infinite;
+        }
+        
+        .snowflake {
+            width: 8px;
+            height: 8px;
+            animation-duration: 5s;
+            top: -10px;
+        }
+        
+        .raindrop {
+            width: 2px;
+            height: 15px;
+            animation-duration: 2s;
+            top: -20px;
+        }
+
+        /* Animation for snowflakes and raindrops */
+        @keyframes fall {
+            to {
+                transform: translateY(100vh);
+                opacity: 0.1;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Cloud container with three clouds per row -->
+    <div class="cloud-container">
+        <a href="{{ url_for('movie') }}" class="cloud">Movies</a>
+        <a href="{{ url_for('anime') }}" class="cloud">Anime</a>
+        <a href="{{ url_for('sport') }}" class="cloud">Indian Sport Person</a>
+        <a href="{{ url_for('state') }}" class="cloud">States and UI</a>
+        <a href="{{ url_for('animal') }}" class="cloud">Animals</a>
+        <a href="{{ url_for('cities') }}" class="cloud">Cities</a>
+    </div>
+
+    <!-- Script to add animated snowflakes and raindrops -->
+    <script>
+        function createParticles(type, count) {
+            for (let i = 0; i < count; i++) {
+                const particle = document.createElement('div');
+                particle.classList.add(type);
+                particle.style.left = Math.random() * 100 + 'vw';
+                particle.style.animationDelay = Math.random() * 5 + 's';
+                document.body.appendChild(particle);
+            }
+        }
+        // Add snowflakes and raindrops
+        createParticles('snowflake', 50);
+        createParticles('raindrop', 30);
+    </script>
+
+</body>
+</html>

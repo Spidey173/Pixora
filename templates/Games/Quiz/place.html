@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Place</title>
+    <style>
+        /* General Styles */
+body {
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: linear-gradient(to right, #F44336, #FFEB3B); /* Vibrant red and yellow hues to represent Indian energy and color */
+    background-size: cover;
+    background-position: center center;
+    background-attachment: fixed;
+}
+
+/* Game container styles */
+#game-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+}
+
+#game-box {
+    background-color: rgba(255, 255, 255, 0.9);
+    padding: 30px;
+    width: 450px;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    position: relative;
+    animation: slideIn 0.5s ease;
+}
+
+/* Keyframe for animation */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Timer and text styles */
+.timer {
+    font-size: 2rem;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    color: #2196F3; /* Bright blue representing urban dynamism */
+}
+
+h2 {
+    font-size: 1.8rem;
+    margin-bottom: 20px;
+    color: #FF5722; /* Bright orange representing warmth and vibrancy */
+}
+
+/* Input and button styling */
+input[type="text"] {
+    padding: 10px;
+    width: 80%;
+    font-size: 1rem;
+    margin-bottom: 20px;
+    border: 2px solid #FFC107; /* Golden yellow to reflect the vibrancy of Indian cities */
+    border-radius: 8px;
+    outline: none;
+}
+
+button {
+    padding: 10px 20px;
+    background-color: #FF5722; /* Bright orange to evoke the bustling streets of India */
+    color: white;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: 0.3s;
+}
+
+button:hover {
+    background-color: #F44336; /* Darker red-orange to evoke action and excitement */
+}
+
+/* Feedback and result screen styles */
+#feedback {
+    margin-top: 20px;
+    font-size: 1.2rem;
+    color: #333;
+}
+
+img {
+    margin-top: 20px;
+    width: 200px;
+    height: auto;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Final result screen styles */
+#result-screen {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    background-color: #222;
+    padding: 50px;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+    color: white;
+    font-family: 'Roboto', sans-serif;
+    transition: all 0.3s ease-in-out;
+}
+
+#result-screen h1 {
+    font-size: 2.5em;
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+#result-screen button {
+    background-color: #4CAF50; /* Green to symbolize growth and success */
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 1.2em;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: background-color 0.3s ease;
+}
+
+#result-screen button:hover {
+    background-color: #388E3C; /* Darker green on hover */
+}
+
+/* Styling based on the score */
+.extraordinary {
+    background-color: #FFD700; /* Gold for excellence, reminiscent of the vibrant energy of cities like Mumbai or Delhi */
+    color: #fff;
+}
+
+.good {
+    background-color: #4CAF50; /* Green for good performance, representing prosperity */
+    color: #fff;
+}
+
+.better-luck {
+    background-color: #FF9800; /* Orange for encouraging a better performance */
+    color: #fff;
+}
+        .back-button {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 8px 15px;
+      font-size: 16px;
+      background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .back-button:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: translateX(5px);
+    }
+
+    </style>
+
+</head>
+<body>
+  <button class="back-button" onclick="goBack()">← Back</button>
+
+    <div id="game-container">
+        <div id="game-box">
+            <div class="timer" id="timer">30</div>
+            <h2 id="question">What is 2 + 2?</h2>
+            <input type="text" id="answer" placeholder="Type your answer here">
+            <button id="submit-btn">Submit Answer</button>
+            <div id="feedback"></div>
+            <img id="answer-image" src="" alt="" style="display:none;">
+        </div>
+    </div>
+
+    <audio id="thinking-sound" src="thinking.mp3" loop></audio>
+    <audio id="congrats-sound" src="congrats.mp3"></audio>
+    <audio id="wrong-sound" src="wrong.mp3"></audio>
+    <audio id="submit-sound" src="submit.mp3"></audio>
+    <audio id="last-result-sound" src="result.mp3"></audio>
+
+
+    <!-- Final result screen -->
+    <div id="result-screen" style="display: none;">
+        <h1 id="result-text"></h1>
+        <button onclick="location.reload()">Try Again</button>
+    </div>
+
+    <script>
+        // Set up variables for the game
+let timeLeft = 30;
+let timerInterval;
+let currentRiddleIndex = 0;
+let correctAnswers = 0;
+let wrongAnswers = 0;
+
+const riddles = [
+    { 
+        question: "Which city is known as the 'Pink City' of India?", 
+        answers: ["Jaipur"],  // Multiple correct answers
+        image: "/static/Games/Quiz/Place/Jaipur.webp", 
+        wrongImage: "/static/Games/Quiz/Place/Jaipur.webp", 
+        feedbackCorrect: "Well Done!",   
+        feedbackWrong: "The correct answer is Jaipur" 
+    },
+    { 
+        question: "Which city was the capital of the Maurya Empire under Emperor Ashoka?", 
+        answers: ["Patna","Pataliputra"],  // Single correct answer
+        image: "/static/Games/Quiz/Place/Patna.webp", 
+        wrongImage: "/static/Games/Quiz/Place/Patna.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Pataliputra" 
+    },
+    { 
+        question: "On which riverbank is the city of Varanasi located?", 
+        answers: ["Ganga","Ganges"],  // Single correct answer
+        image: "/static/Games/Quiz/Place/Ganges.webp", 
+        wrongImage: "/static/Games/Quiz/Place/Ganges.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Ganges" 
+    },
+    { 
+        question: "Which city is referred to as the 'City of Joy'?", 
+        answers: ["Kolkata"],  // Single correct answer
+        image: "/static/Games/Quiz/Place/Kolkata.webp", 
+        wrongImage: "/static/Games/Quiz/Place/Kolkata.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Kolkata" 
+    },
+    { 
+        question: "What is the southernmost city of mainland India?", 
+        answers: ["Kanyakumari"],  // Single correct answer
+        image: "/static/Games/Quiz/Place/Kanyakumari.webp", 
+        wrongImage: "/static/Games/Quiz/Place/Kanyakumari.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Kanyakumari" 
+    },
+    { 
+        question: "In which city is the Gateway of India located?", 
+        answers: ["Mumbai"],  // Single correct answer
+        image: "/static/Games/Quiz/Place/Mumbai.webp", 
+        wrongImage: "/static/Games/Quiz/Place/Mumbai.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Mumbai" 
+    },
+    { 
+        question: "Which Indian city is known as the 'Silicon Valley of India'?", 
+        answers: ["Bengaluru","Bangalore"],  // Single correct answer
+        image: "/static/Games/Quiz/Place/Bengaluru.webp", 
+        wrongImage: "/static/Games/Quiz/Place/Bengaluru.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Bengaluru" 
+    },
+    { 
+        question: "Which city is the capital of the Union Territory of Ladakh?", 
+        answers: ["Leh"],  // Single correct answer
+        image: "/static/Games/Quiz/Place/leh.webp", 
+        wrongImage: "/static/Games/Quiz/Place/leh.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Leh" 
+    },
+    { 
+        question: "Which city is called the 'Steel City of India'?", 
+        answers: ["Jamshedpur"],  // Single correct answer
+        image: "/static/Games/Quiz/Place/Jamshedpur.webp", 
+        wrongImage: "/static/Games/Quiz/Place/Jamshedpur.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Jamshedpur" 
+    },
+    { 
+        question: "Name the city in Gujarat famous for its kite festival and Sabarmati Ashram.", 
+        answers: ["Ahmedabad"],  // Single correct answer
+        image: "/static/Games/Quiz/Place/Ahmedabad.webp", 
+        wrongImage: "/static/Games/Quiz/Place/Ahmedabad.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Ahmedabad" 
+    },
+    { 
+        question: "Which city is home to the Charminar?", 
+        answers: ["Hyderabad"],  // Single correct answer
+        image: "/static/Games/Quiz/Place/Hyderabad.webp", 
+        wrongImage: "/static/Games/Quiz/Place/Hyderabad.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Hyderabad" 
+    },
+    { 
+        question: "In which city is the Golden Temple located?", 
+        answers: ["Amritsar"],  // Single correct answer
+        image: "/static/Games/Quiz/Place/Amritsar.webp", 
+        wrongImage: "/static/Games/Quiz/Place/Amritsar.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Amritsar" 
+    },
+    { 
+        question: "Which city hosts the annual Rath Yatra festival?", 
+        answers: ["Puri"],  // Single correct answer
+        image: "/static/Games/Quiz/Place/puri.webp", 
+        wrongImage: "/static/Games/Quiz/Place/puri.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Puri" 
+    },
+    { 
+        question: "Which city is known for its famous tea gardens and the Toy Train?", 
+        answers: ["Darjeeling"],  // Single correct answer
+        image: "/static/Games/Quiz/Place/Darjeeling.webp", 
+        wrongImage: "/static/Games/Quiz/Place/Darjeeling.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Darjeeling" 
+    },
+    { 
+        question: "Where is the Sun Temple, a UNESCO World Heritage Site, located?", 
+        answers: ["Konark"],  // Single correct answer
+        image: "/static/Games/Quiz/Place/Konark.webp", 
+        wrongImage: "/static/Games/Quiz/Place/Konark.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Konark" 
+    },
+    { 
+        question: "Which city is known as the 'City of Lakes'?", 
+        answers: ["Udaipur"],  // Single correct answer
+        image: "/static/Games/Quiz/Place/Udaipur.webp", 
+        wrongImage: "/static/Games/Quiz/Place/Udaipur.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Udaipur" 
+    },
+    { 
+        question: "In which city is the Ajanta Caves situated?", 
+        answers: ["Aurangabad"],  // Single correct answer
+        image: "/static/Games/Quiz/Place/Aurangabad.webp", 
+        wrongImage: "/static/Games/Quiz/Place/Aurangabad.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Aurangabad" 
+    },
+    { 
+        question: "Which city is associated with the dance form Bharatanatyam?", 
+        answers: ["Chennai"],  // Single correct answer
+        image: "/static/Games/Quiz/Place/Chennai.webp", 
+        wrongImage: "/static/Games/Quiz/Place/Chennai.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Chennai" 
+    },
+    { 
+        question: "Which city hosted the 2010 Commonwealth Games?", 
+        answers: ["Delhi","new delhi"],  // Single correct answer
+        image: "/static/Games/Quiz/Place/Delhi.webp", 
+        wrongImage: "/static/Games/Quiz/Place/Delhi.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is New Delhi" 
+    },
+    { 
+        question: "What is the largest city in India by population?", 
+        answers: ["Mumbai"],  // Single correct answer
+        image: "/static/Games/Quiz/Place/Mumbai1.webp", 
+        wrongImage: "/static/Games/Quiz/Place/Mumbai1.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Mumbai" 
+    },
+    { 
+        question: "Which city became the first 'carbon-neutral airport city' in India?", 
+        answers: ["Kochi"],  // Single correct answer
+        image: "/static/Games/Quiz/Place/Kochi.webp", 
+        wrongImage: "/static/Games/Quiz/Place/Kochi.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Kochi" 
+    },
+    { 
+        question: "Which city is known as the 'City of Nawabs'?", 
+        answers: ["Lucknow"],  // Single correct answer
+        image: "/static/Games/Quiz/Place/Lucknow.webp", 
+        wrongImage: "/static/Games/Quiz/Place/Lucknow.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Lucknow" 
+    },
+    { 
+        question: "Which city is called the 'Coffee Capital of India?'", 
+        answers: ["Chikmagalur"],  // Single correct answer
+        image: "/static/Games/Quiz/Place/Chikmagalur.webp", 
+        wrongImage: "/static/Games/Quiz/Place/Chikmagalur.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Chikmagalur" 
+    },
+    { 
+        question: "In which city was the Statue of Unity inaugurated?", 
+        answers: ["Kevadia"],  // Single correct answer
+        image: "/static/Games/Quiz/Place/Kevadia.webp", 
+        wrongImage: "/static/Games/Quiz/Place/Kevadia.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Kevadia" 
+    },
+    { 
+        question: "Which city is known as the 'Manchester of South India' for its textile industry?", 
+        answers: ["Coimbatore"],  // Single correct answer
+        image: "/static/Games/Quiz/Place/Coimbatore.webp", 
+        wrongImage: "/static/Games/Quiz/Place/Coimbatore.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Coimbatore" 
+    },
+];
+
+let thinkingSound = document.getElementById('thinking-sound');
+let congratsSound = document.getElementById('congrats-sound');
+let wrongSound = document.getElementById('wrong-sound');
+let lastResultSound = document.getElementById('last-result-sound'); // Sound for final result
+
+let submitBtn = document.getElementById('submit-btn');
+let timerElement = document.getElementById('timer');
+let feedbackElement = document.getElementById('feedback');
+let answerImage = document.getElementById('answer-image');
+let questionElement = document.getElementById('question');
+let answerInput = document.getElementById('answer');
+
+// Add event listener to submit button and handle Enter key
+submitBtn.addEventListener('click', () => checkAnswer(false));
+answerInput.addEventListener('keypress', function (event) {
+    if (event.key === 'Enter') {
+        checkAnswer(false);
+    }
+});
+
+// Start the game
+function startGame() {
+    correctAnswers = 0;
+    wrongAnswers = 0;
+    loadRiddle();
+    thinkingSound.play();  // Play thinking sound as soon as the game starts
+    startTimer();  // Start timer when game begins
+}
+
+// Start a new timer for each riddle
+function startTimer() {
+    timeLeft = 30;  // Reset timer to 30 seconds for the next riddle
+    timerElement.textContent = timeLeft;
+    if (timerInterval) {
+        clearInterval(timerInterval);  // Clear any previous interval
+    }
+    timerInterval = setInterval(updateTimer, 1000);  // Start the timer
+}
+
+// Update the timer every second
+function updateTimer() {
+    if (timeLeft > 0) {
+        timeLeft--;
+        timerElement.textContent = timeLeft;
+    } else {
+        clearInterval(timerInterval);
+        if (currentRiddleIndex < riddles.length) {
+            checkAnswer(true);  // Check answer when time runs out and mark it as wrong
+        }
+    }
+}
+
+// Load the riddle and reset the input box
+function loadRiddle() {
+    if (currentRiddleIndex < riddles.length) {
+        let riddle = riddles[currentRiddleIndex];
+        questionElement.textContent = riddle.question;
+        answerInput.value = '';
+        feedbackElement.textContent = '';
+        answerImage.style.display = 'none';
+        thinkingSound.play();  // Ensure thinking sound plays for each riddle
+        submitBtn.disabled = false; // Enable submit button for the current riddle
+        startTimer();  // Start timer every time a new riddle is loaded
+    } else {
+        showFinalScore();  // Show final score when all riddles are answered
+    }
+}
+
+// Check the answer and provide feedback
+function checkAnswer(timeExpired = false) {
+    // If the timer has expired and the submit button was clicked, ignore the click
+    if (timeLeft === 0 && !timeExpired) {
+        return; // Exit if time is already expired and user clicks submit
+    }
+
+    let riddle = riddles[currentRiddleIndex];
+    let answer = answerInput.value.trim().toLowerCase();  // Convert answer to lowercase
+
+    // Stop the thinking sound and timer immediately after submission
+    thinkingSound.pause();
+    clearInterval(timerInterval);  // Stop the timer
+    
+    let resultMessage = '';
+    let imageSrc = '';
+
+    if (timeExpired) {
+        // If time expired, consider the answer wrong
+        resultMessage = `Time's up! ${riddle.feedbackWrong}`;
+        wrongSound.play();
+        wrongAnswers++;
+        imageSrc = riddle.wrongImage;
+    } else if (riddle.answers.some(correctAnswer => correctAnswer.toLowerCase() === answer)) {  // Check if the answer matches any correct answers (case insensitive)
+        resultMessage = riddle.feedbackCorrect;
+        congratsSound.play();
+        correctAnswers++;
+        imageSrc = riddle.image;
+    } else {
+        resultMessage = `${riddle.feedbackWrong}`;
+        wrongSound.play();
+        wrongAnswers++;
+        imageSrc = riddle.wrongImage;
+    }
+
+    feedbackElement.textContent = resultMessage;
+    answerImage.src = imageSrc;
+    answerImage.style.display = 'block';
+
+    currentRiddleIndex++;
+    submitBtn.disabled = true; // Disable submit after answer
+
+    setTimeout(() => {
+        if (currentRiddleIndex < riddles.length) {
+            loadRiddle(); // Load next riddle after a short delay (5 seconds)
+        } else {
+            showFinalScore(); // Show final score when all riddles are done
+        }
+    }, 5000);  // 5 seconds delay before the next riddle
+}
+
+// Show final score
+function showFinalScore() {
+    let resultText = '';
+    let resultClass = '';
+
+    if (correctAnswers > wrongAnswers) {
+        resultText = `You got ${correctAnswers} out of ${riddles.length} correct. Amazing!`;
+        resultClass = 'extraordinary';
+    } else if (correctAnswers === wrongAnswers) {
+        resultText = `You got ${correctAnswers} out of ${riddles.length}. Good job!`;
+        resultClass = 'good';
+    } else {
+        resultText = `You got ${correctAnswers} out of ${riddles.length}. Better luck next time!`;
+        resultClass = 'better-luck';
+    }
+
+    let resultScreen = document.getElementById('result-screen');
+    resultScreen.querySelector('h1').textContent = resultText;
+    resultScreen.classList.add(resultClass);
+    resultScreen.style.display = 'block';  // Show the result screen
+    document.getElementById('game-container').style.display = 'none';  // Hide the game screen
+
+    lastResultSound.play();  // Play the final result sound
+}
+
+// Start the game when the page is loaded
+startGame();
+                            function goBack() {
+      window.location.href = "{{ url_for('quiz2ndpage') }}"; // Change "index.html" to your desired page
+    }
+
+    </script>
+
+</body>
+</html>

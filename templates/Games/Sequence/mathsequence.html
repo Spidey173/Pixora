@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patterns in Numbers: Unraveling Mathematical Sequences</title>
+<style>
+    /* Full page styling */
+body {
+    margin: 0;
+    font-family: 'Arial', sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: radial-gradient(circle, #6a11cb, #2575fc); /* Cool gradient background */
+    color: #fff;
+    overflow: hidden;
+    animation: gradientAnimation 5s infinite alternate; /* Smooth gradient animation */
+}
+
+/* Container to center the content */
+.container {
+    text-align: center;
+    animation: fadeIn 2s ease-in-out; /* Fade-in animation */
+}
+
+/* Title styling */
+h1 {
+    font-size: 4em;
+    font-weight: 900;
+    letter-spacing: 3px;
+    text-shadow: 4px 4px 20px rgba(0, 0, 0, 0.5);
+    margin-bottom: 50px;
+    background: -webkit-linear-gradient(#ff7e5f, #feb47b); /* Gradient text */
+    -webkit-background-clip: text;
+    color: transparent;
+    animation: textAnimation 3s ease-in-out; /* Animation for the title */
+}
+
+/* Button styling */
+.start-btn {
+    padding: 18px 40px;
+    font-size: 1.5em;
+    font-weight: bold;
+    border: none;
+    cursor: pointer;
+    border-radius: 50px;
+    background: linear-gradient(135deg, #ff7e5f, #feb47b);
+    color: white;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    box-shadow: 0 5px 15px rgba(255, 94, 77, 0.6);
+    transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+}
+
+/* Hover effects for the button */
+.start-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 10px 20px rgba(255, 94, 77, 0.7);
+    background: linear-gradient(135deg, #feb47b, #ff7e5f);
+}
+
+/* Active button effect */
+.start-btn:active {
+    transform: scale(1);
+    box-shadow: none;
+}
+
+/* Gradient animation for the background */
+@keyframes gradientAnimation {
+    0% {
+        background: radial-gradient(circle, #6a11cb, #2575fc);
+    }
+    100% {
+        background: radial-gradient(circle, #2575fc, #6a11cb);
+    }
+}
+
+/* Text animation for the title */
+@keyframes textAnimation {
+    0% {
+        opacity: 0;
+        transform: translateY(-30px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Fade-in animation for the container */
+@keyframes fadeIn {
+    0% {
+        opacity: 0;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+</style>
+</head>
+<body>
+    <div class="container">
+        <h1>Patterns in Numbers: Unraveling Mathematical Sequences</h1>
+        <a href="{{ url_for('mathsequencegame') }}">
+            <button class="start-btn">Start Game</button>
+        </a>
+    </div>
+</body>
+</html>

@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>History</title>
+    <style>
+        /* General Styles */
+body {
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: linear-gradient(to right, #9e7e45, #d4b39d); /* Earthy tones for a vintage, historical feel */
+    background-size: cover;
+    background-position: center center;
+    background-attachment: fixed;
+}
+
+/* Game container styles */
+#game-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+}
+
+#game-box {
+    background-color: rgba(255, 255, 255, 0.9);
+    padding: 30px;
+    width: 450px;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    position: relative;
+    animation: slideIn 0.5s ease;
+}
+
+/* Keyframe for animation */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Timer and text styles */
+.timer {
+    font-size: 2rem;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    color: #6b4f2b; /* Dark brown for a vintage look */
+}
+
+h2 {
+    font-size: 1.8rem;
+    margin-bottom: 20px;
+    color: #6b4f2b;
+}
+
+/* Input and button styling */
+input[type="text"] {
+    padding: 10px;
+    width: 80%;
+    font-size: 1rem;
+    margin-bottom: 20px;
+    border: 2px solid #a67f4a; /* Slightly darker brown border */
+    border-radius: 8px;
+    outline: none;
+}
+
+button {
+    padding: 10px 20px;
+    background-color: #7b5e3f; /* Earthy brown color */
+    color: white;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: 0.3s;
+}
+
+button:hover {
+    background-color: #6a4f35; /* Darker brown on hover */
+}
+
+/* Feedback and result screen styles */
+#feedback {
+    margin-top: 20px;
+    font-size: 1.2rem;
+    color: #333;
+}
+
+img {
+    margin-top: 20px;
+    width: 200px;
+    height: auto;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Final result screen styles */
+#result-screen {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    background-color: #222;
+    padding: 50px;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+    color: white;
+    font-family: 'Roboto', sans-serif;
+    transition: all 0.3s ease-in-out;
+}
+
+#result-screen h1 {
+    font-size: 2.5em;
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+#result-screen button {
+    background-color: #f44336;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 1.2em;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: background-color 0.3s ease;
+}
+
+#result-screen button:hover {
+    background-color: #d32f2f;
+}
+
+/* Styling based on the score */
+.extraordinary {
+    background-color: #4caf50;
+    color: #fff;
+}
+
+.good {
+    background-color: #2196f3;
+    color: #fff;
+}
+
+.better-luck {
+    background-color: #ff9800;
+    color: #fff;
+}
+        .back-button {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 8px 15px;
+      font-size: 16px;
+      background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .back-button:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: translateX(5px);
+    }
+
+    </style>
+</head>
+<body>
+  <button class="back-button" onclick="goBack()">← Back</button>
+
+    <div id="game-container">
+        <div id="game-box">
+            <div class="timer" id="timer">30</div>
+            <h2 id="question">What is 2 + 2?</h2>
+            <input type="text" id="answer" placeholder="Type your answer here">
+            <button id="submit-btn">Submit Answer</button>
+            <div id="feedback"></div>
+            <img id="answer-image" src="" alt="" style="display:none;">
+        </div>
+    </div>
+
+    <audio id="thinking-sound" src="thinking.mp3" loop></audio>
+    <audio id="congrats-sound" src="congrats.mp3"></audio>
+    <audio id="wrong-sound" src="wrong.mp3"></audio>
+    <audio id="submit-sound" src="submit.mp3"></audio>
+    <audio id="last-result-sound" src="result.mp3"></audio>
+
+
+    <!-- Final result screen -->
+    <div id="result-screen" style="display: none;">
+        <h1 id="result-text"></h1>
+        <button onclick="location.reload()">Try Again</button>
+    </div>
+
+
+    <script>
+let timeLeft = 30;
+let timerInterval;
+let currentRiddleIndex = 0;
+let correctAnswers = 0;
+let wrongAnswers = 0;
+
+const riddles = [
+    { 
+        question: "Which is the oldest known civilization in India?", 
+        answers: ["indus valley civilization"],  // Single correct answer
+        image: "/static/Games/Quiz/History/indus valley civilization.webp",   
+        wrongImage: "/static/Games/Quiz/History/indus valley civilization.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Indus Valley Civilization" 
+    },
+    { 
+        question: "Who is known as the founder of Jainism?", 
+        answers: ["Mahavira"],  // Single correct answer
+        image: "/static/Games/Quiz/History/Mahavira.webp", 
+        wrongImage: "/static/Games/Quiz/History/Mahavira.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Mahavira" 
+    },
+    { 
+        question: "Which ancient Indian university was a renowned center of learning?", 
+        answers: ["Nalanda"],  // Single correct answer
+        image: "/static/Games/Quiz/History/Nalanda.webp", 
+        wrongImage: "/static/Games/Quiz/History/Nalanda.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Nalanda" 
+    },
+    { 
+        question: "Who composed the ancient Indian epic Mahabharata?", 
+        answers: ["Ved Vyasa"],  // Single correct answer
+        image: "/static/Games/Quiz/History/Ved Vyasa.webp", 
+        wrongImage: "/static/Games/Quiz/History/Ved Vyasa.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Ved Vyasa" 
+    },
+    { 
+        question: "Which ruler spread Buddhism across Asia after the Kalinga War?", 
+        answers: ["Ashoka"],  // Single correct answer
+        image: "/static/Games/Quiz/History/Ashoka.webp", 
+        wrongImage: "/static/Games/Quiz/History/Ashoka.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Emperor Ashoka" 
+    },
+    { 
+        question: "Which dynasty is known as the 'Golden Age' of India?", 
+        answers: ["Gupta empire","Gupta"],  // Single correct answer
+        image: "/static/Games/Quiz/History/Gupta empire.webp", 
+        wrongImage: "/static/Games/Quiz/History/Gupta empire.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Gupta empire" 
+    },
+    { 
+        question: "Which ruler built the Qutub Minar?", 
+        answers: ["Iltutmish","Qutb ud-Din Aibak"],  // Single correct answer
+        image: "/static/Games/Quiz/History/Qutub Minar.webp", 
+        wrongImage: "/static/Games/Quiz/History/Qutub Minar.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Qutb ud-Din Aibak and Iltutmish" 
+    },
+    { 
+        question: "Who was the greatest ruler of the Vijayanagara Empire?", 
+        answers: ["Krishnadevaraya"],  // Single correct answer
+        image: "/static/Games/Quiz/History/Krishnadevaraya.webp", 
+        wrongImage: "/static/Games/Quiz/History/Krishnadevaraya.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Krishnadevaraya" 
+    },
+    { 
+        question: "Which Mughal emperor built the Taj Mahal?", 
+        answers: ["Shah Jahan"],  // Single correct answer
+        image: "/static/Games/Quiz/History/Shah Jahan.webp", 
+        wrongImage: "/static/Games/Quiz/History/Shah Jahan.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Shah Jahan" 
+    },
+    { 
+        question: "Who was the last ruler of the Mughal Empire?", 
+        answers: ["Bahadur Shah Zafar","Bahadur Shah 2"],  // Single correct answer
+        image: "/static/Games/Quiz/History/Bahadur Shah Zafar.webp", 
+        wrongImage: "/static/Games/Quiz/History/Bahadur Shah Zafar.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Bahadur Shah Zafar" 
+    },
+    { 
+        question: "Who defeated Prithviraj Chauhan in the Second Battle of Tarain?", 
+        answers: ["Muhammad Ghori"],  // Single correct answer
+        image: "/static/Games/Quiz/History/Muhammad Ghori.webp", 
+        wrongImage: "/static/Games/Quiz/History/Muhammad Ghori.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Muhammad Ghori" 
+    },
+    { 
+        question: "Which Rajput king is known for his resistance against Akbar?", 
+        answers: ["Maharana Pratap"],  // Single correct answer
+        image: "/static/Games/Quiz/History/Maharana Pratap.webp", 
+        wrongImage: "/static/Games/Quiz/History/Maharana Pratap.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Maharana Pratap" 
+    },
+    { 
+        question: "Who was the founder of the Delhi Sultanate?", 
+        answers: ["Qutb ud-Din Aibak"],  // Single correct answer
+        image: "/static/Games/Quiz/History/Qutb ud-Din Aibak.webp", 
+        wrongImage: "/static/Games/Quiz/History/Qutb ud-Din Aibak.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Qutb ud-Din Aibak" 
+    },
+    { 
+        question: "In which year did Vasco da Gama first reach India?", 
+        answers: ["1498"],  // Single correct answer
+        image: "/static/Games/Quiz/History/1498.webp", 
+        wrongImage: "/static/Games/Quiz/History/1498.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is 1498" 
+    },
+    { 
+        question: "In which year was the Partition of Bengal announced?", 
+        answers: ["1905"],  // Single correct answer
+        image: "/static/Games/Quiz/History/1905.webp", 
+        wrongImage: "/static/Games/Quiz/History/1905.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is 1905" 
+    },
+    { 
+        question: "Who was the founder of the Indian National Congress (INC)?", 
+        answers: ["Allan Octavian Hume"],  // Single correct answer
+        image: "/static/Games/Quiz/History/Allan Octavian Hume.webp", 
+        wrongImage: "/static/Games/Quiz/History/Allan Octavian Hume.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Allan Octavian Hume" 
+    },
+    { 
+        question: "Who wrote the book Hind Swaraj?", 
+        answers: ["Mahatma Gandhi"],  // Single correct answer
+        image: "/static/Games/Quiz/History/Mahatma Gandhi.webp", 
+        wrongImage: "/static/Games/Quiz/History/Mahatma Gandhi.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Mahatma Gandhi" 
+    },
+    { 
+        question: "Who is known as the 'Iron Man of India'?", 
+        answers: ["Sardar Vallabhbhai Patel"],  // Single correct answer
+        image: "/static/Games/Quiz/History/Sardar Vallabhbhai Patel.webp", 
+        wrongImage: "/static/Games/Quiz/History/Sardar Vallabhbhai Patel.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Sardar Vallabhbhai Patel" 
+    },
+    { 
+        question: "Who led the Dandi March in 1930?", 
+        answers: ["Mahatma Gandhi"],  // Single correct answer
+        image: "/static/Games/Quiz/History/Mahatma Gandhi.webp", 
+        wrongImage: "/static/Games/Quiz/History/Mahatma Gandhi.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Mahatma Gandhi" 
+    },
+    { 
+        question: "What was the name of Subhas Chandra Bose’s army during the freedom struggle?", 
+        answers: ["INA","Indian National Army"],  // Single correct answer
+        image: "/static/Games/Quiz/History/INA.webp", 
+        wrongImage: "/static/Games/Quiz/History/INA.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is INA" 
+    },
+    { 
+        question: "Which revolutionary threw a bomb in the Central Legislative Assembly in 1929?", 
+        answers: ["Bhagat Singh","Batukeshwar Dutt"],  // Single correct answer
+        image: "/static/Games/Quiz/History/Bhagat Singh.webp", 
+        wrongImage: "/static/Games/Quiz/History/Bhagat Singh.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Bhagat Singh and Batukeshwar Dutt" 
+    },
+    { 
+        question: "On which date did India gain independence?", 
+        answers: ["August 15,1947","15th August,1947"],  // Single correct answer
+        image: "/static/Games/Quiz/History/1947.webp", 
+        wrongImage: "/static/Games/Quiz/History/1947.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is 15th August,1947" 
+    },
+    { 
+        question: "Who led the Revolt of 1857 in Kanpur?", 
+        answers: ["Nana Saheb"],  // Single correct answer
+        image: "/static/Games/Quiz/History/Nana Saheb.webp", 
+        wrongImage: "/static/Games/Quiz/History/Nana Saheb.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Nana Saheb" 
+    },
+    { 
+        question: "Who introduced the Persian style of painting to India?", 
+        answers: ["Humayun","Mughals"],  // Single correct answer
+        image: "/static/Games/Quiz/History/Humayun.webp", 
+        wrongImage: "/static/Games/Quiz/History/Humayun.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Mughals" 
+    },    
+    { 
+        question: "What was the capital city of the Chola dynasty?", 
+        answers: ["Thanjavur"],  // Single correct answer
+        image: "/static/Games/Quiz/History/Thanjavur.webp", 
+        wrongImage: "/static/Games/Quiz/History/Thanjavur.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Thanjavur" 
+    },
+];
+
+let thinkingSound = document.getElementById('thinking-sound');
+let congratsSound = document.getElementById('congrats-sound');
+let wrongSound = document.getElementById('wrong-sound');
+let lastResultSound = document.getElementById('last-result-sound'); // Sound for final result
+
+let submitBtn = document.getElementById('submit-btn');
+let timerElement = document.getElementById('timer');
+let feedbackElement = document.getElementById('feedback');
+let answerImage = document.getElementById('answer-image');
+let questionElement = document.getElementById('question');
+let answerInput = document.getElementById('answer');
+
+// Add event listener to submit button and handle Enter key
+submitBtn.addEventListener('click', () => checkAnswer(false));
+answerInput.addEventListener('keypress', function (event) {
+    if (event.key === 'Enter') {
+        checkAnswer(false);
+    }
+});
+
+// Start the game
+function startGame() {
+    correctAnswers = 0;
+    wrongAnswers = 0;
+    loadRiddle();
+    thinkingSound.play();  // Play thinking sound as soon as the game starts
+    startTimer();  // Start timer when game begins
+}
+
+// Start a new timer for each riddle
+function startTimer() {
+    timeLeft = 30;  // Reset timer to 30 seconds for the next riddle
+    timerElement.textContent = timeLeft;
+    if (timerInterval) {
+        clearInterval(timerInterval);  // Clear any previous interval
+    }
+    timerInterval = setInterval(updateTimer, 1000);  // Start the timer
+}
+
+// Update the timer every second
+function updateTimer() {
+    if (timeLeft > 0) {
+        timeLeft--;
+        timerElement.textContent = timeLeft;
+    } else {
+        clearInterval(timerInterval);
+        if (currentRiddleIndex < riddles.length) {
+            checkAnswer(true);  // Check answer when time runs out and mark it as wrong
+        }
+    }
+}
+
+// Load the riddle and reset the input box
+function loadRiddle() {
+    if (currentRiddleIndex < riddles.length) {
+        let riddle = riddles[currentRiddleIndex];
+        questionElement.textContent = riddle.question;
+        answerInput.value = '';
+        feedbackElement.textContent = '';
+        answerImage.style.display = 'none';
+        thinkingSound.play();  // Ensure thinking sound plays for each riddle
+        submitBtn.disabled = false; // Enable submit button for the current riddle
+        startTimer();  // Start timer every time a new riddle is loaded
+    } else {
+        showFinalScore();  // Show final score when all riddles are answered
+    }
+}
+
+// Check the answer and provide feedback
+function checkAnswer(timeExpired = false) {
+    // If the timer has expired and the submit button was clicked, ignore the click
+    if (timeLeft === 0 && !timeExpired) {
+        return; // Exit if time is already expired and user clicks submit
+    }
+
+    let riddle = riddles[currentRiddleIndex];
+    let answer = answerInput.value.trim().toLowerCase();  // Convert answer to lowercase
+
+    // Stop the thinking sound and timer immediately after submission
+    thinkingSound.pause();
+    clearInterval(timerInterval);  // Stop the timer
+    
+    let resultMessage = '';
+    let imageSrc = '';
+
+    if (timeExpired) {
+        // If time expired, consider the answer wrong
+        resultMessage = `Time's up! ${riddle.feedbackWrong}`;
+        wrongSound.play();
+        wrongAnswers++;
+        imageSrc = riddle.wrongImage;
+    } else if (riddle.answers.some(correctAnswer => correctAnswer.toLowerCase() === answer)) {  // Check if the answer matches any correct answers (case insensitive)
+        resultMessage = riddle.feedbackCorrect;
+        congratsSound.play();
+        correctAnswers++;
+        imageSrc = riddle.image;
+    } else {
+        resultMessage = `${riddle.feedbackWrong}`;
+        wrongSound.play();
+        wrongAnswers++;
+        imageSrc = riddle.wrongImage;
+    }
+
+    feedbackElement.textContent = resultMessage;
+    answerImage.src = imageSrc;
+    answerImage.style.display = 'block';
+
+    currentRiddleIndex++;
+    submitBtn.disabled = true; // Disable submit after answer
+
+    setTimeout(() => {
+        if (currentRiddleIndex < riddles.length) {
+            loadRiddle(); // Load next riddle after a short delay (5 seconds)
+        } else {
+            showFinalScore(); // Show final score when all riddles are done
+        }
+    }, 5000);  // 5 seconds delay before the next riddle
+}
+
+// Show final score
+function showFinalScore() {
+    let resultText = '';
+    let resultClass = '';
+
+    if (correctAnswers > wrongAnswers) {
+        resultText = `You got ${correctAnswers} out of ${riddles.length} correct. Amazing!`;
+        resultClass = 'extraordinary';
+    } else if (correctAnswers === wrongAnswers) {
+        resultText = `You got ${correctAnswers} out of ${riddles.length}. Good job!`;
+        resultClass = 'good';
+    } else {
+        resultText = `You got ${correctAnswers} out of ${riddles.length}. Better luck next time!`;
+        resultClass = 'better-luck';
+    }
+
+    let resultScreen = document.getElementById('result-screen');
+    resultScreen.querySelector('h1').textContent = resultText;
+    resultScreen.classList.add(resultClass);
+    resultScreen.style.display = 'block';  // Show the result screen
+    document.getElementById('game-container').style.display = 'none';  // Hide the game screen
+
+    lastResultSound.play();  // Play the final result sound
+}
+
+// Start the game when the page is loaded
+startGame();
+
+                            function goBack() {
+      window.location.href = "{{ url_for('quiz2ndpage') }}"; // Change "index.html" to your desired page
+    }
+    </script>
+</body>
+</html>

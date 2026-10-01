@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crossword Puzzle</title>
+    <style>
+        @keyframes sparkle {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        body {
+            font-family: 'Comic Sans MS', 'Comic Sans', cursive;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(45deg, #FF6F61, #FFABAB, #FFD700, #ABFFAB, #61FF61);
+            background-size: 400% 400%;
+            animation: gradientBG 10s ease infinite;
+            color: #333;
+        }
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        h1 {
+            font-size: 6em;
+            color: #FFFFFF; /* Updated to white for better visibility */
+            margin-bottom: 30px;
+            text-shadow: 3px 3px 5px rgba(0,0,0,0.7); /* Stronger shadow for contrast */
+            animation: sparkle 1.5s infinite alternate;
+        }
+        #start-game {
+            padding: 20px 50px;
+            font-size: 2em;
+            cursor: pointer;
+            background-color: #FF6F61;
+            color: #FFFFFF; /* White text for better visibility */
+            border: 3px solid #FFD700;
+            border-radius: 50px;
+            transition: transform 0.3s, background-color 0.3s;
+            box-shadow: 0px 6px 12px rgba(0,0,0,0.3);
+        }
+        #start-game:hover {
+            background-color: #FFABAB;
+            transform: scale(1.1);
+        }
+        #start-game:active {
+            transform: scale(0.9);
+        }
+        .confetti {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            width: 10px;
+            height: 10px;
+            background: white;
+            opacity: 0.5;
+            animation: fall 5s infinite;
+        }
+        @keyframes fall {
+            0% { transform: translateY(0) rotate(0); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <h1>Crossword Puzzle</h1>
+    <button id="start-game" onclick="startGame()">Start Game</button>
+
+    <script>
+        function startGame() {
+            window.location.href = "{{ url_for('crossword2ndpage') }}";
+        }
+        function createConfetti() {
+            const confetti = document.createElement('div');
+            confetti.classList.add('confetti');
+            confetti.style.left = `${Math.random() * 100}vw`;
+            confetti.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 75%)`;
+            document.body.appendChild(confetti);
+            setTimeout(() => confetti.remove(), 5000);
+        }
+        setInterval(createConfetti, 300);
+    </script>
+</body>
+</html>

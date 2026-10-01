@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixora | Arcade Hub // 2.0</title>
+    <link rel="icon" type="image/webp" href="{{ url_for('static', filename='Pixora.webp') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <style>
+        :root {
+            --bg-void: #090A10;
+            --bg-surface: #0F121C;
+            --bg-card: rgba(18, 22, 35, 0.75);
+            --bg-card-hover: rgba(26, 32, 51, 0.9);
+            --accent-cyan: #00F0FF;
+            --accent-emerald: #00FF9D;
+            --accent-purple: #7928CA;
+            --accent-gold: #FFB800;
+            --accent-crimson: #FF2E4D;
+            --text-pure: #F8FAFC;
+            --text-dim: #94A3B8;
+            --text-muted: #64748B;
+            --border-subtle: rgba(255, 255, 255, 0.07);
+            --border-glow: rgba(0, 240, 255, 0.4);
+            --font-display: 'Outfit', -apple-system, sans-serif;
+            --font-body: 'Plus Jakarta Sans', -apple-system, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            --radius-sm: 8px;
+            --radius-md: 14px;
+            --radius-lg: 20px;
+            --transition: all 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background-color: var(--bg-void);
+            background-image: 
+                radial-gradient(circle at 15% 0%, rgba(0, 240, 255, 0.08) 0%, transparent 45%),
+                radial-gradient(circle at 85% 15%, rgba(121, 40, 202, 0.08) 0%, transparent 45%),
+                radial-gradient(circle at 50% 60%, rgba(0, 255, 157, 0.04) 0%, transparent 60%);
+            background-attachment: fixed;
+            color: var(--text-pure);
+            font-family: var(--font-body);
+            min-height: 100vh;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ─── LUXURY HEADER NAVIGATION ─── */
+        .platform-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(9, 10, 16, 0.88);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-subtle);
+            padding: 0 24px;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+        }
+
+        .brand-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: var(--text-pure);
+        }
+
+        .brand-logo-mark {
+            width: 38px;
+            height: 38px;
+            background: linear-gradient(135deg, rgba(0, 240, 255, 0.2), rgba(121, 40, 202, 0.2));
+            border: 1px solid var(--accent-cyan);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent-cyan);
+            font-size: 1.15rem;
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
+            transition: var(--transition);
+        }
+
+        .brand-link:hover .brand-logo-mark {
+            box-shadow: 0 0 25px rgba(0, 240, 255, 0.5);
+            transform: scale(1.04);
+        }
+
+        .brand-name {
+            font-family: var(--font-display);
+            font-size: 1.45rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+
+        .brand-pill {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            background: rgba(0, 240, 255, 0.08);
+            border: 1px solid rgba(0, 240, 255, 0.25);
+            color: var(--accent-cyan);
+            padding: 2px 7px;
+            border-radius: 4px;
+            letter-spacing: 0.08em;
+            margin-left: 6px;
+        }
+
+        /* Segmented Controller (Games / Leaderboard / Infrastructure) */
+        .nav-segmented {
+            display: flex;
+            align-items: center;
+            background: rgba(18, 22, 35, 0.85);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            padding: 4px;
+            gap: 4px;
+        }
+
+        .seg-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            font-family: var(--font-display);
+            font-size: 0.86rem;
+            font-weight: 600;
+            padding: 8px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+
+        .seg-btn:hover {
+            color: var(--text-pure);
+        }
+
+        .seg-btn.active {
+            background: rgba(0, 240, 255, 0.12);
+            color: var(--accent-cyan);
+            box-shadow: 0 0 16px rgba(0, 240, 255, 0.2);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+        }
+
+        /* Nav Right (Search + Pilot Pill + LOGOUT) */
+        .nav-right-cluster {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .nav-search-wrap {
+            position: relative;
+        }
+
+        .nav-search-input {
+            width: 210px;
+            height: 38px;
+            background: rgba(14, 17, 27, 0.7);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            padding: 0 12px 0 34px;
+            color: #fff;
+            font-family: var(--font-body);
+            font-size: 0.84rem;
+            outline: none;
+            transition: var(--transition);
+        }
+
+        .nav-search-input:focus {
+            width: 270px;
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 16px rgba(0, 240, 255, 0.25);
+            background: rgba(14, 17, 27, 0.95);
+        }
+
+        .nav-search-icon {
+            position: absolute;
+            left: 11px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            font-size: 0.82rem;
+            pointer-events: none;
+        }
+
+        /* User Profile Pill */
+        .pilot-profile-pill {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            background: rgba(18, 22, 35, 0.8);
+            border: 1px solid var(--border-subtle);
+            padding: 5px 12px 5px 6px;
+            border-radius: 30px;
+            font-family: var(--font-display);
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .pilot-avatar-initial {
+            width: 26px;
+            height: 26px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-emerald));
+            color: #000;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 800;
+        }
+
+        .pilot-status-dot {
+            width: 6px;
+            height: 6px;
+            background: var(--accent-emerald);
+            border-radius: 50%;
+            box-shadow: 0 0 6px var(--accent-emerald);
+        }
+
+        /* THE CLEAR, HIGH-END LOGOUT BUTTON */
+        .nav-logout-btn {
+            background: rgba(255, 46, 77, 0.1);
+            border: 1px solid rgba(255, 46, 77, 0.3);
+            color: #ff8597;
+            font-family: var(--font-display);
+            font-size: 0.82rem;
+            font-weight: 700;
+            padding: 7px 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            transition: var(--transition);
+        }
+
+        .nav-logout-btn:hover {
+            background: var(--accent-crimson);
+            color: #ffffff;
+            box-shadow: 0 0 16px rgba(255, 46, 77, 0.5);
+            transform: translateY(-1px);
+        }
+
+        /* ─── MAIN CONTENT CONTAINER (FULL-WIDTH ZERO WASTED MARGINS) ─── */
+        .page-container {
+            width: 100%;
+            max-width: 100%;
+            margin: 0;
+            padding: 20px 24px 80px;
+        }
+
+        /* TAB PANELS */
+        .tab-section {
+            display: none;
+        }
+
+        .tab-section.active {
+            display: block;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ─── 1. WIDESCREEN CINEMATIC HERO SHOWCASE ─── */
+        .featured-hero-stage {
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            border: 1px solid var(--border-subtle);
+            background: linear-gradient(135deg, rgba(18, 22, 35, 0.85), rgba(9, 10, 16, 0.95)),
+                        radial-gradient(circle at 75% 30%, rgba(0, 240, 255, 0.14), transparent 60%);
+            box-shadow: 0 16px 40px -15px rgba(0, 0, 0, 0.8), 0 0 30px rgba(0, 240, 255, 0.08);
+            margin-bottom: 24px;
+            display: grid;
+            grid-template-columns: 1.5fr 1fr;
+            align-items: center;
+            position: relative;
+        }
+
+        @media (max-width: 960px) {
+            .featured-hero-stage {
+                grid-template-columns: 1fr;
+            }
+            .hero-stage-media {
+                order: -1;
+                padding: 20px 24px 0 !important;
+            }
+        }
+
+        .hero-stage-info {
+            padding: 30px 36px;
+        }
+
+        .stage-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 240, 255, 0.1);
+            border: 1px solid rgba(0, 240, 255, 0.35);
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            color: var(--accent-cyan);
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            margin-bottom: 12px;
+        }
+
+        .stage-title {
+            font-family: var(--font-display);
+            font-size: 2.3rem;
+            font-weight: 900;
+            letter-spacing: -0.02em;
+            line-height: 1.1;
+            margin-bottom: 10px;
+            background: linear-gradient(180deg, #FFFFFF 50%, #CBD5E1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stage-synopsis {
+            color: var(--text-dim);
+            font-size: 0.92rem;
+            line-height: 1.5;
+            margin-bottom: 18px;
+            max-width: 680px;
+        }
+
+        .stage-specs-strip {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 22px;
+            flex-wrap: wrap;
+        }
+
+        .stage-spec-tag {
+            font-family: var(--font-mono);
+            font-size: 0.74rem;
+            color: var(--text-dim);
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-subtle);
+            padding: 5px 12px;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .stage-spec-tag i {
+            color: var(--accent-cyan);
+        }
+
+        .stage-cta-cluster {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .btn-launch-hero {
+            background: var(--accent-cyan);
+            color: #000;
+            font-family: var(--font-display);
+            font-size: 0.92rem;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            text-decoration: none;
+            padding: 12px 28px;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 6px 25px rgba(0, 240, 255, 0.4);
+            transition: var(--transition);
+        }
+
+        .btn-launch-hero:hover {
+            box-shadow: 0 10px 35px rgba(0, 240, 255, 0.65);
+            transform: translateY(-2px);
+        }
+
+        .btn-hero-ghost {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-pure);
+            font-family: var(--font-display);
+            font-size: 0.9rem;
+            font-weight: 700;
+            padding: 12px 22px;
+            border-radius: 8px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: var(--transition);
+        }
+
+        .btn-hero-ghost:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .hero-stage-media {
+            padding: 18px 32px 18px 0;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+        }
+
+        .stage-media-card {
+            width: 100%;
+            max-width: 480px;
+            aspect-ratio: 16/9;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            border: 1px solid var(--border-subtle);
+            position: relative;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.7);
+        }
+
+        .stage-media-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.4s ease;
+        }
+
+        .featured-hero-stage:hover .stage-media-card img {
+            transform: scale(1.04);
+        }
+
+        /* ─── CATEGORY FILTER STRIP ─── */
+        .catalog-control-strip {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 14px;
+        }
+
+        .chips-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .filter-tab-pill {
+            background: rgba(18, 22, 35, 0.7);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-dim);
+            font-family: var(--font-display);
+            font-size: 0.82rem;
+            font-weight: 600;
+            padding: 7px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .filter-tab-pill:hover {
+            color: var(--text-pure);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .filter-tab-pill.active {
+            background: var(--text-pure);
+            color: #000;
+            border-color: var(--text-pure);
+            font-weight: 700;
+        }
+
+        .catalog-stats-meta {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* ─── 2. POKI / STEAM DENSE FULL-WIDTH ARTWORK GRID ─── */
+        .games-master-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+            gap: 18px;
+        }
+
+        .artwork-game-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            text-decoration: none;
+            color: inherit;
+            transition: var(--transition);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            position: relative;
+        }
+
+        .artwork-game-card:hover {
+            border-color: var(--accent-cyan);
+            transform: translateY(-7px) scale(1.01);
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6), 0 0 25px rgba(0, 240, 255, 0.18);
+        }
+
+        .game-media-viewport {
+            position: relative;
+            aspect-ratio: 16/10;
+            background: #000;
+            overflow: hidden;
+        }
+
+        .game-media-viewport img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.4s ease;
+        }
+
+        .artwork-game-card:hover .game-media-viewport img {
+            transform: scale(1.06);
+        }
+
+        .card-genre-badge {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(9, 10, 16, 0.85);
+            border: 1px solid var(--border-subtle);
+            backdrop-filter: blur(8px);
+            padding: 3px 9px;
+            border-radius: 6px;
+            font-family: var(--font-mono);
+            font-size: 0.68rem;
+            font-weight: 600;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .card-edge-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 240, 255, 0.15);
+            border: 1px solid var(--accent-cyan);
+            backdrop-filter: blur(8px);
+            padding: 3px 9px;
+            border-radius: 6px;
+            font-family: var(--font-mono);
+            font-size: 0.68rem;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .hover-play-curtain {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(180deg, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0.7) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.24s ease;
+        }
+
+        .artwork-game-card:hover .hover-play-curtain {
+            opacity: 1;
+        }
+
+        .hover-play-button {
+            background: var(--accent-cyan);
+            color: #000;
+            font-family: var(--font-display);
+            font-size: 0.88rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            padding: 10px 22px;
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 0 25px rgba(0, 240, 255, 0.6);
+            transform: translateY(8px);
+            transition: transform 0.24s ease;
+        }
+
+        .artwork-game-card:hover .hover-play-button {
+            transform: translateY(0);
+        }
+
+        .game-dossier-body {
+            padding: 18px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .game-headline {
+            font-family: var(--font-display);
+            font-size: 1.15rem;
+            font-weight: 800;
+            letter-spacing: -0.01em;
+            color: var(--text-pure);
+            margin-bottom: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .game-summary-text {
+            font-size: 0.84rem;
+            color: var(--text-dim);
+            line-height: 1.45;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            margin-bottom: 14px;
+        }
+
+        .game-dossier-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: var(--font-mono);
+            font-size: 0.74rem;
+            color: var(--text-muted);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 12px;
+        }
+
+        .plays-counter {
+            color: var(--accent-gold);
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .launch-prompt {
+            color: var(--accent-cyan);
+            font-weight: 700;
+        }
+
+        /* ─── 3. CONNECTED TOURNAMENT LEADERBOARDS TAB ─── */
+        .leaderboard-arena-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: 40px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+        }
+
+        .arena-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .arena-title {
+            font-family: var(--font-display);
+            font-size: 2rem;
+            font-weight: 900;
+            letter-spacing: -0.02em;
+        }
+
+        /* Top 3 Championship Podium Cards */
+        .championship-podium {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 36px;
+        }
+
+        @media (max-width: 800px) {
+            .championship-podium {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .podium-box {
+            background: rgba(14, 18, 28, 0.85);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 24px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+        }
+
+        .podium-box.gold {
+            border-color: rgba(255, 184, 0, 0.4);
+            background: radial-gradient(circle at 50% 0%, rgba(255, 184, 0, 0.14), transparent 70%), rgba(14, 18, 28, 0.95);
+        }
+        .podium-box.silver {
+            border-color: rgba(203, 213, 225, 0.3);
+        }
+        .podium-box.bronze {
+            border-color: rgba(205, 127, 50, 0.3);
+        }
+
+        .podium-rank-icon {
+            font-size: 2.2rem;
+            margin-bottom: 8px;
+        }
+
+        .podium-pilot {
+            font-family: var(--font-display);
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: var(--text-pure);
+        }
+
+        .podium-pts {
+            font-family: var(--font-mono);
+            font-size: 1.6rem;
+            font-weight: 900;
+            color: var(--accent-cyan);
+            margin: 8px 0;
+        }
+
+        .podium-title-tag {
+            font-family: var(--font-mono);
+            font-size: 0.74rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+
+        /* Leaderboard Table */
+        .arena-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .arena-table th {
+            font-family: var(--font-mono);
+            font-size: 0.74rem;
+            color: var(--text-muted);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            text-align: left;
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .arena-table td {
+            padding: 16px 18px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            font-size: 0.92rem;
+        }
+
+        .arena-table tr:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        /* ─── 4. CONNECTED ARCHITECTURE TOPOLOGY TAB ─── */
+        .architecture-arena-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: 40px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+        }
+
+        .arch-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+            gap: 22px;
+            margin: 32px 0;
+        }
+
+        .arch-node-box {
+            background: rgba(14, 18, 28, 0.8);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 26px;
+            transition: var(--transition);
+        }
+
+        .arch-node-box:hover {
+            border-color: var(--accent-cyan);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0, 240, 255, 0.15);
+        }
+
+        .arch-node-icon {
+            width: 44px;
+            height: 44px;
+            background: rgba(0, 240, 255, 0.1);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent-cyan);
+            font-size: 1.25rem;
+            margin-bottom: 16px;
+        }
+
+        .arch-node-title {
+            font-family: var(--font-display);
+            font-size: 1.2rem;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .arch-node-desc {
+            color: var(--text-dim);
+            font-size: 0.88rem;
+            line-height: 1.55;
+        }
+
+        .arch-node-stat {
+            margin-top: 16px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            font-family: var(--font-mono);
+            font-size: 0.74rem;
+            color: var(--accent-emerald);
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Platform Navigation Header -->
+    <header class="platform-nav">
+        <a href="/" class="brand-link">
+            <div class="brand-logo-mark">
+                <i class="fa-solid fa-gamepad"></i>
+            </div>
+            <div>
+                <span class="brand-name">Pixora</span>
+                <span class="brand-pill">Arcade Hub // 2.0</span>
+            </div>
+        </a>
+
+        <!-- Connected Segmented Nav Switcher -->
+        <nav class="nav-segmented">
+            <button class="seg-btn {% if active_tab == 'games' or not active_tab %}active{% endif %}" onclick="switchViewTab('games', this)">
+                <i class="fa-solid fa-shapes"></i>
+                <span>GAMES ({{ games_list|length }})</span>
+            </button>
+            <button class="seg-btn {% if active_tab == 'leaderboard' %}active{% endif %}" onclick="switchViewTab('leaderboard', this)">
+                <i class="fa-solid fa-trophy"></i>
+                <span>LEADERBOARDS</span>
+            </button>
+            <button class="seg-btn {% if active_tab == 'infrastructure' %}active{% endif %}" onclick="switchViewTab('infrastructure', this)">
+                <i class="fa-solid fa-network-wired"></i>
+                <span>ARCHITECTURE</span>
+            </button>
+        </nav>
+
+        <!-- Right: Search + Pilot Identity + LOGOUT -->
+        <div class="nav-right-cluster">
+            <div class="nav-search-wrap">
+                <i class="fa-solid fa-magnifying-glass nav-search-icon"></i>
+                <input type="text" id="liveSearchInput" class="nav-search-input" placeholder="Search 17 titles..." onkeyup="filterLiveCatalog()">
+            </div>
+
+            <!-- Pilot Profile Pill -->
+            <div class="pilot-profile-pill" title="Active Pilot Session">
+                <div class="pilot-avatar-initial">{{ (username or 'P')[0]|upper }}</div>
+                <span>{{ username }}</span>
+                <div class="pilot-status-dot"></div>
+            </div>
+
+            <!-- EXPLICIT, PROMINENT USER LOGOUT BUTTON -->
+            <a href="{{ url_for('auth.logout') }}" class="nav-logout-btn" title="Sign out of Pixora">
+                <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                <span>Logout</span>
+            </a>
+        </div>
+    </header>
+
+    <main class="page-container">
+        <!-- ============================================== -->
+        <!-- TAB 1: GAMES DISCOVERY VAULT (ALL 17 GAMES)    -->
+        <!-- ============================================== -->
+        <section id="view-games" class="tab-section {% if active_tab == 'games' or not active_tab %}active{% endif %}">
+            <!-- Steam/Epic Games Style Cinematic Featured Stage -->
+            <div class="featured-hero-stage">
+                <div class="hero-stage-info">
+                    <div class="stage-pill">
+                        <i class="fa-solid fa-bolt"></i>
+                        <span>FLAGSHIP SIMULATION // CLOUDFLARE R2 EDGE</span>
+                    </div>
+
+                    <h1 class="stage-title">NEON CYBER RACER</h1>
+
+                    <p class="stage-synopsis">
+                        High-octane WebGL physics engine built with Phaser 3. Streamed at microsecond latency directly from Cloudflare's zero-egress edge network with real-time procedural obstacles and high-score telemetry.
+                    </p>
+
+                    <div class="stage-specs-strip">
+                        <div class="stage-spec-tag"><i class="fa-solid fa-microchip"></i> Phaser 3 ECS</div>
+                        <div class="stage-spec-tag"><i class="fa-solid fa-gauge-high"></i> 60 FPS Engine</div>
+                        <div class="stage-spec-tag"><i class="fa-solid fa-cloud"></i> Zero-Egress CDN</div>
+                    </div>
+
+                    <div class="stage-cta-cluster">
+                        <a href="/play/neon-cyber-racer" class="btn-launch-hero">
+                            <i class="fa-solid fa-play"></i>
+                            <span>PLAY NOW</span>
+                        </a>
+                        <button onclick="switchViewTab('leaderboard', document.querySelectorAll('.seg-btn')[1])" class="btn-hero-ghost">
+                            <i class="fa-solid fa-trophy"></i>
+                            <span>View Rankings</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="hero-stage-media">
+                    <div class="stage-media-card">
+                        <img src="/static/Games/Images/neon-cyber-racer.webp" alt="Neon Cyber Racer" onerror="this.src='/static/Pixora.webp'">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Category Filter Strip -->
+            <div class="catalog-control-strip">
+                <div class="chips-container">
+                    <button class="filter-tab-pill active" onclick="applyCategoryFilter('all', this)">ALL ({{ games_list|length }})</button>
+                    <button class="filter-tab-pill" onclick="applyCategoryFilter('arcade', this)">ARCADE</button>
+                    <button class="filter-tab-pill" onclick="applyCategoryFilter('puzzle', this)">PUZZLE</button>
+                    <button class="filter-tab-pill" onclick="applyCategoryFilter('action', this)">ACTION</button>
+                    <button class="filter-tab-pill" onclick="applyCategoryFilter('brain', this)">BRAIN</button>
+                    <button class="filter-tab-pill" onclick="applyCategoryFilter('retro', this)">RETRO</button>
+                    <button class="filter-tab-pill" onclick="applyCategoryFilter('strategy', this)">STRATEGY</button>
+                    <button class="filter-tab-pill" onclick="applyCategoryFilter('skill', this)">SKILL</button>
+                </div>
+                <div class="catalog-stats-meta" id="catalogCounterLabel">
+                    SHOWING {{ games_list|length }} OF {{ games_list|length }} TITLES
+                </div>
+            </div>
+
+            <!-- Master Art-Centric Games Grid (All 17 Titles) -->
+            <div class="games-master-grid" id="gamesMasterGrid">
+                {% for g in games_list %}
+                <a href="/play/{{ g.slug }}" class="artwork-game-card" data-category="{{ g.category|lower }}" data-title="{{ g.title|lower }}">
+                    <div class="game-media-viewport">
+                        <img src="{{ g.thumbnail_url }}" alt="{{ g.title }}" loading="lazy" onerror="this.src='/static/Pixora.webp'">
+                        <span class="card-genre-badge">{{ g.category }}</span>
+                        {% if 'r2.dev' in g.play_url or g.r2_asset_key %}
+                            <span class="card-edge-badge"><i class="fa-solid fa-bolt"></i> EDGE</span>
+                        {% endif %}
+                        <div class="hover-play-curtain">
+                            <span class="hover-play-button">
+                                <i class="fa-solid fa-play"></i> PLAY
+                            </span>
+                        </div>
+                    </div>
+                    <div class="game-dossier-body">
+                        <div>
+                            <h3 class="game-headline">{{ g.title }}</h3>
+                            <p class="game-summary-text">{{ g.description or 'Engage in custom game engine challenges and compete on global leaderboards.' }}</p>
+                        </div>
+                        <div class="game-dossier-footer">
+                            <span class="plays-counter"><i class="fa-solid fa-fire"></i> {{ g.play_count }} Plays</span>
+                            <span class="launch-prompt">LAUNCH ↗</span>
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- TAB 2: CONNECTED ARENA LEADERBOARDS            -->
+        <!-- ============================================== -->
+        <section id="view-leaderboard" class="tab-section {% if active_tab == 'leaderboard' %}active{% endif %}">
+            <div class="leaderboard-arena-card">
+                <div class="arena-head">
+                    <div>
+                        <div style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent-cyan); letter-spacing: 0.12em; text-transform: uppercase;">// LIVE TELEMETRY MATRIX</div>
+                        <h2 class="arena-title">CHAMPIONSHIP LEADERBOARDS</h2>
+                        <div style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent-cyan); margin-top: 4px;">
+                            CATEGORY: <strong style="color: var(--text-pure);">{{ active_game_title }}</strong>
+                        </div>
+                    </div>
+                    <div style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent-emerald);">
+                        ● REAL-TIME SYNCHRONIZED
+                    </div>
+                </div>
+
+                <!-- Live Game Filter Selector -->
+                <div class="leaderboard-filter-wrap" style="display: flex; align-items: center; gap: 8px; margin: 16px 0 24px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: thin;">
+                    <a href="{{ url_for('main.leaderboard_page') }}" 
+                       class="filter-tab-pill {% if not selected_game or selected_game == 'all' %}active{% endif %}"
+                       style="text-decoration: none; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;">
+                        <span>🏆</span> ALL TITLES (HALL OF FAME)
+                    </a>
+                    {% for g in games_list %}
+                    <a href="{{ url_for('main.leaderboard_page', game=g.title) }}" 
+                       class="filter-tab-pill {% if selected_game == g.title or selected_game == g.slug %}active{% endif %}"
+                       style="text-decoration: none; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;">
+                        {{ g.title }}
+                    </a>
+                    {% endfor %}
+                </div>
+
+                <!-- Championship Podiums for Top 3 Distinct Pilots -->
+                {% if top_scores and top_scores|length >= 3 %}
+                <div class="championship-podium">
+                    <div class="podium-box silver">
+                        <div class="podium-rank-icon">🥈</div>
+                        <div class="podium-pilot">
+                            {{ top_scores[1].player.username if top_scores[1].player else 'Guest' }}
+                            {% if top_scores[1].player and top_scores[1].player.username == username %}
+                            <span style="color: #cbd5e1; font-family: var(--font-mono); font-size: 0.75rem; display: block; font-weight: 700;">(YOU)</span>
+                            {% endif %}
+                        </div>
+                        <div class="podium-pts">{{ "{:,}".format(top_scores[1].score) }}</div>
+                        <div class="podium-title-tag">{{ top_scores[1].game_name }}</div>
+                    </div>
+                    <div class="podium-box gold">
+                        <div class="podium-rank-icon">🥇</div>
+                        <div class="podium-pilot">
+                            {{ top_scores[0].player.username if top_scores[0].player else 'Guest' }}
+                            {% if top_scores[0].player and top_scores[0].player.username == username %}
+                            <span style="color: var(--accent-gold); font-family: var(--font-mono); font-size: 0.75rem; display: block; font-weight: 700;">(YOU)</span>
+                            {% endif %}
+                        </div>
+                        <div class="podium-pts" style="color: var(--accent-gold);">{{ "{:,}".format(top_scores[0].score) }}</div>
+                        <div class="podium-title-tag">{{ top_scores[0].game_name }}</div>
+                    </div>
+                    <div class="podium-box bronze">
+                        <div class="podium-rank-icon">🥉</div>
+                        <div class="podium-pilot">
+                            {{ top_scores[2].player.username if top_scores[2].player else 'Guest' }}
+                            {% if top_scores[2].player and top_scores[2].player.username == username %}
+                            <span style="color: #cd7f32; font-family: var(--font-mono); font-size: 0.75rem; display: block; font-weight: 700;">(YOU)</span>
+                            {% endif %}
+                        </div>
+                        <div class="podium-pts">{{ "{:,}".format(top_scores[2].score) }}</div>
+                        <div class="podium-title-tag">{{ top_scores[2].game_name }}</div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Full High Scores Table -->
+                <div style="overflow-x: auto;">
+                    <table class="arena-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 80px;">RANK</th>
+                                <th>PILOT CODENAME</th>
+                                <th>GAME TITLE</th>
+                                <th>HIGH SCORE</th>
+                                <th>ACHIEVED (UTC)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for score in top_scores %}
+                            {% set is_me = (score.player and score.player.username == username) %}
+                            <tr {% if is_me %}style="background: rgba(0, 240, 255, 0.08); border-left: 3px solid var(--accent-cyan);"{% endif %}>
+                                <td style="font-family: var(--font-mono); font-weight: 700;">
+                                    {% if loop.index == 1 %}<span style="color: var(--accent-gold);">🥇 #1</span>
+                                    {% elif loop.index == 2 %}<span style="color: #cbd5e1;">🥈 #2</span>
+                                    {% elif loop.index == 3 %}<span style="color: #cd7f32;">🥉 #3</span>
+                                    {% else %}#{{ loop.index }}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <strong style="color: var(--text-pure);">{{ score.player.username if score.player else 'Guest' }}</strong>
+                                    {% if is_me %}
+                                        <span style="color: var(--accent-cyan); font-family: var(--font-mono); font-size: 0.72rem; margin-left: 6px; font-weight: 700;">(YOU)</span>
+                                    {% endif %}
+                                </td>
+                                <td><span style="font-family: var(--font-mono); color: var(--text-dim);">{{ score.game_name }}</span></td>
+                                <td style="font-family: var(--font-mono); font-weight: 800; color: var(--accent-cyan); font-size: 1.05rem;">
+                                    {{ "{:,}".format(score.score) }}
+                                </td>
+                                <td style="font-family: var(--font-mono); color: var(--text-muted); font-size: 0.8rem;">
+                                    {{ score.achieved_at.strftime('%Y-%m-%d %H:%M') if score.achieved_at else 'Verified' }}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 36px;">
+                                    No high scores logged yet. Launch any game and record your first score!
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- TAB 3: CONNECTED CLOUD ARCHITECTURE            -->
+        <!-- ============================================== -->
+        <section id="view-infrastructure" class="tab-section {% if active_tab == 'infrastructure' %}active{% endif %}">
+            <div class="architecture-arena-card">
+                <div class="arena-head">
+                    <div>
+                        <div style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent-cyan); letter-spacing: 0.12em; text-transform: uppercase;">// PRODUCTION BLUEPRINT</div>
+                        <h2 class="arena-title">CLOUDFLARE EDGE INFRASTRUCTURE</h2>
+                    </div>
+                    <div style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent-cyan);">
+                        ● ZERO-EGRESS CDN MATRIX
+                    </div>
+                </div>
+
+                <p style="color: var(--text-dim); font-size: 0.96rem; line-height: 1.6; max-width: 840px;">
+                    Pixora decouples monolithic game binaries from backend application logic. Large-scale WebGL assets, sound files, and textures stream through <strong>Cloudflare R2 Object Storage</strong> across 300+ global edge locations with zero egress fees, while state telemetry streams to our isolated Python backend.
+                </p>
+
+                <div class="arch-grid">
+                    <div class="arch-node-box">
+                        <div class="arch-node-icon"><i class="fa-solid fa-globe"></i></div>
+                        <h3 class="arch-node-title">Global Anycast POPs</h3>
+                        <p class="arch-node-desc">Cloudflare distributes DNS and traffic through hundreds of points of presence worldwide for sub-15ms edge routing.</p>
+                        <div class="arch-node-stat">300+ Cities Active</div>
+                    </div>
+
+                    <div class="arch-node-box">
+                        <div class="arch-node-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+                        <h3 class="arch-node-title">Cloudflare R2 Storage</h3>
+                        <p class="arch-node-desc">S3-compatible bucket (<code>glitch4ce-games</code>) serving Phaser 3 and Godot binaries with $0 egress charges.</p>
+                        <div class="arch-node-stat">Zero-Egress Tier</div>
+                    </div>
+
+                    <div class="arch-node-box">
+                        <div class="arch-node-icon"><i class="fa-solid fa-shield-halved"></i></div>
+                        <h3 class="arch-node-title">Sandboxed Runtime</h3>
+                        <p class="arch-node-desc">Games run inside multi-origin isolated iframes, reporting telemetry via strict <code>postMessage</code> contracts.</p>
+                        <div class="arch-node-stat">XSS / Frame Protected</div>
+                    </div>
+
+                    <div class="arch-node-box">
+                        <div class="arch-node-icon"><i class="fa-solid fa-bolt"></i></div>
+                        <h3 class="arch-node-title">Telemetry Engine</h3>
+                        <p class="arch-node-desc">High-speed telemetry endpoints verify user sessions, record play counts, and synchronize live leaderboards.</p>
+                        <div class="arch-node-stat">Real-time SQLite DB</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // Seamless Client-Side View Switcher
+        function switchViewTab(tabName, btnElement) {
+            document.querySelectorAll('.seg-btn').forEach(function(b) {
+                b.classList.remove('active');
+            });
+            if (btnElement) {
+                btnElement.classList.add('active');
+            }
+
+            document.querySelectorAll('.tab-section').forEach(function(s) {
+                s.classList.remove('active');
+            });
+            var target = document.getElementById('view-' + tabName);
+            if (target) {
+                target.classList.add('active');
+            }
+
+            if (history.pushState) {
+                history.pushState(null, null, '#' + tabName);
+            }
+        }
+
+        // Live Dynamic Game Search
+        function filterLiveCatalog() {
+            var q = document.getElementById('liveSearchInput').value.toLowerCase().trim();
+            var cards = document.querySelectorAll('.artwork-game-card');
+            var matched = 0;
+
+            cards.forEach(function(card) {
+                var title = card.getAttribute('data-title') || '';
+                var cat = card.getAttribute('data-category') || '';
+                if (title.indexOf(q) !== -1 || cat.indexOf(q) !== -1) {
+                    card.style.display = 'flex';
+                    matched++;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+
+            document.getElementById('catalogCounterLabel').innerText = 'SHOWING ' + matched + ' OF 17 TITLES';
+        }
+
+        // Category Filter
+        function applyCategoryFilter(cat, pillElement) {
+            document.querySelectorAll('.filter-tab-pill').forEach(function(p) {
+                p.classList.remove('active');
+            });
+            pillElement.classList.add('active');
+
+            var cards = document.querySelectorAll('.artwork-game-card');
+            var matched = 0;
+
+            cards.forEach(function(card) {
+                var cardCat = card.getAttribute('data-category') || '';
+                if (cat === 'all' || cardCat.indexOf(cat) !== -1) {
+                    card.style.display = 'flex';
+                    matched++;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+
+            document.getElementById('catalogCounterLabel').innerText = 'SHOWING ' + matched + ' OF 17 TITLES';
+        }
+
+        // Initial hash listener
+        window.addEventListener('DOMContentLoaded', function() {
+            var hash = window.location.hash.replace('#', '');
+            if (hash === 'leaderboard' || hash === 'infrastructure') {
+                var btn = document.querySelector('.seg-btn[onclick*="' + hash + '"]');
+                switchViewTab(hash, btn);
+            }
+        });
+    </script>
+</body>
+</html>

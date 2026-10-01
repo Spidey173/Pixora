@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic Tac Toe</title>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --secondary: #8b5cf6;
+            --accent: #ec4899;
+            --background: #1a1a1a;
+            --text: #f8fafc;
+        }
+
+        html, body {
+            overflow: hidden; /* Disable scrolling */
+            height: 100%; /* Ensure the body takes full viewport height */
+            margin: 0; /* Remove default margin */
+            padding: 0; /* Remove default padding */
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: var(--background);
+            color: var(--text);
+            position: relative;
+            padding: 20px; /* Reduced padding to prevent overflow */
+            box-sizing: border-box; /* Ensure padding is included in the height calculation */
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            font-size: 1.8rem;
+        }
+
+        .close-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: rotate(90deg);
+        }
+
+        h1 {
+            font-size: 7rem;
+            margin: 0;
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 4px 8px rgba(99, 102, 241, 0.3));
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        #menu {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 800px;
+            padding: 1rem;
+            margin: 1rem 0; /* Reduced margin */
+        }
+
+        .neumorphic-btn {
+            padding: 1rem 2em;
+            font-size: 1.3rem;
+            border: none;
+            border-radius: 16px;
+            background: var(--background);
+            color: var(--text);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 8px 8px 16px rgba(0, 0, 0, 0.3),
+                      -8px -8px 16px rgba(255, 255, 255, 0.05);
+        }
+
+        .neumorphic-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 12px 12px 24px rgba(0, 0, 0, 0.4),
+                      -12px -12px 24px rgba(255, 255, 255, 0.1);
+        }
+
+        #board {
+            display: grid;
+            gap: 1.2rem;
+            padding: 2rem;
+            border-radius: 24px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin: 0.5rem 0;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .cell {
+            width: 90px;
+            height: 90px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: var(--text);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .cell:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: scale(1.05);
+        }
+
+        .cell.x-mark { color: var(--primary); }
+        .cell.o-mark { color: var(--secondary); }
+
+        .winner {
+            background: rgba(76, 175, 80, 0.3);
+            animation: winner-glow 1s infinite alternate;
+        }
+
+        @keyframes winner-glow {
+            from { box-shadow: 0 0 10px rgba(76, 175, 80, 0.3); }
+            to { box-shadow: 0 0 20px rgba(76, 175, 80, 0.6); }
+        }
+
+        #result {
+            font-size: 1.8rem;
+            margin: 1rem 0;
+            text-align: center;
+            min-height: 2.5rem;
+        }
+
+        #reset-btn {
+            margin-top: 1rem; /* Reduced margin */
+        }
+
+        .hidden { display: none !important; }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 10px; /* Further reduce padding for smaller screens */
+            }
+
+            h1 {
+                font-size: 3rem; /* Adjust title size for smaller screens */
+            }
+
+            .cell {
+                width: 60px; /* Reduce cell size for smaller screens */
+                height: 60px;
+                font-size: 2rem;
+            }
+
+            .neumorphic-btn {
+                padding: 0.8rem 1.2rem; /* Adjust button padding for smaller screens */
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="close-btn hidden" onclick="goBack()">×</div>
+    <h1>Tic Tac Toe</h1>
+
+    <div id="menu">
+        <button class="neumorphic-btn" onclick="chooseMode('single')">Single Player</button>
+        <button class="neumorphic-btn" onclick="chooseMode('dual')">Two Players</button>
+        <button class="neumorphic-btn" onclick="chooseMode('impossible')">Impossible</button>
+    </div>
+
+    <div id="board-options" class="hidden">
+        <button class="neumorphic-btn" onclick="startGame(3)">3×3</button>
+        <button class="neumorphic-btn" onclick="startGame(5)">5×5</button>
+    </div>
+
+    <div id="board" class="hidden"></div>
+    <div id="result"></div>
+    <button id="reset-btn" class="neumorphic-btn hidden" onclick="resetGame()">Reset Game</button>
+    <script>
+        let currentPlayer = 'X';
+        let gameMode = '';
+        let boardSize = 3;
+        let winCondition = 3;
+        const resultDisplay = document.getElementById('result');
+        let cells = [];
+        let boardState = [];
+        let isGameOver = false;
+
+        function chooseMode(mode) {
+            gameMode = mode;
+            document.getElementById('menu').classList.add('hidden');
+            document.getElementById('board-options').classList.remove('hidden');
+            document.querySelector('.close-btn').classList.remove('hidden');
+            document.getElementById('reset-btn').classList.add('hidden');
+
+            if (gameMode === 'impossible') {
+                document.querySelectorAll('#board-options button')[1].classList.add('hidden');
+            } else {
+                document.querySelectorAll('#board-options button')[1].classList.remove('hidden');
+            }
+        }
+
+        function startGame(size) {
+            boardSize = size;
+            winCondition = boardSize === 3 ? 3 : 4;
+            document.getElementById('reset-btn').classList.remove('hidden');
+            document.getElementById('board-options').classList.add('hidden');
+            document.getElementById('board').classList.remove('hidden');
+            document.getElementById('board').style.gridTemplateColumns = `repeat(${boardSize}, 1fr)`;
+            document.getElementById('board').innerHTML = '';
+
+            cells = Array.from({ length: boardSize * boardSize }, (_, i) => {
+                const cell = document.createElement('div');
+                cell.classList.add('cell');
+                cell.dataset.index = i;
+                cell.addEventListener('click', () => handleClick(cell));
+                document.getElementById('board').appendChild(cell);
+                return cell;
+            });
+
+            boardState = new Array(boardSize * boardSize).fill('');
+            currentPlayer = 'X';
+            isGameOver = false;
+            resultDisplay.textContent = '';
+        }
+
+        function resetGame() {
+            startGame(boardSize);
+        }
+
+        function handleClick(cell) {
+            if (isGameOver || cell.textContent !== '') return;
+
+            cell.textContent = currentPlayer;
+            cell.classList.add(currentPlayer === 'X' ? 'x-mark' : 'o-mark');
+            boardState[cell.dataset.index] = currentPlayer;
+
+            if (checkWinner(currentPlayer)) {
+                resultDisplay.textContent = `${currentPlayer} wins!`;
+                isGameOver = true;
+                return;
+            }
+
+            if (boardState.every(c => c !== '')) {
+                resultDisplay.textContent = 'It\'s a draw!';
+                isGameOver = true;
+                return;
+            }
+
+            currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+
+            if (gameMode === 'single' && currentPlayer === 'O' && !isGameOver) {
+                setTimeout(aiMoveEasy, 500);
+            } else if (gameMode === 'impossible' && currentPlayer === 'O' && !isGameOver) {
+                setTimeout(aiMoveImpossible, 500);
+            }
+        }
+
+        function aiMoveEasy() {
+            const availableMoves = boardState.map((cell, index) => cell === '' ? index : null).filter(val => val !== null);
+            const randomMove = availableMoves[Math.floor(Math.random() * availableMoves.length)];
+
+            if (randomMove !== undefined) {
+                boardState[randomMove] = 'O';
+                cells[randomMove].textContent = 'O';
+                cells[randomMove].classList.add('o-mark');
+
+                if (checkWinner('O')) {
+                    resultDisplay.textContent = 'AI wins!';
+                    isGameOver = true;
+                } else if (boardState.every(c => c !== '')) {
+                    resultDisplay.textContent = 'It\'s a draw!';
+                    isGameOver = true;
+                }
+
+                currentPlayer = 'X';
+            }
+        }
+
+        function aiMoveImpossible() {
+            const bestMove = minimax(boardState, 'O');
+            if (bestMove.index !== undefined) {
+                boardState[bestMove.index] = 'O';
+                cells[bestMove.index].textContent = 'O';
+                cells[bestMove.index].classList.add('o-mark');
+
+                if (checkWinner('O')) {
+                    resultDisplay.textContent = 'AI wins!';
+                    isGameOver = true;
+                } else if (boardState.every(c => c !== '')) {
+                    resultDisplay.textContent = 'It\'s a draw!';
+                    isGameOver = true;
+                }
+
+                currentPlayer = 'X';
+            }
+        }
+
+        function minimax(board, player) {
+            const availableMoves = board.map((cell, index) => cell === '' ? index : null).filter(val => val !== null);
+
+            if (checkWinner('X')) return { score: -10 };
+            if (checkWinner('O')) return { score: 10 };
+            if (availableMoves.length === 0) return { score: 0 };
+
+            const moves = [];
+            for (const move of availableMoves) {
+                board[move] = player;
+                const result = minimax(board, player === 'O' ? 'X' : 'O');
+                board[move] = '';
+                moves.push({ index: move, score: result.score });
+            }
+
+            return player === 'O'
+                ? moves.reduce((best, move) => (move.score > best.score ? move : best), moves[0])
+                : moves.reduce((best, move) => (move.score < best.score ? move : best), moves[0]);
+        }
+
+        function checkWinner(player) {
+            const winPatterns = [];
+            for (let i = 0; i < boardSize; i++) {
+                winPatterns.push(Array.from({ length: boardSize }, (_, j) => i * boardSize + j)); // Rows
+                winPatterns.push(Array.from({ length: boardSize }, (_, j) => j * boardSize + i)); // Columns
+            }
+            winPatterns.push(Array.from({ length: boardSize }, (_, i) => i * (boardSize + 1))); // Diagonal 1
+            winPatterns.push(Array.from({ length: boardSize }, (_, i) => (i + 1) * (boardSize - 1))); // Diagonal 2
+
+            for (let pattern of winPatterns) {
+                if (pattern.length >= winCondition) {
+                    for (let i = 0; i <= pattern.length - winCondition; i++) {
+                        const slice = pattern.slice(i, i + winCondition);
+                        if (slice.every(index => boardState[index] === player)) {
+                            slice.forEach(index => cells[index].classList.add('winner'));
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        function goBack() {
+            document.getElementById('board').classList.add('hidden');
+            document.getElementById('board-options').classList.add('hidden');
+            document.getElementById('menu').classList.remove('hidden');
+            document.querySelector('.close-btn').classList.add('hidden');
+            document.getElementById('reset-btn').classList.add('hidden');
+            resultDisplay.textContent = '';
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Conquer the Maze</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: 'Arial', sans-serif;
+      background: #0a0a0a;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Animated grid background */
+    body::before {
+      content: '';
+      position: absolute;
+      width: 200%;
+      height: 200%;
+      background: 
+        linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+      background-size: 20px 20px;
+      animation: moveGrid 40s linear infinite;
+      z-index: -1;
+    }
+
+    @keyframes moveGrid {
+      0% { transform: translate(0, 0); }
+      100% { transform: translate(-50%, -50%); }
+    }
+
+    h1 {
+      font-size: 6em;
+      font-weight: 900;
+      text-transform: uppercase;
+      margin: 0;
+      position: relative;
+      background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 30px rgba(78, 205, 196, 0.4);
+      animation: titleGlitch 3s infinite;
+    }
+
+    @keyframes titleGlitch {
+      0%, 100% { transform: translate(0); }
+      20% { transform: translate(-2px, 2px); }
+      40% { transform: translate(-2px, -2px); }
+      60% { transform: translate(2px, 2px); }
+      80% { transform: translate(2px, -2px); }
+    }
+
+    p {
+      font-size: 1.5em;
+      margin: 20px 0 40px;
+      color: #fff;
+      text-align: center;
+      text-shadow: 0 0 15px rgba(78, 205, 196, 0.5);
+      position: relative;
+    }
+
+    button {
+      font-size: 1.8em;
+      padding: 15px 50px;
+      background: transparent;
+      color: #fff;
+      border: 3px solid #4ecdc4;
+      border-radius: 10px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    button::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(78, 205, 196, 0.4),
+        transparent
+      );
+      transition: 0.5s;
+    }
+
+    button:hover::before {
+      left: 100%;
+    }
+
+    button:hover {
+      background: rgba(78, 205, 196, 0.1);
+      box-shadow: 0 0 30px rgba(78, 205, 196, 0.4);
+      transform: scale(1.05);
+    }
+
+    /* Floating particles effect */
+    .particles {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .particle {
+      position: absolute;
+      background: radial-gradient(circle, #4ecdc4 20%, transparent 70%);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    /* Matrix-like rain effect */
+    .matrix-rain {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      opacity: 0.1;
+      z-index: -1;
+    }
+
+    @keyframes matrix {
+      0% { transform: translateY(-100%); }
+      100% { transform: translateY(100%); }
+    }
+  </style>
+</head>
+<body>
+  <div class="particles" id="particles"></div>
+  <h1 data-text="Conquer the Maze">Conquer the Maze</h1>
+  <p>Enter the labyrinth where shadows whisper and walls shift...</p>
+  <button onclick="startGame()">Begin Challenge</button>
+
+  <script>
+    function startGame() {
+      window.location.href = "{{ url_for('maze2ndpage') }}";
+    }
+
+    // Particle animation
+    function createParticles() {
+      const particles = document.getElementById('particles');
+      for (let i = 0; i < 50; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        particle.style.width = Math.random() * 5 + 2 + 'px';
+        particle.style.height = particle.style.width;
+        particle.style.left = Math.random() * 100 + '%';
+        particle.style.top = Math.random() * 100 + '%';
+        particle.style.animation = `float ${Math.random() * 10 + 5}s infinite linear`;
+        particles.appendChild(particle);
+      }
+    }
+
+    // Floating animation
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes float {
+        0%, 100% { transform: translate(0, 0) scale(1); }
+        25% { transform: translate(10px, -10px) scale(1.1); }
+        50% { transform: translate(-10px, 10px) scale(0.9); }
+        75% { transform: translate(-15px, -15px) scale(1.2); }
+      }
+    `;
+    document.head.appendChild(style);
+
+    createParticles();
+
+    // Mouse trail effect
+    document.addEventListener('mousemove', (e) => {
+      const particles = document.querySelectorAll('.particle');
+      particles.forEach(particle => {
+        const rect = particle.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const distance = Math.sqrt(x * x + y * y);
+        if (distance < 150) {
+          particle.style.transform = `translate(${(x - 75) * 0.2}px, ${(y - 75) * 0.2}px)`;
+        }
+      });
+    });
+  </script>
+</body>
+</html>

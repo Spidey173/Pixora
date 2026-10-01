@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guess the Sequence</title>
+    <style>
+      /* Overall Page Styling */
+body {
+    margin: 0;
+    font-family: 'Poppins', sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: radial-gradient(circle at center, #4A00E0, #8E2DE2);
+    color: #fff;
+    overflow: hidden;
+}
+
+
+.game-container {
+            text-align: center;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 15px;
+            box-shadow: 0px 10px 20px rgba(0, 0, 0, 0.5);
+            padding: 30px;
+            width: 90%;
+            max-width: 800px;
+            position: relative;
+        }
+
+/* Timer Box */
+.timer {
+    font-size: 1.2rem;
+    font-weight: bold;
+    background: linear-gradient(135deg, #4CAF50, #66BB6A);
+    padding: 12px 25px;
+    border-radius: 12px;
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* Question Styling */
+.question {
+    font-size: 2rem;
+    font-weight: 600;
+    margin: 60px 0 30px;
+    text-shadow: 0 0 15px rgba(255, 255, 255, 0.4);
+}
+
+/* Options Container */
+.options {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+/* Option Buttons */
+.option {
+    padding: 15px 25px;
+    font-size: 1.3rem;
+    font-weight: bold;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    background: linear-gradient(135deg, #4e54c8, #8e2de2);
+    color: white;
+    transition: all 0.3s ease-in-out;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.option:hover {
+    transform: scale(1.1);
+    background: linear-gradient(135deg, #6a11cb, #ff4081);
+    box-shadow: 0 10px 30px rgba(255, 255, 255, 0.3);
+}
+
+/* Result Display */
+.result {
+    font-size: 1.8rem;
+    margin-top: 20px;
+    display: none;
+    font-weight: bold;
+}
+
+.result.correct {
+    color: #4CAF50;
+    font-size: 2rem;
+}
+
+.result.wrong {
+    color: #F44336;
+    font-size: 2rem;
+}
+
+/* Result Box Styling */
+.result-box {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(20px);
+    padding: 40px;
+    border-radius: 20px;
+    text-align: center;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.6), 0 0 50px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    color: white;
+    opacity: 0;
+    animation: popIn 0.6s ease forwards;
+    width: 80%;
+    max-width: 500px;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+@keyframes popIn {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.6);
+    }
+    100% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+.result-box h1 {
+            font-size: 2.2rem;
+            margin-bottom: 15px; /* Reduced margin to make it closer to text */
+            font-weight: bold;
+            text-transform: uppercase;
+            color: #fff;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.8), 0 0 20px rgba(255, 255, 255, 0.6);
+        }
+        
+
+/* Paragraph in Result Box */
+.result-box p {
+    font-size: 1.5rem;
+    margin-bottom: 30px;
+    font-weight: 600;
+    color: #f5f5f5;
+    text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+/* Restart Button */
+.restart-button {
+    padding: 15px 35px;
+    font-size: 1.4rem;
+    cursor: pointer;
+    background: linear-gradient(135deg, #ff4081, #f50057);
+    border: none;
+    border-radius: 50px;
+    transition: all 0.3s ease;
+    position: absolute;
+    left: 50%;
+    bottom: 15px;
+    transform: translateX(-50%);
+    color: white;
+    font-weight: bold;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.6);
+    outline: none;
+}
+
+.restart-button:hover {
+    background: linear-gradient(135deg, #ff80ab, #f50057);
+    transform: translateX(-50%) scale(1.1);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+}
+
+.restart-button:focus {
+    outline: none;
+}
+.back-button {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 8px 15px;
+      font-size: 16px;
+      background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .back-button:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: translateX(5px);
+    }
+
+    </style>
+</head>
+<body>
+
+  <button class="back-button" onclick="goBack()">← Back</button>
+
+    <div class="game-container">
+        <div class="timer" id="timer">60</div>
+        <div class="question" id="question">A man’s father is the brother of his aunt’s husband. How is the man related to his aunt’s husband?</div>
+        <div class="options" id="options">
+            <button class="option" onclick="checkAnswer('A')">A. Nephew</button>
+            <button class="option" onclick="checkAnswer('B')">B. Cousin</button>
+            <button class="option" onclick="checkAnswer('C')">C. Son</button>
+            <button class="option" onclick="checkAnswer('D')">D. Brother</button>
+        </div>
+        <div class="result" id="result"></div>
+        <div class="next-message" id="nextMessage" style="display: none;">Next question loading...</div>
+    </div>
+
+    <!-- Result Box -->
+    <div class="result-box" id="resultBox">
+        <h1 id="resultComment"></h1>
+        <p id="finalScore"></p>
+        <button class="restart-button" id="restartButton" onclick="restartGame()">Restart</button>
+    </div>
+
+    <script>
+        const questions = [
+            { text: 'If a man is the father of your uncle, what is he to you?', correct: 'A', options: ['Grandfather', 'Great-grandfather', 'Father', 'Uncle'] },
+            { text: 'If your aunt is your mother’s sister, what is your aunt’s daughter to you?', correct: 'B', options:  ['Sister', 'Cousin','Friend', 'Niece'] },
+            { text: 'Your father’s brother’s son is your cousin. What is your cousin’s relationship to your aunt?', correct: 'D', options: ['Brother', 'Niece', 'Cousin', 'Nephew'] },
+            { text: 'If your uncle is married to your aunt, what is the relationship between you and your uncle?', correct: 'A', options: ['Nephew or Niece', 'Brother', 'Father', 'Cousin'] },
+            { text: 'Your mother’s sister has a son. What is your relationship to her son?', correct: 'C', options: ['Nephew', 'Brother', 'Cousin', 'Uncle'] },
+            { text: 'If your aunt has a daughter who is older than you, what is she to you?', correct: 'C', options: ['Sister', 'Aunt', 'Cousin', 'Niece'] },
+            { text: 'Your brother’s son is your nephew. What is your nephew’s mother to you?', correct: 'B', options: ['Mother-in-law', 'Sister-in-law', 'Cousin', 'Aunt'] },
+            { text: 'If your father’s sister has a daughter, what is her daughter’s relationship to you?', correct: 'D', options: ['Niece', 'Sister', 'Nephew', 'Cousin'] },
+            { text: 'Your mother’s brother has a son. What is the son’s relationship to your father?', correct: 'C', options: ['Brother-in-law', 'Son', 'Nephew-in-law', 'Cousin'] },
+            { text: 'If your uncle is the brother of your mother, what is your mother’s husband to your uncle?', correct: 'A', options: ['Brother-in-law', 'Husband', 'Father-in-law', 'Brother'] },
+            { text: 'Your aunt’s brother is your father. What is your aunt’s husband to you?', correct: 'C', options: ['Father', 'Brother', 'Uncle', 'Father-in-law'] },
+            { text: 'Your uncle’s wife is your aunt. What is your aunt’s daughter to you?', correct: 'B', options: ['Niece', 'Cousin', 'Nephew', 'Sister'] },
+            { text: 'Your mother’s brother’s daughter is your cousin. What is your cousin’s father to you?', correct: 'A', options: ['Uncle', 'Grandfather', 'Brother', 'Father'] },
+            { text: 'If your uncle is married to your father’s sister, what is he to you?', correct: 'C', options: ['Brother', 'Father', 'Uncle', 'Cousin'] },
+            { text: 'Your uncle’s daughter is younger than you. What is she to you?', correct: 'A', options: ['Cousin', 'Niece', 'Daughter', 'Sister'] },
+            { text: 'Your father’s sister is your aunt. What is your aunt’s husband to you?', correct: 'B', options: ['Father', 'Uncle', 'Cousin', 'Brother-in-law'] },
+            { text: 'If your father’s brother has a son, what is that son’s relationship to your mother?', correct: 'B', options: ['Nephew', 'Nephew-in-law', 'Brother-in-law', 'Cousin'] },
+            { text: 'Your aunt is married to your uncle. What is the relationship between your uncle and your mother?', correct: 'C', options: ['Brother', 'Father-in-law', 'Brother-in-law', 'Father'] },
+            { text: 'If your mother’s sister has a daughter, what is the daughter’s relationship to your father?', correct: 'A', options: ['Niece-in-law', 'Daughter-in-law', 'Cousin', 'Sister'] },
+            { text: 'Your aunt’s brother’s daughter is your cousin. What is your cousin’s brother to you?', correct: 'D', options: ['Brother', 'Nephew', 'Uncle', 'Cousin'] },
+            { text: 'If your uncle has a daughter, what is her relationship to your mother?', correct: 'B', options: ['Daughter-in-law', 'Niece-in-law', 'Cousin', 'Sister'] },
+            { text: 'Your father’s sister is your aunt. What is your aunt’s son to your father?', correct: 'B', options: ['Brother-in-law', 'Nephew', 'Cousin', 'Brother'] },
+            { text: 'Your father’s brother’s wife is your aunt. What is your aunt’s son to your father?', correct: 'C', options: ['Cousin', 'Son', 'Nephew-in-law', 'Brother'] },
+            { text: 'Your father’s mother has a brother. What is his relationship to your father?', correct: 'D', options: ['Father-in-law', 'Nephew', 'Brother', 'Uncle'] },
+            ];
+            let currentQuestion = 0;
+            let score = 0;
+            let timeLeft = 60;
+            let timer;
+    
+            function startTimer() {
+                const timerElement = document.getElementById('timer');
+                timer = setInterval(() => {
+                    if (timeLeft > 0) {
+                        timeLeft--;
+                        timerElement.textContent = timeLeft;
+                    } else {
+                        clearInterval(timer);
+                        checkAnswer(null, true); // Trigger timeout action
+                    }
+                }, 1000);
+            }
+    
+            function loadQuestion() {
+                const questionElement = document.getElementById('question');
+                const optionsElement = document.getElementById('options');
+                const resultElement = document.getElementById('result');
+                const nextMessage = document.getElementById('nextMessage');
+    
+                const question = questions[currentQuestion];
+                questionElement.textContent = question.text;
+    
+                resultElement.style.display = 'none';
+                nextMessage.style.display = 'none';
+    
+                loadOptions(question.options);
+    
+                timeLeft = 60;
+                startTimer();
+            }
+    
+            function loadOptions(options) {
+                const optionsElement = document.getElementById('options');
+                optionsElement.innerHTML = options
+                    .map((option, index) => `<button class="option" onclick="checkAnswer('${String.fromCharCode(65 + index)}')">${String.fromCharCode(65 + index)}. ${option}</button>`)
+                    .join('');
+            }
+    
+    
+            
+            function checkAnswer(selected, isTimeout = false) {
+                clearInterval(timer);
+                const resultElement = document.getElementById('result');
+                const nextMessage = document.getElementById('nextMessage');
+                const correct = questions[currentQuestion].correct;
+            
+                if (isTimeout) {
+                    resultElement.textContent = `Time Up! The correct answer was ${correct}.`;
+                    resultElement.className = 'result wrong';
+                } else if (selected === correct) {
+                    resultElement.textContent = 'Correct!';
+                    resultElement.className = 'result correct';
+                    score++;
+                } else {
+                    resultElement.textContent = `Wrong! The correct answer was ${correct}.`;
+                    resultElement.className = 'result wrong';
+                }
+            
+                resultElement.style.display = 'block';
+                nextMessage.style.display = 'block';
+            
+                setTimeout(nextQuestion, 3000); // Automatically load the next question
+            }
+            
+            function nextQuestion() {
+                currentQuestion++;
+                if (currentQuestion < questions.length) {
+                    loadQuestion();
+                } else {
+                    showFinalResult();
+                }
+            }
+            
+    
+            function showFinalResult() {
+                const resultBox = document.getElementById('resultBox');
+                const resultComment = document.getElementById('resultComment');
+                const finalScore = document.getElementById('finalScore');
+    
+                let comment;
+                if (score === 25) {
+                    comment = 'You are a god! You scored 25 out of 25!';
+                } else if (score > 20) {
+                    comment = `Amazing! Your score: ${score}`;
+                } else if (score >= 15) {
+                    comment = `You are good! Your score: ${score}`;
+                } else if (score >= 10) {
+                    comment = `Could do better! Your score: ${score}`;
+                } else {
+                    comment = `Better luck next time! Your score: ${score}`;
+                }
+    
+                resultComment.textContent = comment;
+                finalScore.textContent = `Final Score: ${score} / ${questions.length}`;
+    
+                resultBox.style.display = 'block';
+    
+                // Center restart button initially
+                const restartButton = document.getElementById('restartButton');
+                restartButton.style.display = 'block';
+    
+                setTimeout(() => {
+                    restartButton.classList.add('restart-left');
+                }, 5000);
+            }
+    
+            function restartGame() {
+                score = 0;
+                currentQuestion = 0;
+                loadQuestion();
+                document.getElementById('resultBox').style.display = 'none';
+            }
+    
+            // Initial call
+            loadQuestion();
+            function goBack() {
+      window.location.href = "{{ url_for('relations') }}"; // Change "index.html" to your desired page
+    }
+        </script>
+    </body>
+    </html>

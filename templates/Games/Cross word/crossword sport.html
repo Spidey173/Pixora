@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crossword Puzzle Game</title>
+    <style>
+      body {
+          font-family: Arial, sans-serif;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          background: linear-gradient(135deg, #228B22, #4169E1);
+          margin: 0;
+          padding: 20px;
+      }
+  
+      h1 {
+          margin-top: 20px;
+          font-size: 2.5em;
+          color: black; /* Gold */
+      }
+  
+      .crossword-container {
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+          align-items: center;
+      }
+  
+      .grid {
+          display: grid;
+          grid-template-columns: repeat(18, 40px);
+          grid-template-rows: repeat(18, 40px);
+          gap: 2px;
+          border: 4px solid #FFD700; /* Gold border */
+          box-shadow: 0 0 15px 5px #FFD700;
+          padding: 5px;
+          background-color: #004225; /* Dark green */
+      }
+  
+      .cell {
+          position: relative;
+          width: 40px;
+          height: 40px;
+          border: 1px solid #FFF;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          background-color: #FFDAB9; /* Peach */
+      }
+  
+      .cell input {
+          width: 100%;
+          height: 100%;
+          text-align: center;
+          font-size: 20px;
+          font-weight: bold;
+          text-transform: uppercase;
+          border: none;
+          outline: none;
+          background-color: transparent;
+          color: #333;
+      }
+  
+      .subscript {
+          font-size: 0.7em;
+          color: #8B4513;
+          position: absolute;
+          top: 2px;
+          left: 2px;
+      }
+  
+      .black {
+          background-color: #222;
+      }
+  
+      .clues-container {
+          width: 320px;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 20px;
+          background: rgba(255, 255, 255, 0.2);
+          padding: 15px;
+          border-radius: 12px;
+          box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+      }
+  
+      .clues {
+          width: 100%;
+          max-height: 320px;
+          overflow-y: auto;
+          background: #f8f8f8;
+          padding: 12px;
+          border-radius: 10px;
+          color: black;
+          font-weight: bold;
+      }
+  
+      .clues h2 {
+          color: #D2691E;
+          font-size: 1.5em;
+          margin-top: 0;
+      }
+  
+      .clues ul {
+          list-style-type: none;
+          padding-left: 0;
+          font-size: 1.2em;
+      }
+  
+      .clues li {
+          margin-bottom: 12px;
+      }
+  
+      button {
+          padding: 12px 25px;
+          font-size: 20px;
+          font-weight: bold;
+          color: white;
+          background-color: #FF4500; /* Orange Red */
+          border: none;
+          cursor: pointer;
+          border-radius: 5px;
+          box-shadow: 0 5px #E63900;
+          transition: 0.3s;
+      }
+  
+      button:hover {
+          background-color: #E63900;
+          transform: scale(1.05);
+      }
+  
+      button:active {
+          box-shadow: 0 3px #B22222;
+          transform: scale(0.95);
+      }
+  
+      .status-message {
+          margin-top: 20px;
+          font-size: 24px;
+          font-weight: bold;
+          color: #32CD32; /* Lime Green */
+      }
+      .back-button {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 8px 15px;
+      font-size: 16px;
+      background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .back-button:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: translateX(5px);
+    }
+  </style>
+  
+  <button class="back-button" onclick="goBack()">← Back</button>
+
+    <h1>Indian Famous Sportspersons</h1>
+
+
+    <div class="crossword-container">
+        <div class="grid"></div>
+        <div class="clues">
+          <h2>Across</h2>
+          <ul id="across-clues"></ul>
+          <h2>Down</h2>
+          <ul id="down-clues"></ul>
+        </div>
+
+    <button onclick="checkCompletion()">Submit Puzzle</button>
+
+    <div class="status-message" id="status-message"></div>
+
+    <script>
+        const crosswordData = {
+            grid: [
+            ['','','','','P','','','','','','M','','','','','','',''],
+['R','','','','T','','','','','','S','','','','','','',''],
+['O','','V','','U','','','','','','D','','L','','','','',''],
+['H','','I','','S','U','N','I','L','C','H','H','E','T','R','I','',''],
+['I','','R','','H','','','','','','O','','A','','','','K',''],
+['T','','A','','A','','','S','A','I','N','A','N','E','H','W','A','L'],
+['S','','T','','','','','','','','I','','D','','','','P',''],
+['H','','K','','','','S','','','','','','E','','M','','I',''],
+['A','','H','','','S','A','N','I','A','M','I','R','Z','A','','L',''],
+['R','','O','','','','K','','','','','','P','','R','','D',''],
+['M','I','L','K','H','A','S','I','N','G','H','','A','','Y','','E',''],
+['A','','I','','','','H','','','','','','E','','C','','V',''],
+['','','','P','V','S','I','N','D','H','U','','S','','O','','',''],
+['','','','','','','M','','','','','','','','M','','',''],
+['','','N','E','E','R','A','J','C','H','O','P','R','A','','','',''],
+['','','','','','','L','','','','','','','','','','',''],
+['','','S','A','C','H','I','N','T','E','N','D','U','L','K','A','R',''],
+['','','','','','','K','','','','','','','','','','','']
+            ],
+
+            clues: {
+        across: [
+                    { number: 6, clue: "Indian football team captain, known for his brilliant skills and leadership.", answer: "SUNILCHHETRI", row: 3, col: 4 },
+                    { number: 8, clue: "Indian badminton star, former world no. 1.", answer: "SAINANEHWAL", row: 5, col: 7 },
+                    { number: 11, clue: "Indian tennis player, one of the most successful female athletes in India.", answer: "SANIAMIRZA", row: 8, col: 5 },
+                    { number: 12, clue: "Indian athlete, often regarded as one of the best sprinters in the world.", answer: "MILKHASINGH", row: 10, col: 0 },
+                    { number: 13, clue: "Indian badminton player, Olympic silver medalist and world champion.", answer: "PVSINDHU", row: 12, col: 3 },
+                    { number: 14, clue: "Indian javelin thrower, Olympic gold medalist.", answer: "NEERAJCHOPRA", row: 14, col: 2 },
+                    { number: 15, clue: "Indian cricket legend, widely regarded as one of the greatest batsmen in history.", answer: "SACHINTENDULKAR", row: 16, col: 2}
+        ],
+        down: [
+                    { number: 1, clue: "Indian track and field athlete, known as the ‘Golden Girl’.", answer: "PTUSHA", row: 0, col: 4 },
+                    { number: 2, clue: "The captain of India's cricket team, renowned for his batting and leadership.", answer: "MSDHONI", row: 0, col: 10 },
+                    { number: 3, clue: "Indian cricketer, captain, and one of the most successful players in history.", answer: "ROHITSHARMA", row: 1, col: 0 },
+                    { number: 4, clue: "Cricketer, regarded as one of the greatest batsmen in the world.", answer: "VIRATKHOLI", row: 2, col: 2 },
+                    { number: 5, clue: "Indian tennis legend, known for his long and successful career.", answer: "LEANDERPAES", row: 2, col: 12 },
+                    { number: 7, clue: "Former Indian cricketer, captain, and World Cup winner in 1983.", answer: "KAPILDEV", row: 4, col: 16 },
+                    { number: 9, clue: "Indian wrestler, Olympic medalist known for her famous victory at the Rio Olympics.", answer: "SAKSHIMALIK", row: 7, col: 6 },
+                    { number: 10, clue: "Boxer, Olympic medalist, and one of the greatest in her sport.", answer: "MARYKOM", row: 7, col: 14 },
+
+
+
+
+
+
+
+
+        ], // Moved inside clues
+    },
+};
+const crosswordGrid = document.querySelector(".grid");
+const acrossClues = document.querySelector("#across-clues");
+const downClues = document.querySelector("#down-clues");
+const statusMessage = document.querySelector("#status-message");
+
+// Create the grid based on crosswordData
+function createGrid() {
+  crosswordData.grid.forEach((row, rowIndex) => {
+    row.forEach((cell, colIndex) => {
+      const cellDiv = document.createElement("div");
+      cellDiv.classList.add("cell");
+
+      if (cell) {
+        const input = document.createElement("input");
+        input.maxLength = 1;
+        input.dataset.row = rowIndex;
+        input.dataset.col = colIndex;
+        input.addEventListener("input", handleInput);
+        cellDiv.appendChild(input);
+
+        const clueNumber = getClueNumber(rowIndex, colIndex);
+        if (clueNumber) {
+          const subscript = document.createElement("span");
+          subscript.classList.add("subscript");
+          subscript.textContent = clueNumber;
+          cellDiv.appendChild(subscript);
+        }
+      } else {
+        cellDiv.classList.add("black");
+      }
+
+      crosswordGrid.appendChild(cellDiv);
+    });
+  });
+}
+
+// Get clue number for a cell
+function getClueNumber(row, col) {
+  const acrossClue = crosswordData.clues.across.find(
+    (clue) => clue.row === row && clue.col === col
+  );
+  if (acrossClue) return acrossClue.number;
+
+  const downClue = crosswordData.clues.down.find(
+    (clue) => clue.row === row && clue.col === col
+  );
+  if (downClue) return downClue.number;
+
+  return '';
+}
+
+// Create clues list
+function createClues() {
+  crosswordData.clues.across.forEach((clue) => {
+    const clueItem = document.createElement("li");
+    clueItem.textContent = `${clue.number}. ${clue.clue}`;
+    acrossClues.appendChild(clueItem);
+  });
+
+  crosswordData.clues.down.forEach((clue) => {
+    const clueItem = document.createElement("li");
+    clueItem.textContent = `${clue.number}. ${clue.clue}`;
+    downClues.appendChild(clueItem);
+  });
+}
+
+// Handle input and move to next cell
+function handleInput(event) {
+  const input = event.target;
+  input.value = input.value.toUpperCase();
+
+  let nextInput;
+  if (input.value.match(/[A-Z]/)) {
+    nextInput = getNextInput(input);
+    if (nextInput) {
+      nextInput.focus();
+    }
+  }
+}
+
+// Determine next input field
+function getNextInput(input) {
+  const row = parseInt(input.dataset.row);
+  const col = parseInt(input.dataset.col);
+
+  // Determine if the cell is part of an across or down word
+  const isAcross = crosswordData.clues.across.some(
+    (clue) => clue.row === row && clue.col <= col && clue.col + clue.answer.length > col
+  );
+
+  if (isAcross) {
+    return document.querySelector(`input[data-row="${row}"][data-col="${col + 1}"]`);
+  } else {
+    return document.querySelector(`input[data-row="${row + 1}"][data-col="${col}"]`);
+  }
+}
+
+// Check if the puzzle is completed correctly
+function checkCompletion() {
+  let allCorrect = true;
+
+  // Check across words
+  crosswordData.clues.across.forEach((clue) => {
+    const answer = clue.answer.toUpperCase();
+    let userAnswer = '';
+
+    for (let i = 0; i < answer.length; i++) {
+      const cell = document.querySelector(
+        `input[data-row="${clue.row}"][data-col="${clue.col + i}"]`
+      );
+      userAnswer += cell ? cell.value.toUpperCase() : '';
+    }
+
+    if (userAnswer !== answer) {
+      allCorrect = false;
+    }
+  });
+
+  // Check down words
+  crosswordData.clues.down.forEach((clue) => {
+    const answer = clue.answer.toUpperCase();
+    let userAnswer = '';
+
+    for (let i = 0; i < answer.length; i++) {
+      const cell = document.querySelector(
+        `input[data-row="${clue.row + i}"][data-col="${clue.col}"]`
+      );
+      userAnswer += cell ? cell.value.toUpperCase() : '';
+    }
+
+    if (userAnswer !== answer) {
+      allCorrect = false;
+    }
+  });
+
+  // Display result
+  if (allCorrect) {
+    statusMessage.textContent = "Fantastic! You've completed the crossword!";
+    statusMessage.style.color = "#00ff00"; // Green
+  } else {
+    statusMessage.textContent = "Some answers are incorrect. Keep trying!";
+    statusMessage.style.color = "#ff0000"; // Red
+  }
+}
+
+// Initialize the crossword
+createGrid();
+createClues();
+
+function goBack() {
+      window.location.href = "{{ url_for('crossword2ndpage') }}"; // Change "index.html" to your desired page
+    }
+
+</script>
+
+</body>
+</html>

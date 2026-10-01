@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relationships of Mathematics</title>
+    <style>
+        /* Background Animation */
+        body {
+            margin: 0;
+            font-family: 'Arial', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            background: linear-gradient(45deg, #ff4d4d, #4d79ff, #ffcc00);
+            background-size: 300% 300%;
+            animation: bgAnimation 8s infinite alternate;
+        }
+
+        @keyframes bgAnimation {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Title */
+/* Title */
+.title {
+    font-size: 4rem; /* Bigger title */
+    text-transform: uppercase;
+    margin-bottom: 50px; /* Add spacing below the title */
+    color: #fff;
+    text-shadow: 0 10px 20px #ff4d4d, 0 0 30px #4d79ff;
+    animation: glow 2s infinite alternate;
+    text-align: center;
+}
+
+/* Buttons */
+.buttons {
+    display: flex;
+    gap: 30px; /* Keep the spacing between buttons */
+    margin-top: 0; /* Ensure no unnecessary spacing above */
+}
+
+        
+
+        @keyframes glow {
+            0% { text-shadow: 0 10px 20px #ff4d4d, 0 0 30px #4d79ff; }
+            100% { text-shadow: 0 15px 40px #ffcc00, 0 0 50px #4d79ff; }
+        }
+
+        /* Buttons */
+        .buttons {
+            display: flex;
+            gap: 30px; /* Keep the spacing between buttons */
+            margin-top: 0; /* Ensure no unnecessary spacing above */
+        }
+
+        .button {
+            padding: 20px 40px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: #fff;
+            background: linear-gradient(45deg, #ff4d4d, #4d79ff);
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5), 0 0 15px rgba(255, 255, 255, 0.3);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.7), 0 0 25px rgba(255, 255, 255, 0.5);
+        }
+
+        .button:focus {
+            outline: none;
+        }
+
+        /* Particle Animation */
+        .particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .particle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            animation: float 5s infinite ease-in-out;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0); opacity: 1; }
+            50% { transform: translateY(-100px); opacity: 0.5; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="title">Mapping the Connections: Exploring Mathematical Relations</div>
+    <div class="buttons">
+        <button class="button" onclick="location.href='{{ url_for('relationshipeasy') }}'">Easy</button>
+        <button class="button" onclick="location.href='{{ url_for('relationshiphard') }}'">Hard</button>
+    </div>
+
+    <!-- Particle Animation -->
+    <div class="particles">
+        <div class="particle" style="left: 10%; animation-delay: 0s;"></div>
+        <div class="particle" style="left: 25%; animation-delay: 1s;"></div>
+        <div class="particle" style="left: 40%; animation-delay: 2s;"></div>
+        <div class="particle" style="left: 55%; animation-delay: 3s;"></div>
+        <div class="particle" style="left: 70%; animation-delay: 4s;"></div>
+        <div class="particle" style="left: 85%; animation-delay: 5s;"></div>
+    </div>
+</body>
+</html>

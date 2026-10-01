@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>400 // BAD REQUEST - Pixora</title>
+    <link rel="icon" type="image/webp" href="{{ url_for('static', filename='Pixora.webp') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Orbitron:wght@700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --neon-cyan: #00f3ff;
+            --neon-pink: #ff007f;
+            --dark-bg: #05050a;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background-color: var(--dark-bg);
+            color: #ffffff;
+            font-family: 'Share Tech Mono', monospace;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
+        }
+        .error-card {
+            background: rgba(14, 14, 24, 0.9);
+            border: 2px solid var(--neon-pink);
+            border-radius: 20px;
+            padding: 50px 30px;
+            max-width: 550px;
+            box-shadow: 0 0 35px rgba(255, 0, 127, 0.3);
+        }
+        .error-code {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 3.5rem;
+            color: var(--neon-pink);
+            text-shadow: 0 0 20px rgba(255, 0, 127, 0.6);
+            margin-bottom: 20px;
+        }
+        .error-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            color: var(--neon-cyan);
+            margin-bottom: 15px;
+            letter-spacing: 2px;
+        }
+        .error-msg {
+            color: #a0a0c0;
+            font-size: 1rem;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        .home-btn {
+            font-family: 'Orbitron', sans-serif;
+            display: inline-block;
+            background: linear-gradient(45deg, var(--neon-pink), var(--neon-cyan));
+            color: #000;
+            font-weight: 700;
+            padding: 12px 28px;
+            border-radius: 10px;
+            text-decoration: none;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .home-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px var(--neon-cyan);
+        }
+    </style>
+</head>
+<body>
+    <div class="error-card">
+        <div class="error-code">400</div>
+        <h1 class="error-title">// MALFORMED REQUEST //</h1>
+        <p class="error-msg">The telemetry payload could not be parsed by the server core.</p>
+        <a href="{{ url_for('main.games') }}" class="home-btn">BACK TO ARCADE</a>
+    </div>
+</body>
+</html>

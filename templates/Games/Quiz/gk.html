@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GK</title>
+    <style>
+        /* General Styles */
+body {
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: linear-gradient(to right, #4e73df, #1e3c72); /* Knowledge-inspired gradient (blue tones) */
+    background-size: cover;
+    background-position: center center;
+    background-attachment: fixed;
+}
+
+/* Game container styles */
+#game-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+}
+
+#game-box {
+    background-color: rgba(255, 255, 255, 0.9);
+    padding: 30px;
+    width: 450px;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    position: relative;
+    animation: slideIn 0.5s ease;
+}
+
+/* Keyframe for animation */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Timer and text styles */
+.timer {
+    font-size: 2rem;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+}
+
+h2 {
+    font-size: 1.8rem;
+    margin-bottom: 20px;
+}
+
+/* Input and button styling */
+input[type="text"] {
+    padding: 10px;
+    width: 80%;
+    font-size: 1rem;
+    margin-bottom: 20px;
+    border: 2px solid #ccc;
+    border-radius: 8px;
+    outline: none;
+}
+
+button {
+    padding: 10px 20px;
+    background-color: #4e73df;
+    color: white;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: 0.3s;
+}
+
+button:hover {
+    background-color: #2c3e50;
+}
+
+/* Feedback and result screen styles */
+#feedback {
+    margin-top: 20px;
+    font-size: 1.2rem;
+    color: #333;
+}
+
+img {
+    margin-top: 20px;
+    width: 200px;
+    height: auto;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Final result screen styles */
+#result-screen {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    background-color: #222;
+    padding: 50px;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+    color: white;
+    font-family: 'Roboto', sans-serif;
+    transition: all 0.3s ease-in-out;
+}
+
+#result-screen h1 {
+    font-size: 2.5em;
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+#result-screen button {
+    background-color: #f44336;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 1.2em;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: background-color 0.3s ease;
+}
+
+#result-screen button:hover {
+    background-color: #d32f2f;
+}
+
+/* Styling based on the score */
+.extraordinary {
+    background-color: #4caf50;
+    color: #fff;
+}
+
+.good {
+    background-color: #2196f3;
+    color: #fff;
+}
+
+.better-luck {
+    background-color: #ff9800;
+    color: #fff;
+}
+        .back-button {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 8px 15px;
+      font-size: 16px;
+      background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .back-button:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: translateX(5px);
+    }
+
+    </style>
+
+
+</head>
+<body>
+  <button class="back-button" onclick="goBack()">← Back</button>
+
+    <div id="game-container">
+        <div id="game-box">
+            <div class="timer" id="timer">30</div>
+            <h2 id="question">What is 2 + 2?</h2>
+            <input type="text" id="answer" placeholder="Type your answer here">
+            <button id="submit-btn">Submit Answer</button>
+            <div id="feedback"></div>
+            <img id="answer-image" src="" alt="" style="display:none;">
+        </div>
+    </div>
+
+    <audio id="thinking-sound" src="thinking.mp3" loop></audio>
+    <audio id="congrats-sound" src="congrats.mp3"></audio>
+    <audio id="wrong-sound" src="wrong.mp3"></audio>
+    <audio id="submit-sound" src="submit.mp3"></audio>
+    <audio id="last-result-sound" src="result.mp3"></audio>
+
+
+    <!-- Final result screen -->
+    <div id="result-screen" style="display: none;">
+        <h1 id="result-text"></h1>
+        <button onclick="location.reload()">Try Again</button>
+    </div>
+
+
+    <script>
+let timeLeft = 30;
+let timerInterval;
+let currentRiddleIndex = 0;
+let correctAnswers = 0;
+let wrongAnswers = 0;
+
+const riddles = [
+    { 
+        question: "Who was the first President of India?", 
+        answers: ["Dr. Rajendra Prasad","Rajendra Prasad"],  // Single correct answer
+        image: "/static/Games/Quiz/GK/Dr. Rajendra Prasad.webp", 
+        wrongImage: "/static/Games/Quiz/GK/Dr. Rajendra Prasad.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Dr. Rajendra Prasad" 
+    },
+    { 
+        question: "In which year did India gain independence?", 
+        answers: ["1947"],  // Single correct answer
+        image: "/static/Games/Quiz/GK/1947.webp", 
+        wrongImage: "/static/Games/Quiz/GK/1947.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is 1947"   
+    },
+    { 
+        question: "Who was the first female Prime Minister of India?", 
+        answers: ["Indira Gandhi"],  // Single correct answer
+        image: "/static/Games/Quiz/GK/Indira Gandhi.webp", 
+        wrongImage: "/static/Games/Quiz/GK/Indira Gandhi.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Indira Gandhi" 
+    },
+    { 
+        question: "Where is the United Nations headquarters located?", 
+        answers: ["New York City, USA","New York City","USA"],  // Single correct answer
+        image: "/static/Games/Quiz/GK/New York City.webp", 
+        wrongImage: "/static/Games/Quiz/GK/New York City.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is New York City, USA" 
+    },
+    { 
+        question: "What is the name of the ancient fortification built to protect China from invasions, stretching over 13,000 miles?", 
+        answers: ["The Great Wall of China","Great Wall of China"],  // Single correct answer
+        image: "/static/Games/Quiz/GK/Great Wall of China.webp", 
+        wrongImage: "/static/Games/Quiz/GK/Great Wall of China.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is The Great Wall of China" 
+    },
+    { 
+        question: "Who discovered America in 1492?", 
+        answers: ["Christopher Columbus","Columbus"],  // Single correct answer
+        image: "/static/Games/Quiz/GK/Christopher Columbus.webp", 
+        wrongImage: "/static/Games/Quiz/GK/Christopher Columbus.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Christopher Columbus" 
+    },
+    { 
+        question: "Which Mughal emperor built the Taj Mahal?", 
+        answers: ["Shah Jahan","ShahJahan"],  // Single correct answer
+        image: "/static/Games/Quiz/GK/Shah Jahan.webp", 
+        wrongImage: "/static/Games/Quiz/GK/Shah Jahan.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Shah Jahan" 
+    },
+    { 
+        question: "What is the smallest country in the world?", 
+        answers: ["Vatican City"],  // Single correct answer
+        image: "/static/Games/Quiz/GK/Vatican City.webp", 
+        wrongImage: "/static/Games/Quiz/GK/Vatican City.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Vatican City" 
+    },
+    { 
+        question: "Name the largest desert in the world.", 
+        answers: ["Antarctic Desert","Antarctic"],  // Single correct answer
+        image: "/static/Games/Quiz/GK/Antarctic Desert.webp", 
+        wrongImage: "/static/Games/Quiz/GK/Antarctic Desert.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Antarctic Desert" 
+    },
+    { 
+        question: "Which ocean is the largest by area?", 
+        answers: ["Pacific Ocean","Pacific"],  // Single correct answer
+        image: "/static/Games/Quiz/GK/Pacific Ocean.webp", 
+        wrongImage: "/static/Games/Quiz/GK/Pacific Ocean.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Pacific Ocean" 
+    },
+    { 
+        question: "What is the capital of Canada?", 
+        answers: ["Ottawa"],  // Single correct answer
+        image: "/static/Games/Quiz/GK/Ottawa.webp", 
+        wrongImage: "/static/Games/Quiz/GK/Ottawa.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Ottawa" 
+    },
+    { 
+        question: "Who developed the theory of relativity?", 
+        answers: ["Albert Einstein"],  // Single correct answer
+        image: "/static/Games/Quiz/GK/Albert Einstein.webp", 
+        wrongImage: "/static/Games/Quiz/GK/Albert Einstein.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Albert Einstein" 
+    },
+    { 
+        question: "Which planet is known as the 'Red Planet'?", 
+        answers: ["Mars"],  // Single correct answer
+        image: "/static/Games/Quiz/GK/Mars.webp", 
+        wrongImage: "/static/Games/Quiz/GK/Mars.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Mars" 
+    },
+    { 
+        question: "Who is known as the father of modern computers?", 
+        answers: ["Charles Babbage"],  // Single correct answer
+        image: "/static/Games/Quiz/GK/Charles Babbage.webp", 
+        wrongImage: "/static/Games/Quiz/GK/Charles Babbage.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Charles Babbage" 
+    },
+    { 
+        question: "What is the hardest natural substance on Earth?", 
+        answers: ["Diamond"],  // Single correct answer
+        image: "/static/Games/Quiz/GK/Diamond.webp", 
+        wrongImage: "/static/Games/Quiz/GK/Diamond.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Diamond" 
+    },
+    { 
+        question: "Name the first satellite launched into space.", 
+        answers: ["Sputnik 1"],  // Single correct answer
+        image: "/static/Games/Quiz/GK/Sputnik 1.webp", 
+        wrongImage: "/static/Games/Quiz/GK/Sputnik 1.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Sputnik 1" 
+    },
+    { 
+        question: "Who holds the record for the most goals in international football (soccer)?", 
+        answers: ["Cristiano Ronaldo","Ronaldo"],  // Single correct answer
+        image: "/static/Games/Quiz/GK/Cristiano Ronaldo.webp", 
+        wrongImage: "/static/Games/Quiz/GK/Cristiano Ronaldo.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Cristiano Ronaldo" 
+    },
+    { 
+        question: "In which year did India win its first Cricket World Cup?", 
+        answers: ["1983"],  // Single correct answer
+        image: "/static/Games/Quiz/GK/1983.webp", 
+        wrongImage: "/static/Games/Quiz/GK/1983.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is 1983" 
+    },
+    { 
+        question: "Which country has hosted the FIFA World Cup the most times?", 
+        answers: ["Brazil"],  // Single correct answer
+        image: "/static/Games/Quiz/GK/Brazil.webp", 
+        wrongImage: "/static/Games/Quiz/GK/Brazil.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Brazil" 
+    },
+    { 
+        question: "What is the national sport of Japan?", 
+        answers: ["Sumo wrestling","Sumo"],  // Single correct answer
+        image: "/static/Games/Quiz/GK/Sumo wrestling.webp", 
+        wrongImage: "/static/Games/Quiz/GK/Sumo wrestling.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Sumo wrestling" 
+    },
+    { 
+        question: "Who wrote the play Romeo and Juliet?", 
+        answers: ["William Shakespeare"],  // Single correct answer
+        image: "/static/Games/Quiz/GK/William Shakespeare.webp", 
+        wrongImage: "/static/Games/Quiz/GK/William Shakespeare.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is William Shakespeare" 
+    },
+    { 
+        question: "Which artist painted the Mona Lisa?", 
+        answers: ["Leonardo da Vinci"],  // Single correct answer
+        image: "/static/Games/Quiz/GK/monalisa.webp", 
+        wrongImage: "/static/Games/Quiz/GK/monalisa.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Leonardo da Vinci" 
+    },
+    { 
+        question: "In Hindu mythology, who is known as the god of destruction?", 
+        answers: ["Lord Shiva","Shiva"],  // Single correct answer
+        image: "/static/Games/Quiz/GK/Lord Shiva.webp", 
+        wrongImage: "/static/Games/Quiz/GK/Lord Shiva.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Lord Shiva" 
+    },
+    { 
+        question: "What is the traditional Japanese art of paper folding called?", 
+        answers: ["Origami"],  // Single correct answer
+        image: "/static/Games/Quiz/GK/Origami.webp", 
+        wrongImage: "/static/Games/Quiz/GK/Origami.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Origami" 
+    },
+    { 
+        question: "What is the tallest mountain in the universe, standing over 21 kilometers high and known as the largest volcano ever discovered?", 
+        answers: ["Olympus Mons","Olympus"],  // Single correct answer
+        image: "/static/Games/Quiz/GK/Olympus Mons.webp", 
+        wrongImage: "/static/Games/Quiz/GK/Olympus Mons.webp", 
+        feedbackCorrect: "Well Done!", 
+        feedbackWrong: "The correct answer is Olympus Mons" 
+    },
+];
+
+let thinkingSound = document.getElementById('thinking-sound');
+let congratsSound = document.getElementById('congrats-sound');
+let wrongSound = document.getElementById('wrong-sound');
+let lastResultSound = document.getElementById('last-result-sound'); // Sound for final result
+
+let submitBtn = document.getElementById('submit-btn');
+let timerElement = document.getElementById('timer');
+let feedbackElement = document.getElementById('feedback');
+let answerImage = document.getElementById('answer-image');
+let questionElement = document.getElementById('question');
+let answerInput = document.getElementById('answer');
+
+// Add event listener to submit button and handle Enter key
+submitBtn.addEventListener('click', () => checkAnswer(false));
+answerInput.addEventListener('keypress', function (event) {
+    if (event.key === 'Enter') {
+        checkAnswer(false);
+    }
+});
+
+// Start the game
+function startGame() {
+    correctAnswers = 0;
+    wrongAnswers = 0;
+    loadRiddle();
+    thinkingSound.play();  // Play thinking sound as soon as the game starts
+    startTimer();  // Start timer when game begins
+}
+
+// Start a new timer for each riddle
+function startTimer() {
+    timeLeft = 30;  // Reset timer to 30 seconds for the next riddle
+    timerElement.textContent = timeLeft;
+    if (timerInterval) {
+        clearInterval(timerInterval);  // Clear any previous interval
+    }
+    timerInterval = setInterval(updateTimer, 1000);  // Start the timer
+}
+
+// Update the timer every second
+function updateTimer() {
+    if (timeLeft > 0) {
+        timeLeft--;
+        timerElement.textContent = timeLeft;
+    } else {
+        clearInterval(timerInterval);
+        if (currentRiddleIndex < riddles.length) {
+            checkAnswer(true);  // Check answer when time runs out and mark it as wrong
+        }
+    }
+}
+
+// Load the riddle and reset the input box
+function loadRiddle() {
+    if (currentRiddleIndex < riddles.length) {
+        let riddle = riddles[currentRiddleIndex];
+        questionElement.textContent = riddle.question;
+        answerInput.value = '';
+        feedbackElement.textContent = '';
+        answerImage.style.display = 'none';
+        thinkingSound.play();  // Ensure thinking sound plays for each riddle
+        submitBtn.disabled = false; // Enable submit button for the current riddle
+        startTimer();  // Start timer every time a new riddle is loaded
+    } else {
+        showFinalScore();  // Show final score when all riddles are answered
+    }
+}
+
+// Check the answer and provide feedback
+function checkAnswer(timeExpired = false) {
+    // If the timer has expired and the submit button was clicked, ignore the click
+    if (timeLeft === 0 && !timeExpired) {
+        return; // Exit if time is already expired and user clicks submit
+    }
+
+    let riddle = riddles[currentRiddleIndex];
+    let answer = answerInput.value.trim().toLowerCase();  // Convert answer to lowercase
+
+    // Stop the thinking sound and timer immediately after submission
+    thinkingSound.pause();
+    clearInterval(timerInterval);  // Stop the timer
+
+    let resultMessage = '';
+    let imageSrc = '';
+
+    if (timeExpired) {
+        // If time expired, consider the answer wrong
+        resultMessage = `Time's up! ${riddle.feedbackWrong}`;
+        wrongSound.play();
+        wrongAnswers++;
+        imageSrc = riddle.wrongImage;
+    } else if (riddle.answers.some(correctAnswer => correctAnswer.toLowerCase() === answer)) {  // Check if the answer matches any correct answers (case insensitive)
+        resultMessage = riddle.feedbackCorrect;
+        congratsSound.play();
+        correctAnswers++;
+        imageSrc = riddle.image;
+    } else {
+        resultMessage = `${riddle.feedbackWrong}`;
+        wrongSound.play();
+        wrongAnswers++;
+        imageSrc = riddle.wrongImage;
+    }
+
+    feedbackElement.textContent = resultMessage;
+    answerImage.src = imageSrc;
+    answerImage.style.display = 'block';
+
+    currentRiddleIndex++;
+    submitBtn.disabled = true; // Disable submit after answer
+
+    setTimeout(() => {
+        if (currentRiddleIndex < riddles.length) {
+            loadRiddle(); // Load next riddle after a short delay (5 seconds)
+        } else {
+            showFinalScore(); // Show final score when all riddles are done
+        }
+    }, 5000);  // 5 seconds delay before the next riddle
+}
+
+// Show final score
+function showFinalScore() {
+    let resultText = '';
+    let resultClass = '';
+
+    if (correctAnswers > wrongAnswers) {
+        resultText = `You got ${correctAnswers} out of ${riddles.length} correct. Amazing!`;
+        resultClass = 'extraordinary';
+    } else if (correctAnswers === wrongAnswers) {
+        resultText = `You got ${correctAnswers} out of ${riddles.length}. Good job!`;
+        resultClass = 'good';
+    } else {
+        resultText = `You got ${correctAnswers} out of ${riddles.length}. Better luck next time!`;
+        resultClass = 'better-luck';
+    }
+
+    let resultScreen = document.getElementById('result-screen');
+    resultScreen.querySelector('h1').textContent = resultText;
+    resultScreen.classList.add(resultClass);
+    resultScreen.style.display = 'block';  // Show the result screen
+    document.getElementById('game-container').style.display = 'none';  // Hide the game screen
+
+    lastResultSound.play();  // Play the final result sound
+}
+
+// Start the game when the page is loaded
+startGame();
+                            function goBack() {
+      window.location.href = "{{ url_for('quiz2ndpage') }}"; // Change "index.html" to your desired page
+    }
+
+    </script>
+</body>
+</html>
