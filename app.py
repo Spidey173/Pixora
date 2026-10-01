@@ -4,7 +4,8 @@ import os
 from app import create_app
 
 # WSGI Application instance for Vercel, serverless, and development server
-app = create_app(os.environ.get('FLASK_ENV', 'development'))
+app = create_app(os.environ.get('FLASK_ENV', 'production'))
+application = app  # WSGI compatibility alias
 
 if __name__ == '__main__':
     host = os.environ.get('HOST', '0.0.0.0')

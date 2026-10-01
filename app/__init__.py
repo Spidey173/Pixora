@@ -67,10 +67,13 @@ def create_app(config_name=None):
         response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
         return response
 
-    # Auto-create tables in development / test environments
-    with app.app_context():
-        db.create_all()
-
+    # Auto-create tables in development and serverless environments
+    if config_name != 'testing':
+        with app.app_context():
+            try:
+                db.create_all()
+            except Exception:
+                pass
 
     return app
 

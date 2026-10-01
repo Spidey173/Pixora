@@ -17,10 +17,11 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'pixora-fallback-dev-secret-key-replace-in-prod')
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB max payload size
     
-    # Database
+    # Database (On Vercel serverless, root filesystem is read-only, writable dir is /tmp)
+    _default_db_dir = '/tmp' if (os.environ.get('VERCEL') or os.environ.get('AWS_LAMBDA_FUNCTION_NAME')) else basedir
     SQLALCHEMY_DATABASE_URI = os.environ.get(
         'DATABASE_URL',
-        f"sqlite:///{os.path.join(basedir, 'game_data.db')}"
+        f"sqlite:///{os.path.join(_default_db_dir, 'game_data.db')}"
     )
     # Fix Render's postgres:// prefix to postgresql:// if needed
     if SQLALCHEMY_DATABASE_URI.startswith('postgres://'):
