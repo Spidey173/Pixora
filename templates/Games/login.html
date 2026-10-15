@@ -234,6 +234,180 @@
         .flash-danger { background: rgba(255, 26, 53, 0.12); border: 1px solid var(--accent-crimson); color: #ff8594; }
         .flash-success { background: rgba(0, 255, 102, 0.12); border: 1px solid var(--accent-emerald); color: #85ffb4; }
 
+        /* Active Pilot Session Banner (Zero bounce back & forth) */
+        .active-session-card {
+            background: linear-gradient(135deg, rgba(0, 240, 255, 0.1), rgba(14, 17, 26, 0.95));
+            border: 1px solid var(--border-glow);
+            border-radius: 14px;
+            padding: 20px;
+            margin-bottom: 22px;
+            box-shadow: 0 8px 25px rgba(0, 240, 255, 0.15);
+            animation: fadeInSession 0.3s ease;
+        }
+
+        @keyframes fadeInSession {
+            from { opacity: 0; transform: translateY(-6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .active-session-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .active-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            color: var(--accent-emerald);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        .status-dot-pulse {
+            width: 8px;
+            height: 8px;
+            background: var(--accent-emerald);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--accent-emerald);
+            animation: pulseEmerald 1.8s infinite;
+        }
+
+        @keyframes pulseEmerald {
+            0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(0, 255, 102, 0.7); }
+            70% { transform: scale(1.1); box-shadow: 0 0 0 8px rgba(0, 255, 102, 0); }
+            100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(0, 255, 102, 0); }
+        }
+
+        .active-pilot-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .active-pilot-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-cyan), #00b4d8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-mono);
+            font-weight: 800;
+            font-size: 1.2rem;
+            color: #000;
+            box-shadow: 0 0 16px rgba(0, 240, 255, 0.4);
+        }
+
+        .active-pilot-name {
+            font-family: var(--font-display);
+            font-size: 1.22rem;
+            font-weight: 800;
+            color: var(--text-pure);
+            letter-spacing: 0.02em;
+        }
+
+        .active-pilot-meta {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            letter-spacing: 0.06em;
+            margin-top: 2px;
+        }
+
+        .active-actions-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-resume-arcade {
+            flex: 1.5;
+            height: 46px;
+            background: var(--accent-cyan);
+            color: #000;
+            font-family: var(--font-mono);
+            font-size: 0.82rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-decoration: none;
+            transition: all 0.25s;
+            box-shadow: 0 4px 18px rgba(0, 240, 255, 0.35);
+        }
+
+        .btn-resume-arcade:hover {
+            box-shadow: 0 6px 25px rgba(0, 240, 255, 0.6);
+            transform: translateY(-2px);
+        }
+
+        .btn-switch-account {
+            flex: 1;
+            height: 46px;
+            background: rgba(255, 26, 53, 0.1);
+            border: 1px solid rgba(255, 26, 53, 0.3);
+            color: #ff8594;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            text-decoration: none;
+            transition: all 0.25s;
+        }
+
+        .btn-switch-account:hover {
+            background: rgba(255, 26, 53, 0.25);
+            color: #fff;
+            border-color: var(--accent-crimson);
+            box-shadow: 0 0 15px rgba(255, 26, 53, 0.3);
+        }
+
+        .session-divider {
+            position: relative;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .session-divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 1px;
+            background: var(--border-dim);
+        }
+
+        .session-divider span {
+            position: relative;
+            background: #0e111a;
+            padding: 0 12px;
+            font-family: var(--font-mono);
+            font-size: 0.68rem;
+            color: var(--text-dim);
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
         .form-group {
             margin-bottom: 20px;
         }
@@ -415,6 +589,42 @@
                     {% endfor %}
                 {% endif %}
             {% endwith %}
+
+            {% if current_user.is_authenticated %}
+            <div class="active-session-card">
+                <div class="active-session-header">
+                    <div class="active-status-badge">
+                        <span class="status-dot-pulse"></span>
+                        <span>Neural Link Active</span>
+                    </div>
+                    <span style="font-family: var(--font-mono); font-size: 0.68rem; color: var(--accent-cyan); font-weight: 700;">CONNECTED</span>
+                </div>
+
+                <div class="active-pilot-info">
+                    <div class="active-pilot-avatar">{{ current_user.username[0]|upper }}</div>
+                    <div>
+                        <div class="active-pilot-name">{{ current_user.username }}</div>
+                        <div class="active-pilot-meta">PILOT SESSION IN PROGRESS</div>
+                    </div>
+                </div>
+
+                <div class="active-actions-row">
+                    <a href="{{ url_for('main.games') }}" class="btn-resume-arcade" title="Return forward to games">
+                        <i class="fa-solid fa-gamepad"></i>
+                        <span>Return to Games</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </a>
+                    <a href="{{ url_for('auth.logout') }}" class="btn-switch-account" title="End current session">
+                        <i class="fa-solid fa-power-off"></i>
+                        <span>Logout</span>
+                    </a>
+                </div>
+            </div>
+
+            <div class="session-divider">
+                <span>Or Switch Pilot Codename</span>
+            </div>
+            {% endif %}
 
             <form method="POST" action="{{ url_for('auth.login') }}" id="loginForm">
                 {{ form.hidden_tag() }}

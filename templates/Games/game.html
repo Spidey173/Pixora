@@ -1168,15 +1168,30 @@
     </main>
 
     <script>
-        // Seamless Client-Side View Switcher
-        function switchViewTab(tabName, btnElement) {
+        // Seamless Client-Side View Switcher with Full Browser Back & Forward Navigation
+        var VALID_TABS = ['games', 'leaderboard', 'infrastructure'];
+
+        function switchViewTab(tabName, btnElement, updateHistory) {
+            if (typeof updateHistory === 'undefined') {
+                updateHistory = true;
+            }
+
+            if (!VALID_TABS.includes(tabName)) {
+                tabName = 'games';
+            }
+
+            // Synchronize segmented nav button styling
             document.querySelectorAll('.seg-btn').forEach(function(b) {
                 b.classList.remove('active');
             });
+            if (!btnElement) {
+                btnElement = document.querySelector('.seg-btn[onclick*="' + tabName + '"]');
+            }
             if (btnElement) {
                 btnElement.classList.add('active');
             }
 
+            // Synchronize active view section
             document.querySelectorAll('.tab-section').forEach(function(s) {
                 s.classList.remove('active');
             });
@@ -1185,10 +1200,30 @@
                 target.classList.add('active');
             }
 
-            if (history.pushState) {
-                history.pushState(null, null, '#' + tabName);
+            // Update browser URL hash & push history only when user clicks (not during popstate/Back)
+            var targetHash = '#' + tabName;
+            if (updateHistory && history.pushState && window.location.hash !== targetHash) {
+                history.pushState({ tab: tabName }, '', targetHash);
             }
         }
+
+        // Synchronize view on browser Back (←) and Forward (→) buttons
+        function syncTabFromHash() {
+            var rawHash = (window.location.hash || '').replace('#', '').trim();
+            if (VALID_TABS.includes(rawHash)) {
+                switchViewTab(rawHash, null, false);
+            } else {
+                switchViewTab('games', null, false);
+            }
+        }
+
+        window.addEventListener('popstate', function() {
+            syncTabFromHash();
+        });
+
+        window.addEventListener('hashchange', function() {
+            syncTabFromHash();
+        });
 
         // Live Dynamic Game Search
         function filterLiveCatalog() {
@@ -1233,12 +1268,19 @@
             document.getElementById('catalogCounterLabel').innerText = 'SHOWING ' + matched + ' OF 17 TITLES';
         }
 
-        // Initial hash listener
+        // Initialize state on DOM load
         window.addEventListener('DOMContentLoaded', function() {
-            var hash = window.location.hash.replace('#', '');
-            if (hash === 'leaderboard' || hash === 'infrastructure') {
-                var btn = document.querySelector('.seg-btn[onclick*="' + hash + '"]');
-                switchViewTab(hash, btn);
+            var rawHash = (window.location.hash || '').replace('#', '').trim();
+            if (rawHash && VALID_TABS.includes(rawHash)) {
+                switchViewTab(rawHash, null, false);
+            } else {
+                var serverActiveSection = document.querySelector('.tab-section.active');
+                if (serverActiveSection) {
+                    var serverTab = serverActiveSection.id.replace('view-', '');
+                    if (VALID_TABS.includes(serverTab) && history.replaceState) {
+                        history.replaceState({ tab: serverTab }, '', '#' + serverTab);
+                    }
+                }
             }
         });
     </script>

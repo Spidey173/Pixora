@@ -54,3 +54,12 @@ def test_logout(auth_client):
     protected_resp = auth_client.get('/games', follow_redirects=False)
     assert protected_resp.status_code == 302
     assert '/login' in protected_resp.headers['Location']
+
+
+def test_login_page_renders_for_authenticated_user_without_redirect_bounce(auth_client):
+    """Test that authenticated user navigating back to /login gets 200 OK without redirect trap."""
+    response = auth_client.get('/login', follow_redirects=False)
+    assert response.status_code == 200
+    assert b'Neural Link Active' in response.data
+    assert b'Return to Games' in response.data
+

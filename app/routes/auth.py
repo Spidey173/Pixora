@@ -15,9 +15,6 @@ auth_bp = Blueprint('auth', __name__)
 @limiter.limit("30 per minute")
 def login():
     """Handle user authentication, guest access, and session creation."""
-    if current_user.is_authenticated:
-        return redirect(url_for('main.games'))
-
     form = LoginForm()
     if form.validate_on_submit():
         raw_username = form.username.data.strip()
@@ -71,9 +68,6 @@ def login():
 @limiter.limit("20 per minute")
 def register():
     """Register a new protected account with password."""
-    if current_user.is_authenticated:
-        return redirect(url_for('main.games'))
-
     form = RegisterForm()
     if form.validate_on_submit():
         username = form.username.data.strip()
