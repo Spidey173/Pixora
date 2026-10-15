@@ -9,8 +9,38 @@ from app.extensions import db, login_manager
 
 @login_manager.user_loader
 def load_user(user_id):
-    """Load user by ID for Flask-Login."""
-    return db.session.get(User, int(user_id))
+    """Load user by ID for Flask-Login with serverless instance resilience."""
+    try:
+        uid = int(user_id)
+    except (ValueError, TypeError):
+        return None
+
+    user = db.session.get(User, uid)
+    if user:
+        return user
+
+    # Resilient serverless fallback: If SQLite was re-initialized in an ephemeral lambda
+    # retrieve user by username from session or recreate the active pilot record
+    try:
+        from flask import session as flask_session
+        pilot_username = flask_session.get('pilot_username')
+        if pilot_username:
+            user = User.query.filter_by(username=pilot_username).first()
+            if not user:
+                user = User(
+                    username=pilot_username,
+                    is_guest=flask_session.get('is_guest', True),
+                    created_at=datetime.now(timezone.utc),
+                    last_seen=datetime.now(timezone.utc)
+                )
+                db.session.add(user)
+                db.session.commit()
+            return user
+    except Exception:
+        db.session.rollback()
+
+    return None
+
 
 
 class User(UserMixin, db.Model):

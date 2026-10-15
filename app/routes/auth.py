@@ -1,7 +1,7 @@
 """Authentication routes for login, registration, and logout."""
 from datetime import datetime, timezone
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_user, logout_user
 
 from app.extensions import db, limiter
@@ -38,7 +38,11 @@ def login():
             user.last_seen = datetime.now(timezone.utc)
             db.session.commit()
             login_user(user, remember=remember)
+            session['pilot_username'] = user.username
+            session['is_guest'] = user.is_guest
+            session.permanent = True
             
+            flash(f'Welcome to the arcade, {raw_username}!', 'success')
             next_page = request.args.get('next')
             if not next_page or not next_page.startswith('/'):
                 next_page = url_for('main.games')
@@ -57,6 +61,9 @@ def login():
             db.session.add(new_user)
             db.session.commit()
             login_user(new_user, remember=remember)
+            session['pilot_username'] = new_user.username
+            session['is_guest'] = new_user.is_guest
+            session.permanent = True
             
             flash(f'Welcome to the arcade, {raw_username}!', 'success')
             return redirect(url_for('main.games'))
@@ -106,4 +113,7 @@ def logout():
     """Clear session and log out the user."""
     if current_user.is_authenticated:
         logout_user()
+    session.clear()
+    flash('Neural link disconnected. You have safely logged out.', 'info')
     return redirect(url_for('auth.login'))
+

@@ -63,3 +63,15 @@ def test_login_page_renders_for_authenticated_user_without_redirect_bounce(auth_
     assert b'Neural Link Active' in response.data
     assert b'Return to Games' in response.data
 
+
+def test_logout_clears_old_welcome_flash(client):
+    """Test that logging out does not display stale welcome messages."""
+    # Login as Yoo
+    client.post('/login', data={'username': 'Yoo'}, follow_redirects=True)
+    # Logout
+    resp = client.get('/logout', follow_redirects=True)
+    assert resp.status_code == 200
+    assert b'Welcome to the arcade, Yoo!' not in resp.data
+    assert b'Neural link disconnected' in resp.data
+
+
