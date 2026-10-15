@@ -1,5 +1,4 @@
 """Seed all 17 arcade games into the Pixora database catalog."""
-from app import create_app
 from app.extensions import db
 from app.models import Game
 
@@ -177,41 +176,55 @@ CATALOG_GAMES = [
 ]
 
 
-def seed_catalog():
+def _populate_catalog_entries():
+    """Execute insertion of catalog games into active session."""
+    created_count = 0
+    updated_count = 0
+
+    for item in CATALOG_GAMES:
+        game = Game.query.filter_by(slug=item['slug']).first()
+        if not game:
+            game = Game(
+                slug=item['slug'],
+                title=item['title'],
+                category=item['category'],
+                description=item['description'],
+                thumbnail_url=item['thumbnail_url'],
+                play_url=item['play_url'],
+                controls_guide=item['controls_guide'],
+                is_featured=item.get('is_featured', False),
+                is_published=True
+            )
+            db.session.add(game)
+            created_count += 1
+        else:
+            game.title = item['title']
+            game.category = item['category']
+            game.description = item['description']
+            game.thumbnail_url = item['thumbnail_url']
+            game.play_url = item['play_url']
+            game.controls_guide = item['controls_guide']
+            game.is_featured = item.get('is_featured', False)
+            updated_count += 1
+
+    db.session.commit()
+    print(f"Catalog Seeding Complete: {created_count} created, {updated_count} updated. Total games: {len(CATALOG_GAMES)}")
+
+
+def seed_catalog(app=None):
     """Populate database with default arcade games."""
-    app = create_app()
-    with app.app_context():
-        created_count = 0
-        updated_count = 0
+    from flask import has_app_context
 
-        for item in CATALOG_GAMES:
-            game = Game.query.filter_by(slug=item['slug']).first()
-            if not game:
-                game = Game(
-                    slug=item['slug'],
-                    title=item['title'],
-                    category=item['category'],
-                    description=item['description'],
-                    thumbnail_url=item['thumbnail_url'],
-                    play_url=item['play_url'],
-                    controls_guide=item['controls_guide'],
-                    is_featured=item.get('is_featured', False),
-                    is_published=True
-                )
-                db.session.add(game)
-                created_count += 1
-            else:
-                game.title = item['title']
-                game.category = item['category']
-                game.description = item['description']
-                game.thumbnail_url = item['thumbnail_url']
-                game.play_url = item['play_url']
-                game.controls_guide = item['controls_guide']
-                game.is_featured = item.get('is_featured', False)
-                updated_count += 1
-
-        db.session.commit()
-        print(f"Catalog Seeding Complete: {created_count} created, {updated_count} updated. Total games: {len(CATALOG_GAMES)}")
+    if has_app_context():
+        _populate_catalog_entries()
+    elif app is not None:
+        with app.app_context():
+            _populate_catalog_entries()
+    else:
+        from app import create_app
+        fresh_app = create_app()
+        with fresh_app.app_context():
+            _populate_catalog_entries()
 
 
 if __name__ == '__main__':

@@ -66,6 +66,18 @@ def _render_hub_view(active_tab='games'):
         .order_by(Game.is_featured.desc(), Game.play_count.desc(), Game.id.asc())
         .all()
     )
+    if not games_list:
+        try:
+            from app.utils.seed_games import seed_catalog
+            seed_catalog()
+            games_list = (
+                Game.query
+                .filter_by(is_published=True)
+                .order_by(Game.is_featured.desc(), Game.play_count.desc(), Game.id.asc())
+                .all()
+            )
+        except Exception:
+            pass
 
     selected_game = request.args.get('game', '').strip()
     active_game_title = 'ALL TITLES (HALL OF FAME)'
