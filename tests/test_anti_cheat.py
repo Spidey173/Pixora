@@ -203,3 +203,79 @@ def test_concurrency_stress_telemetry_queue(app):
     assert lb['leaderboard'][0]['score'] == top_score
     assert lb['leaderboard'][0]['username'] == f"Player_{num_submissions - 1}"
 
+
+def test_input_entropy_validation_heuristics(app):
+    """Verify input entropy format, monotonicity, and bounds enforcement."""
+    with app.app_context():
+        start_ms = int(time.time() * 1000) - 5000
+        curr_ms = int(time.time() * 1000)
+
+        # 1. Valid entropy string
+        valid_entropy = f"3:{start_ms + 1000},{start_ms + 2000},{start_ms + 3000}"
+        valid, reason = AntiCheatValidator.verify_input_entropy(
+            input_entropy_hash=valid_entropy,
+            action_count=3,
+            start_time_ms=start_ms,
+            current_time_ms=curr_ms
+        )
+        assert valid is True
+        assert reason == "VERIFIED"
+
+        # 2. Syntax/Format Error: Missing colon
+        valid, reason = AntiCheatValidator.verify_input_entropy(
+            input_entropy_hash="malformed_gibberish",
+            action_count=3,
+            start_time_ms=start_ms,
+            current_time_ms=curr_ms
+        )
+        assert valid is False
+        assert reason == "INVALID_ENTROPY_SYNTAX"
+
+        # 3. Action count mismatch
+        valid, reason = AntiCheatValidator.verify_input_entropy(
+            input_entropy_hash=valid_entropy,
+            action_count=10,  # mismatch with 3
+            start_time_ms=start_ms,
+            current_time_ms=curr_ms
+        )
+        assert valid is False
+        assert "ENTROPY_ACTION_COUNT_MISMATCH" in reason
+
+        # 4. Non-monotonic timestamp anomaly (e.g. spoofed back in time)
+        non_monotonic = f"3:{start_ms + 2000},{start_ms + 1000},{start_ms + 3000}"
+        valid, reason = AntiCheatValidator.verify_input_entropy(
+            input_entropy_hash=non_monotonic,
+            action_count=3,
+            start_time_ms=start_ms,
+            current_time_ms=curr_ms
+        )
+        assert valid is False
+        assert reason == "NON_MONOTONIC_ENTROPY_TIMESTAMPS"
+
+        # 5. Out of bounds timestamp (future or far in the past)
+        out_of_bounds = f"1:{start_ms - 100000}"
+        valid, reason = AntiCheatValidator.verify_input_entropy(
+            input_entropy_hash=out_of_bounds,
+            action_count=1,
+            start_time_ms=start_ms,
+            current_time_ms=curr_ms
+        )
+        assert valid is False
+        assert reason == "ENTROPY_TIMESTAMP_OUT_OF_BOUNDS"
+
+
+def test_production_secret_key_hardcoded_fallback_rejection(monkeypatch):
+    """Verify that in production mode, missing or default SECRET_KEY raises a critical error."""
+    import os
+    monkeypatch.setenv("FLASK_ENV", "production")
+    monkeypatch.setenv("ENV", "production")
+    monkeypatch.delenv("SECRET_KEY", raising=False)
+
+    from app.config import settings
+    monkeypatch.setattr(settings, "SECRET_KEY", "pixora-fallback-secret-key")
+
+    import pytest
+    with pytest.raises(RuntimeError, match="CRITICAL SECURITY CONFIGURATION ERROR"):
+        AntiCheatValidator._get_secret_key()
+
+

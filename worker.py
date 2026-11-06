@@ -42,19 +42,20 @@ REDIS_URL = os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/0')
 
 
 class TelemetryStreamWorker:
-    def __init__(self, worker_name="worker-1", batch_size=50, poll_timeout_ms=2000):
+    def __init__(self, worker_name="worker-1", batch_size=50, poll_timeout_ms=2000, redis_client=None):
         self.worker_name = worker_name
         self.batch_size = batch_size
         self.poll_timeout_ms = poll_timeout_ms
         self.running = True
-        self.redis_client = None
+        self.redis_client = redis_client
 
-        if not REDIS_AVAILABLE:
-            logger.error("Redis library is not installed. Worker cannot start.")
-            sys.exit(1)
+        if self.redis_client is None:
+            if not REDIS_AVAILABLE:
+                logger.error("Redis library is not installed. Worker cannot start.")
+                sys.exit(1)
 
-        self.redis_client = redis.Redis.from_url(REDIS_URL, decode_responses=True)
-        self._ensure_stream_and_group()
+            self.redis_client = redis.Redis.from_url(REDIS_URL, decode_responses=True)
+            self._ensure_stream_and_group()
 
         # Signal handlers for graceful shutdown
         signal.signal(signal.SIGINT, self._handle_shutdown)
@@ -113,8 +114,7 @@ class TelemetryStreamWorker:
             return 0
 
         acked_ids = []
-        score_records = []
-        session_records = []
+        parsed_entries = []  # List of tuples: (msg_id, payload, record_or_records)
         dlq_records = []
 
         with app.app_context():
@@ -132,12 +132,13 @@ class TelemetryStreamWorker:
                         except Exception:
                             achieved_dt = datetime.now(timezone.utc)
 
-                        score_records.append(GameScore(
+                        record = GameScore(
                             player_id=player_id,
                             game_name=game_name,
                             score=score_val,
                             achieved_at=achieved_dt
-                        ))
+                        )
+                        parsed_entries.append((msg_id, payload, record))
                     elif event_type in ("session", "gameplay", "session_end"):
                         started_str = payload.get("started_at")
                         ended_str = payload.get("ended_at")
@@ -151,44 +152,60 @@ class TelemetryStreamWorker:
                         except Exception:
                             ended_dt = datetime.now(timezone.utc)
 
-                        session_records.append(GameplaySession(
+                        record = GameplaySession(
                             player_id=player_id,
                             game_name=game_name,
                             started_at=started_dt,
                             ended_at=ended_dt,
                             duration_seconds=duration_sec
-                        ))
-                    acked_ids.append(msg_id)
+                        )
+                        parsed_entries.append((msg_id, payload, record))
+                    else:
+                        # Unknown event type, acknowledge to avoid PEL poison loop
+                        acked_ids.append(msg_id)
 
                 except Exception as ex:
                     logger.error("Failed to parse event %s: %s", msg_id, ex)
                     dlq_records.append((msg_id, payload, str(ex)))
 
-            # Batch insert to DB
-            if score_records or session_records:
+            # Atomic Micro-Batch Commit with Individual Isolation Fallback
+            # Prevents "poison pill" records from discarding healthy peer transactions
+            if parsed_entries:
                 try:
-                    if score_records:
-                        db.session.add_all(score_records)
-                    if session_records:
-                        db.session.add_all(session_records)
+                    for _, _, rec in parsed_entries:
+                        db.session.add(rec)
                     db.session.commit()
-                    logger.info("Committed batch (%d scores, %d sessions) to database", len(score_records), len(session_records))
-                except Exception as db_err:
+                    acked_ids.extend([m_id for m_id, _, _ in parsed_entries])
+                    logger.info("Committed batch (%d events) successfully", len(parsed_entries))
+                except Exception as batch_err:
                     db.session.rollback()
-                    logger.critical("Database batch commit failed: %s", db_err)
-                    # Route to DLQ
-                    for msg_id, payload in messages:
-                        self.redis_client.xadd(DLQ_KEY, {"payload": json.dumps(payload), "error": str(db_err)})
-                    return 0
+                    logger.warning("Batch commit failed: %s. Falling back to per-record isolation...", batch_err)
 
-            # Route individual bad payloads to DLQ
+                    # Isolate individual failures so valid records are committed and poison pills are acked to DLQ
+                    for m_id, m_payload, rec in parsed_entries:
+                        try:
+                            db.session.add(rec)
+                            db.session.commit()
+                            acked_ids.append(m_id)
+                        except Exception as item_err:
+                            db.session.rollback()
+                            logger.error("Poison pill isolated for msg %s: %s", m_id, item_err)
+                            dlq_records.append((m_id, m_payload, str(item_err)))
+
+            # Route individual bad payloads to DLQ and mark for ACK
             for msg_id, payload, err_msg in dlq_records:
-                self.redis_client.xadd(DLQ_KEY, {"msg_id": msg_id, "payload": json.dumps(payload), "error": err_msg})
+                try:
+                    self.redis_client.xadd(DLQ_KEY, {"msg_id": str(msg_id), "payload": json.dumps(payload), "error": str(err_msg)})
+                except Exception as q_err:
+                    logger.error("Failed to write to DLQ for msg %s: %s", msg_id, q_err)
                 acked_ids.append(msg_id)
 
-            # Acknowledge processed messages
+            # Acknowledge processed messages (eliminates Pending Entries List / PEL leak)
             if acked_ids:
-                self.redis_client.xack(STREAM_KEY, GROUP_NAME, *acked_ids)
+                try:
+                    self.redis_client.xack(STREAM_KEY, GROUP_NAME, *acked_ids)
+                except Exception as ack_err:
+                    logger.error("Error executing xack on stream: %s", ack_err)
 
         return len(acked_ids)
 

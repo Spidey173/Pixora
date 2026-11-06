@@ -50,9 +50,22 @@ if FASTAPI_AVAILABLE:
         version="2.0.0"
     )
 
+    # Allowed Origins for CORS & Cross-Site WebSocket Hijacking (CSWSH) Protection
+    DEFAULT_ALLOWED_ORIGINS = [
+        "http://localhost:5000",
+        "http://127.0.0.1:5000",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        "http://localhost:3000",
+        "https://pixora-17.vercel.app",
+        "https://pub-bbadfb1090074e17b2f5293b549ce094.r2.dev"
+    ]
+    custom_origins = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "").split(",") if o.strip()]
+    ALLOWED_ORIGINS = list(set(DEFAULT_ALLOWED_ORIGINS + custom_origins))
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=ALLOWED_ORIGINS if os.environ.get("FLASK_ENV") != "testing" else ["*"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -393,11 +406,26 @@ if FASTAPI_AVAILABLE:
         return {"game_slug": game_slug, "presence": max(1, count)}
 
     # ─────────────────────────────────────────────────────────────
-    # WEBSOCKET REAL-TIME ENDPOINT
+    # WEBSOCKET REAL-TIME ENDPOINT WITH CSWSH & HEARTBEAT REAPING
     # ─────────────────────────────────────────────────────────────
 
     @app.websocket("/ws/live/{game_slug}")
     async def live_game_websocket(websocket: WebSocket, game_slug: str):
+        # 1. Cross-Site WebSocket Hijacking (CSWSH) Validation
+        origin = websocket.headers.get("origin")
+        if origin and os.environ.get("FLASK_ENV") != "testing":
+            # Strip trailing slash for exact matching
+            clean_origin = origin.rstrip("/")
+            is_allowed = any(
+                clean_origin == allowed.rstrip("/")
+                or clean_origin.endswith(".vercel.app")
+                for allowed in ALLOWED_ORIGINS
+            )
+            if not is_allowed:
+                logger.warning("Rejected unauthorized WebSocket connection from origin '%s'", origin)
+                await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                return
+
         await ws_manager.connect(game_slug, websocket)
         # Broadcast presence count
         curr_presence = ws_manager.get_presence(game_slug)
@@ -407,13 +435,20 @@ if FASTAPI_AVAILABLE:
             "count": curr_presence
         })
 
+        # Heartbeat timeout: reap connection if no ping/data received within 45 seconds
+        HEARTBEAT_TIMEOUT_SECONDS = 45.0
+
         try:
             while True:
-                data = await websocket.receive_text()
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=HEARTBEAT_TIMEOUT_SECONDS)
                 # Respond to client heartbeats
                 if data == "ping":
                     await websocket.send_text("pong")
-        except WebSocketDisconnect:
+        except (asyncio.TimeoutError, WebSocketDisconnect):
+            pass
+        except Exception as ws_err:
+            logger.debug("WebSocket terminated: %s", ws_err)
+        finally:
             await ws_manager.disconnect(game_slug, websocket)
             # Broadcast updated presence
             updated_presence = ws_manager.get_presence(game_slug)

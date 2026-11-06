@@ -373,6 +373,11 @@ For managed container platforms that support 24/7 WebSockets and background work
 
 ## 🌐 Live Environments & Deployment Matrix
 
+> [!NOTE]
+> **Serverless vs. Persistent Container Deployment:**
+> - **Vercel Serverless (Hosted Web Demo)**: Functions are ephemeral and freeze upon request completion. REST API endpoints, auth, static game bundles, and fallback SSE/polling operate seamlessly. However, continuous background workers and stateful long-lived WebSockets (`/ws/live/*`) are inherently unsupported by serverless platforms.
+> - **VPS / Railway / Render / Fly.io (Docker)**: Full production topology via `docker compose up`. Runs persistent background Redis Stream workers (`worker.py`), append-only storage, 24/7 bidirectional WebSockets, and sub-millisecond live leaderboards.
+
 | Environment | URL | Architecture | Capabilities |
 | :--- | :--- | :--- | :--- |
 | **Hosted Web Demo** | [https://pixora-17.vercel.app/](https://pixora-17.vercel.app/) | Serverless ASGI (FastAPI + Flask) | Instant browser demo, 17 sandboxed games, local bundle fallback, seeded championship leaderboards, sync telemetry |

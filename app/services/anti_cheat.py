@@ -10,6 +10,7 @@ import hashlib
 import hmac
 import inspect
 import logging
+import os
 import threading
 import time
 from typing import Dict, Optional, Tuple
@@ -62,16 +63,52 @@ class AntiCheatValidator:
     _used_tokens_mem: Dict[str, float] = {}
     _lock = threading.Lock()
 
+    _runtime_ephemeral_secret: Optional[str] = None
+
     @classmethod
     def _get_secret_key(cls) -> str:
-        """Resolve active secret key from Flask context or app.config settings."""
+        """Resolve active secret key from Flask context, settings, or shell environment.
+
+        In production, raises RuntimeError if no explicit SECRET_KEY is configured.
+        In development/testing, generates a cryptographically secure ephemeral key if unset,
+        preventing offline token forgery against hardcoded defaults.
+        """
+        # 1. Flask current_app configuration
         try:
             from flask import current_app
             if current_app and current_app.config.get('SECRET_KEY'):
-                return current_app.config['SECRET_KEY']
+                key = current_app.config['SECRET_KEY']
+                if key and key not in ('pixora-fallback-secret-key', 'pixora-fallback-dev-secret-key-replace-in-prod'):
+                    return key
         except Exception:
             pass
-        return getattr(settings, 'SECRET_KEY', 'pixora-fallback-secret-key')
+
+        # 2. Direct Environment Variable
+        env_secret = os.environ.get('SECRET_KEY')
+        if env_secret and env_secret not in ('pixora-fallback-secret-key', 'pixora-fallback-dev-secret-key-replace-in-prod'):
+            return env_secret
+
+        # 3. Settings from app.config
+        cfg_secret = getattr(settings, 'SECRET_KEY', None)
+        if cfg_secret and cfg_secret not in ('pixora-fallback-secret-key', 'pixora-fallback-dev-secret-key-replace-in-prod'):
+            return cfg_secret
+
+        # 4. Enforce strict failure in production
+        env_mode = os.environ.get('FLASK_ENV', os.environ.get('ENV', 'development')).lower()
+        if env_mode == 'production':
+            raise RuntimeError(
+                "CRITICAL SECURITY CONFIGURATION ERROR: SECRET_KEY environment variable is missing in production! "
+                "Refusing to fall back to hardcoded secrets."
+            )
+
+        # 5. Non-production: Use securely generated process-ephemeral secret
+        if not cls._runtime_ephemeral_secret:
+            import secrets
+            cls._runtime_ephemeral_secret = secrets.token_hex(32)
+            logger.warning(
+                "No SECRET_KEY configured. Generated ephemeral runtime secret key for current process session."
+            )
+        return cls._runtime_ephemeral_secret
 
     @classmethod
     def normalize_slug(cls, game_slug: str) -> str:
@@ -110,6 +147,70 @@ class AntiCheatValidator:
             return s.loads(cookie_val, max_age=max_age)
         except Exception:
             return None
+
+    @classmethod
+    def verify_input_entropy(
+        cls,
+        input_entropy_hash: str,
+        action_count: Optional[int],
+        start_time_ms: int,
+        current_time_ms: int
+    ) -> Tuple[bool, str]:
+        """Validate format, variance, and temporal consistency of input entropy reports.
+
+        SDK transmits entropy string in format: '<action_count>:<ts_1>,<ts_2>,...'
+        Validates:
+        1. Non-empty string conforming to structural grammar.
+        2. Action count consistency between payload and entropy header.
+        3. Monotonic ordering of reported physical input timestamps.
+        4. Bounds checking against active session duration.
+        """
+        if not input_entropy_hash or not isinstance(input_entropy_hash, str):
+            return False, "INVALID_ENTROPY_FORMAT"
+
+        parts = input_entropy_hash.split(":", 1)
+        if len(parts) != 2:
+            return False, "INVALID_ENTROPY_SYNTAX"
+
+        reported_count_str, ts_list_str = parts[0], parts[1]
+        if not reported_count_str.isdigit():
+            return False, "INVALID_ENTROPY_COUNT"
+
+        reported_count = int(reported_count_str)
+        if action_count is not None and reported_count != action_count:
+            return False, f"ENTROPY_ACTION_COUNT_MISMATCH (Expected {action_count}, Got {reported_count})"
+
+        # If zero actions were reported, timestamp list must be empty
+        if reported_count == 0:
+            if ts_list_str.strip():
+                return False, "NONZERO_ENTROPY_TIMESTAMPS_FOR_ZERO_ACTIONS"
+            return True, "VERIFIED"
+
+        if not ts_list_str.strip():
+            # If actions > 0, at least some timestamps must be recorded
+            return False, "EMPTY_ENTROPY_TIMESTAMPS"
+
+        try:
+            ts_values = [int(t) for t in ts_list_str.split(",") if t.strip()]
+        except ValueError:
+            return False, "CORRUPTED_ENTROPY_TIMESTAMPS"
+
+        if not ts_values:
+            return False, "EMPTY_ENTROPY_TIMESTAMPS"
+
+        # Check monotonic ordering
+        for i in range(1, len(ts_values)):
+            if ts_values[i] < ts_values[i - 1]:
+                return False, "NON_MONOTONIC_ENTROPY_TIMESTAMPS"
+
+        # Check bounds: timestamps must fall between session start (with 5s clock skew buffer) and current time + 5s
+        min_allowed = start_time_ms - 5000
+        max_allowed = current_time_ms + 5000
+        for ts in ts_values:
+            if ts < min_allowed or ts > max_allowed:
+                return False, "ENTROPY_TIMESTAMP_OUT_OF_BOUNDS"
+
+        return True, "VERIFIED"
 
     @classmethod
     def generate_session_token(cls, player_id: int, game_slug: str, timestamp_ms: int) -> str:
@@ -268,6 +369,17 @@ class AntiCheatValidator:
             if norm_slug == "speedtype" and score > 5 and action_count < score:
                 return False, "INSUFFICIENT_KEYSTROKES"
 
+        # 6. Authoritative Input Entropy Validation
+        if input_entropy_hash is not None:
+            entropy_valid, entropy_reason = cls.verify_input_entropy(
+                input_entropy_hash=input_entropy_hash,
+                action_count=action_count,
+                start_time_ms=start_time_ms,
+                current_time_ms=current_time_ms
+            )
+            if not entropy_valid:
+                return False, entropy_reason
+
         return True, "VERIFIED"
 
     @classmethod
@@ -321,6 +433,17 @@ class AntiCheatValidator:
                 return False, "ZERO_ACTIONS_FOR_NONZERO_SCORE"
             if norm_slug == "speedtype" and score > 5 and action_count < score:
                 return False, "INSUFFICIENT_KEYSTROKES"
+
+        # 6. Authoritative Input Entropy Validation
+        if input_entropy_hash is not None:
+            entropy_valid, entropy_reason = cls.verify_input_entropy(
+                input_entropy_hash=input_entropy_hash,
+                action_count=action_count,
+                start_time_ms=start_time_ms,
+                current_time_ms=current_time_ms
+            )
+            if not entropy_valid:
+                return False, entropy_reason
 
         return True, "VERIFIED"
 

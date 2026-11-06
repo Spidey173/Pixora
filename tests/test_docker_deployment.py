@@ -95,3 +95,66 @@ def test_worker_telemetry_models_integration(app):
         assert hasattr(GameplaySession, 'ended_at')
         assert hasattr(User, 'username')
         assert hasattr(Game, 'play_url')
+
+
+def test_worker_poison_pill_batch_isolation(app):
+    """Verify that a single poison pill message does not dump healthy peer records or strand PEL messages."""
+    with app.app_context():
+        from app.models import User, GameScore, db
+        from worker import TelemetryStreamWorker
+        import json
+
+        # Create legitimate player
+        legit_user = User.query.filter_by(username="batch_hero").first()
+        if not legit_user:
+            legit_user = User(username="batch_hero")
+            legit_user.set_password("securepassword")
+            db.session.add(legit_user)
+            db.session.commit()
+
+        class MockRedisStream:
+            def __init__(self):
+                self.dlq = []
+                self.acked = []
+
+            def xadd(self, key, fields):
+                self.dlq.append((key, fields))
+
+            def xack(self, stream, group, *msg_ids):
+                self.acked.extend(msg_ids)
+
+        mock_redis = MockRedisStream()
+        worker = TelemetryStreamWorker(redis_client=mock_redis)
+
+        # Batch contains:
+        # Message 1: Valid score
+        # Message 2: Poison pill (violates non-null foreign key constraint / invalid type)
+        # Message 3: Valid score
+        batch_messages = [
+            ("1001-0", {"type": "score", "player_id": str(legit_user.id), "game_name": "2048", "score": "500"}),
+            ("1002-0", {"type": "score", "player_id": "not-an-int-bad-id", "game_name": "2048", "score": "9999"}),
+            ("1003-0", {"type": "score", "player_id": str(legit_user.id), "game_name": "flappybird", "score": "45"}),
+        ]
+
+        worker.redis_client = mock_redis
+        # Mock xreadgroup to return this batch
+        worker.redis_client.xreadgroup = lambda *args, **kwargs: [("pixora:telemetry", batch_messages)]
+
+        processed_count = worker.process_batch(app)
+
+        # All 3 messages must be acknowledged so nothing leaks in Redis PEL
+        assert processed_count == 3
+        assert "1001-0" in mock_redis.acked
+        assert "1002-0" in mock_redis.acked
+        assert "1003-0" in mock_redis.acked
+
+        # Exactly 1 message routed to DLQ
+        assert len(mock_redis.dlq) == 1
+        dlq_stream, dlq_data = mock_redis.dlq[0]
+        assert "dlq" in dlq_stream
+        assert dlq_data["msg_id"] == "1002-0"
+
+        # Valid records persisted in database
+        scores = GameScore.query.filter_by(player_id=legit_user.id).all()
+        assert len(scores) >= 2
+
