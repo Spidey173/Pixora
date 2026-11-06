@@ -102,7 +102,6 @@ def test_worker_poison_pill_batch_isolation(app):
     with app.app_context():
         from app.models import User, GameScore, db
         from worker import TelemetryStreamWorker
-        import json
 
         # Create legitimate player
         legit_user = User.query.filter_by(username="batch_hero").first()

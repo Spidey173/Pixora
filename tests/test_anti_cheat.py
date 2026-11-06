@@ -266,7 +266,6 @@ def test_input_entropy_validation_heuristics(app):
 
 def test_production_secret_key_hardcoded_fallback_rejection(monkeypatch):
     """Verify that in production mode, missing or default SECRET_KEY raises a critical error."""
-    import os
     monkeypatch.setenv("FLASK_ENV", "production")
     monkeypatch.setenv("ENV", "production")
     monkeypatch.delenv("SECRET_KEY", raising=False)
