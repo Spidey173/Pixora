@@ -1,17 +1,23 @@
 """Tests verifying authentication and identity spoofing prevention in gateway.py."""
 import time
 import pytest
-from fastapi.testclient import TestClient
 
 from gateway import app, FASTAPI_AVAILABLE
 from app.services.anti_cheat import AntiCheatValidator
+
+try:
+    from fastapi.testclient import TestClient
+    TESTCLIENT_AVAILABLE = True
+except (ImportError, RuntimeError):
+    TestClient = None
+    TESTCLIENT_AVAILABLE = False
 
 
 @pytest.fixture
 def gateway_client():
     """Create a fresh FastAPI test client for gateway.py."""
-    if not FASTAPI_AVAILABLE:
-        pytest.skip("FastAPI is not installed.")
+    if not FASTAPI_AVAILABLE or not TESTCLIENT_AVAILABLE:
+        pytest.skip("FastAPI or httpx/TestClient is not installed.")
     with TestClient(app) as client:
         yield client
 

@@ -22,3 +22,5 @@ alembic>=1.13.0
 gunicorn>=21.2.0
 a2wsgi>=1.10.0
 playwright>=1.40.0
+httpx>=0.27.0
+
