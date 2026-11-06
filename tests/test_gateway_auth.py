@@ -9,10 +9,11 @@ from app.services.anti_cheat import AntiCheatValidator
 
 @pytest.fixture
 def gateway_client():
-    """Create a FastAPI test client for gateway.py."""
+    """Create a fresh FastAPI test client for gateway.py."""
     if not FASTAPI_AVAILABLE:
         pytest.skip("FastAPI is not installed.")
-    return TestClient(app)
+    with TestClient(app) as client:
+        yield client
 
 
 def test_unauthenticated_session_start_rejected(gateway_client):
@@ -187,3 +188,4 @@ def test_issue_auth_token_endpoint(gateway_client):
     )
     assert token_res.status_code == 200
     assert token_res.json()["player_id"] == 55
+

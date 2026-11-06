@@ -32,7 +32,10 @@ except ImportError:
 
 def _get_browser_kwargs():
     """Return kwargs for launching Playwright Chromium."""
-    kwargs = {"headless": True}
+    kwargs = {
+        "headless": True,
+        "args": ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
+    }
     mac_chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
     if os.path.exists(mac_chrome):
         kwargs["executable_path"] = mac_chrome

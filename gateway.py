@@ -127,6 +127,10 @@ if FASTAPI_AVAILABLE:
                         id=int(token_data["player_id"]),
                         username=str(token_data.get("username", "Player"))
                     )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail={"error": "Invalid or expired authorization token", "code": "UNAUTHORIZED"}
+            )
 
         # 2. Flask Signed Session Cookie Authentication
         cookie_val = session or request.cookies.get("session")
@@ -182,8 +186,9 @@ if FASTAPI_AVAILABLE:
     @app.on_event("startup")
     async def startup_event():
         global redis_client
-        if AIOREDIS_AVAILABLE:
-            for attempt in range(1, 11):
+        if AIOREDIS_AVAILABLE and os.environ.get("FLASK_ENV") != "testing":
+            max_attempts = 3
+            for attempt in range(1, max_attempts + 1):
                 try:
                     redis_client = aioredis.from_url(REDIS_URL, decode_responses=True)
                     await redis_client.ping()
@@ -192,9 +197,9 @@ if FASTAPI_AVAILABLE:
                     asyncio.create_task(redis_pubsub_listener())
                     break
                 except Exception as e:
-                    logger.warning("Redis async connection attempt %d/10 failed: %s", attempt, e)
-                    if attempt < 10:
-                        await asyncio.sleep(1.5)
+                    logger.warning("Redis async connection attempt %d/%d failed: %s", attempt, max_attempts, e)
+                    if attempt < max_attempts:
+                        await asyncio.sleep(0.5)
                     else:
                         logger.warning("Redis async connection could not be established; continuing in fallback mode")
 
