@@ -1,7 +1,18 @@
 """Tests verifying Alembic database migrations and baseline schema integrity."""
 import os
+import shutil
 import subprocess
 import sys
+
+
+def _get_alembic_cmd():
+    res = subprocess.run([sys.executable, '-m', 'alembic', '--version'], capture_output=True)
+    if res.returncode == 0:
+        return [sys.executable, '-m', 'alembic']
+    alembic_path = shutil.which('alembic')
+    if alembic_path:
+        return [alembic_path]
+    return [sys.executable, '-m', 'alembic']
 
 
 def test_alembic_configuration_files_exist():
@@ -41,7 +52,7 @@ def test_alembic_check_passes(tmp_path):
 
     # Bring target test database to latest migration head
     up_res = subprocess.run(
-        [sys.executable, '-m', 'alembic', 'upgrade', 'head'],
+        _get_alembic_cmd() + ['upgrade', 'head'],
         cwd=base_dir,
         env=env,
         capture_output=True,
@@ -51,7 +62,7 @@ def test_alembic_check_passes(tmp_path):
 
     # Verify model vs migration schema drift
     res = subprocess.run(
-        [sys.executable, '-m', 'alembic', 'check'],
+        _get_alembic_cmd() + ['check'],
         cwd=base_dir,
         env=env,
         capture_output=True,
@@ -70,7 +81,7 @@ def test_alembic_upgrade_and_downgrade_cycle(tmp_path):
 
     # Upgrade to head
     up_res = subprocess.run(
-        [sys.executable, '-m', 'alembic', 'upgrade', 'head'],
+        _get_alembic_cmd() + ['upgrade', 'head'],
         cwd=base_dir,
         env=env,
         capture_output=True,
@@ -80,7 +91,7 @@ def test_alembic_upgrade_and_downgrade_cycle(tmp_path):
 
     # Downgrade back to base
     down_res = subprocess.run(
-        [sys.executable, '-m', 'alembic', 'downgrade', 'base'],
+        _get_alembic_cmd() + ['downgrade', 'base'],
         cwd=base_dir,
         env=env,
         capture_output=True,

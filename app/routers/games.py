@@ -30,12 +30,597 @@ class GameDefinition:
     controls_guide: Optional[str] = None
 
 
-# Import GAME_DEFINITIONS from app.routes.games if available, or redefine
-try:
-    from app.routes.games import GAME_DEFINITIONS as _EXISTING_DEFS
-    GAME_DEFINITIONS = _EXISTING_DEFS
-except ImportError:
-    GAME_DEFINITIONS = []
+GAME_DEFINITIONS: List[GameDefinition] = [
+    # ── 0. NEON CYBER RACER ─────────────────────────────────
+    GameDefinition(
+        path='/neon-cyber-racer',
+        template_path='Games/neon-cyber-racer/index.html',
+        endpoint='neon_cyber_racer_canonical',
+        slug='neon-cyber-racer',
+        title='Neon Cyber Racer',
+        category='Action',
+        description='Flagship Phaser 3 arcade racer. Dodge obstacles, drift at relativistic speed.',
+        controls_guide='Arrow Keys or A/D to steer, Spacebar to boost.'
+    ),
+    GameDefinition(
+        path='/neon-racer',
+        template_path='Games/neon-cyber-racer/index.html',
+        endpoint='neon_racer_canonical',
+        slug='neon-cyber-racer',
+        title='Neon Cyber Racer',
+        category='Action',
+        controls_guide='Arrow Keys or A/D to steer, Spacebar to boost.'
+    ),
+
+    # ── 1. 2048 CYBER GRID ──────────────────────────────────
+    GameDefinition(
+        path='/2048',
+        template_path='Games/2048/2048.html',
+        endpoint='updown',
+        slug='2048',
+        title='2048 Cyber Grid',
+        category='Puzzle',
+        description='Slide numerical data blocks across the neon matrix to synthesize the 2048 singularity.',
+        controls_guide='Arrow Keys or Swipe to slide numbered tiles.'
+    ),
+
+    # ── 2. CYBER CRUSH (CANDY CRUSH) ────────────────────────
+    GameDefinition(
+        path='/Candy_Crush',
+        template_path='Games/Candy Crush/Candy_Crush.html',
+        endpoint='Candy_Crush',
+        slug='candy-crush',
+        title='Cyber Crush',
+        category='Puzzle',
+        description='Match triplets of glowing plasma nodes to initiate chain reactions.',
+        controls_guide='Click and drag adjacent tiles to create matches.'
+    ),
+
+    # ── 3. FLAPPY BIRD ──────────────────────────────────────
+    GameDefinition(
+        path='/FlappyBird',
+        template_path='Games/Flappy Birds/flappybird.html',
+        endpoint='flappybird',
+        slug='flappybird',
+        title='Flappy Birds',
+        category='Arcade',
+        description='Pilot an autonomous aerial drone through treacherous conduit pillars.',
+        controls_guide='Spacebar, Click, or Tap to flap propulsion thrusters.'
+    ),
+
+    # ── 4. SPEEDTYPE PRO ────────────────────────────────────
+    GameDefinition(
+        path='/speedtype',
+        template_path='Games/SpeedType Pro/speedtype.html',
+        endpoint='speedtype',
+        slug='speedtype',
+        title='SpeedType Pro',
+        category='Skill',
+        description='High-velocity typing simulator for elite hackers. Overclock your keystroke speed.',
+        controls_guide='Type highlighted words rapidly into the prompt terminal.'
+    ),
+    GameDefinition(
+        path='/speedtypepro',
+        template_path='Games/SpeedType Pro/speedtype.html',
+        endpoint='speedtypepro',
+        slug='speedtype',
+        title='SpeedType Pro (Alias)',
+        category='Skill'
+    ),
+
+    # ── 5. VECTOR PONG CLASSIC ──────────────────────────────
+    GameDefinition(
+        path='/pong',
+        template_path='Games/pong/pong.html',
+        endpoint='pong',
+        slug='pong',
+        title='Vector Pong Classic',
+        category='Retro',
+        controls_guide='Up and Down arrow keys to steer your paddle.'
+    ),
+    GameDefinition(
+        path='/pongstart',
+        template_path='Games/pong/pongstart.html',
+        endpoint='pongstart',
+        slug='pong',
+        title='Vector Pong Start',
+        category='Retro'
+    ),
+    GameDefinition(
+        path='/pongeasy',
+        template_path='Games/pong/pongeasy.html',
+        endpoint='pongeasy',
+        slug='pong',
+        title='Pong (Easy)',
+        category='Retro',
+        difficulty='Easy'
+    ),
+    GameDefinition(
+        path='/pongmedium',
+        template_path='Games/pong/pongmedium.html',
+        endpoint='pongmedium',
+        slug='pong',
+        title='Pong (Medium)',
+        category='Retro',
+        difficulty='Medium'
+    ),
+    GameDefinition(
+        path='/ponghard',
+        template_path='Games/pong/ponghard.html',
+        endpoint='ponghard',
+        slug='pong',
+        title='Pong (Hard)',
+        category='Retro',
+        difficulty='Hard'
+    ),
+    GameDefinition(
+        path='/football',
+        template_path='Games/pong/football.html',
+        endpoint='football',
+        slug='pong',
+        title='Pong Football Arena',
+        category='Retro'
+    ),
+
+    # ── 6. CYBER LABYRINTH (MAZE) ───────────────────────────
+    GameDefinition(
+        path='/maze',
+        template_path='Games/maze/maze.html',
+        endpoint='maze_canonical',
+        slug='maze',
+        title='Cyber Labyrinth',
+        category='Puzzle',
+        controls_guide='Arrow keys or WASD to navigate corridors.'
+    ),
+    GameDefinition(
+        path='/Maze',
+        template_path='Games/maze/maze.html',
+        endpoint='maze',
+        slug='maze',
+        title='Cyber Labyrinth',
+        category='Puzzle',
+        controls_guide='Arrow keys or WASD to navigate corridors.'
+    ),
+    GameDefinition(
+        path='/maze2ndpage',
+        template_path='Games/maze/maze2ndpage.html',
+        endpoint='maze2ndpage',
+        slug='maze',
+        title='Maze Portal',
+        category='Puzzle'
+    ),
+    GameDefinition(
+        path='/mazeveasy',
+        template_path='Games/maze/mazeveasy.html',
+        endpoint='mazeveasy',
+        slug='maze',
+        title='Maze (Very Easy)',
+        category='Puzzle',
+        difficulty='Very Easy'
+    ),
+    GameDefinition(
+        path='/mazeeasy',
+        template_path='Games/maze/mazeeasy.html',
+        endpoint='mazeeasy',
+        slug='maze',
+        title='Maze (Easy)',
+        category='Puzzle',
+        difficulty='Easy'
+    ),
+    GameDefinition(
+        path='/mazemedium',
+        template_path='Games/maze/mazemedium.html',
+        endpoint='mazemedium',
+        slug='maze',
+        title='Maze (Medium)',
+        category='Puzzle',
+        difficulty='Medium'
+    ),
+    GameDefinition(
+        path='/mazehard',
+        template_path='Games/maze/mazehard.html',
+        endpoint='mazehard',
+        slug='maze',
+        title='Maze (Hard)',
+        category='Puzzle',
+        difficulty='Hard'
+    ),
+
+    # ── 7. MEMORY MATRIX (MEMORY MATCH) ─────────────────────
+    GameDefinition(
+        path='/memorymatch',
+        template_path='Games/MemoryMatch/memorymatch.html',
+        endpoint='memorymatch',
+        slug='memorymatch',
+        title='Memory Matrix',
+        category='Brain',
+        controls_guide='Click cards to flip and match pairs.'
+    ),
+    GameDefinition(
+        path='/memorymatch2nd',
+        template_path='Games/MemoryMatch/memorymatch2nd.html',
+        endpoint='memorymatch2nd',
+        slug='memorymatch',
+        title='Memory Matrix Hub',
+        category='Brain'
+    ),
+    GameDefinition(
+        path='/matchingeasy',
+        template_path='Games/MemoryMatch/matchingeasy.html',
+        endpoint='matchingeasy',
+        slug='memorymatch',
+        title='Memory Matrix (Easy)',
+        category='Brain',
+        difficulty='Easy'
+    ),
+    GameDefinition(
+        path='/matchingmedium',
+        template_path='Games/MemoryMatch/matchingmedium.html',
+        endpoint='matchingmedium',
+        slug='memorymatch',
+        title='Memory Matrix (Medium)',
+        category='Brain',
+        difficulty='Medium'
+    ),
+    GameDefinition(
+        path='/matchinghard',
+        template_path='Games/MemoryMatch/matchinghard.html',
+        endpoint='matchinghard',
+        slug='memorymatch',
+        title='Memory Matrix (Hard)',
+        category='Brain',
+        difficulty='Hard'
+    ),
+    GameDefinition(
+        path='/matchinginsane',
+        template_path='Games/MemoryMatch/matchinginsane.html',
+        endpoint='matchinginsane',
+        slug='memorymatch',
+        title='Memory Matrix (Insane)',
+        category='Brain',
+        difficulty='Insane'
+    ),
+
+    # ── 8. WHACK A MOLE ─────────────────────────────────────
+    GameDefinition(
+        path='/mole',
+        template_path='Games/wake a mole/mole.html',
+        endpoint='mole',
+        slug='mole',
+        title='Whack a Mole',
+        category='Arcade',
+        controls_guide='Click bugs rapidly as they appear.'
+    ),
+    GameDefinition(
+        path='/mole2nd',
+        template_path='Games/wake a mole/mole2nd.html',
+        endpoint='mole2nd',
+        slug='mole',
+        title='Whack a Mole Hub',
+        category='Arcade'
+    ),
+    GameDefinition(
+        path='/moleeasy',
+        template_path='Games/wake a mole/moleeasy.html',
+        endpoint='moleeasy',
+        slug='mole',
+        title='Whack a Mole (Easy)',
+        category='Arcade',
+        difficulty='Easy'
+    ),
+    GameDefinition(
+        path='/molemedium',
+        template_path='Games/wake a mole/molemedium.html',
+        endpoint='molemedium',
+        slug='mole',
+        title='Whack a Mole (Medium)',
+        category='Arcade',
+        difficulty='Medium'
+    ),
+    GameDefinition(
+        path='/molehard',
+        template_path='Games/wake a mole/molehard.html',
+        endpoint='molehard',
+        slug='mole',
+        title='Whack a Mole (Hard)',
+        category='Arcade',
+        difficulty='Hard'
+    ),
+
+    # ── 9. QUANTUM TIC-TAC-TOE ──────────────────────────────
+    GameDefinition(
+        path='/tictactoe',
+        template_path='Games/TicTacToe/tictactoe.html',
+        endpoint='tictactoe',
+        slug='tictactoe',
+        title='Quantum Tic-Tac-Toe',
+        category='Strategy',
+        controls_guide='Click any empty cell to place your token.'
+    ),
+
+    # ── 10. SKYLINE TOWER BLOCK ─────────────────────────────
+    GameDefinition(
+        path='/towerblock',
+        template_path='Games/TowerBlock/TowerBlock.html',
+        endpoint='towerblock_canonical',
+        slug='towerblock',
+        title='Skyline Tower Block',
+        category='Arcade',
+        controls_guide='Click or press Spacebar to drop the swinging block.'
+    ),
+    GameDefinition(
+        path='/TowerBlock',
+        template_path='Games/TowerBlock/TowerBlock.html',
+        endpoint='towerblock',
+        slug='towerblock',
+        title='Skyline Tower Block',
+        category='Arcade',
+        controls_guide='Click or press Spacebar to drop the swinging block.'
+    ),
+
+    # ── 11. STONE PAPER SCISSORS ────────────────────────────
+    GameDefinition(
+        path='/stonepapersissors',
+        template_path='Games/Stone Paper Scissors/stonepapersissors.html',
+        endpoint='stonepapersissor',
+        slug='stonepapersissors',
+        title='Stone Paper Scissors',
+        category='Arcade',
+        controls_guide='Click Rock, Paper, or Scissors to throw your gesture.'
+    ),
+
+    # ── 12. TRICKY BRAIN QUEST ──────────────────────────────
+    GameDefinition(
+        path='/tricky',
+        template_path='Games/Tricky/tricky.html',
+        endpoint='tricky',
+        slug='tricky',
+        title='Tricky Brain Quest',
+        category='Puzzle',
+        controls_guide='Read the clues and select the unexpected solution.'
+    ),
+    GameDefinition(
+        path='/trickygame',
+        template_path='Games/Tricky/trickygame.html',
+        endpoint='trickygame',
+        slug='tricky',
+        title='Tricky Brain Quest Game',
+        category='Puzzle'
+    ),
+
+    # ── 13. BLOOD RELATIONS MYSTERY ─────────────────────────
+    GameDefinition(
+        path='/relationship',
+        template_path='Games/Relationship/relations.html',
+        endpoint='relationship_canonical',
+        slug='relationship',
+        title='Blood Relations Mystery',
+        category='Brain',
+        controls_guide='Analyze family connections and pick the correct relation.'
+    ),
+    GameDefinition(
+        path='/relations',
+        template_path='Games/Relationship/relations.html',
+        endpoint='relations',
+        slug='relationship',
+        title='Blood Relations Mystery',
+        category='Brain',
+        controls_guide='Analyze family connections and pick the correct relation.'
+    ),
+    GameDefinition(
+        path='/Relationshipeasy',
+        template_path='Games/Relationship/Relationshipeasy.html',
+        endpoint='relationshipeasy',
+        slug='relationship',
+        title='Relations (Easy)',
+        category='Brain',
+        difficulty='Easy'
+    ),
+    GameDefinition(
+        path='/Relationshiphard',
+        template_path='Games/Relationship/Relationshiphard.html',
+        endpoint='relationshiphard',
+        slug='relationship',
+        title='Relations (Hard)',
+        category='Brain',
+        difficulty='Hard'
+    ),
+
+    # ── 14. SEQUENCE NUMBER LOGIC ───────────────────────────
+    GameDefinition(
+        path='/sequence',
+        template_path='Games/Sequence/mathsequence.html',
+        endpoint='sequence_canonical',
+        slug='sequence',
+        title='Sequence Number Logic',
+        category='Puzzle',
+        controls_guide='Identify mathematical progression and enter the next number.'
+    ),
+    GameDefinition(
+        path='/mathsequence',
+        template_path='Games/Sequence/mathsequence.html',
+        endpoint='mathsequence',
+        slug='sequence',
+        title='Sequence Number Logic',
+        category='Puzzle',
+        controls_guide='Identify mathematical progression and enter the next number.'
+    ),
+    GameDefinition(
+        path='/mathsequencegame',
+        template_path='Games/Sequence/mathsequencegame.html',
+        endpoint='mathsequencegame',
+        slug='sequence',
+        title='Sequence Game Arena',
+        category='Puzzle'
+    ),
+
+    # ── 15. NEURAL CROSSWORD MATRIX ─────────────────────────
+    GameDefinition(
+        path='/crossword',
+        template_path='Games/Cross word/Crossword.html',
+        endpoint='crossword_canonical',
+        slug='crossword',
+        title='Neural Crossword',
+        category='Brain',
+        controls_guide='Click on grid cells and type letters using keyboard.'
+    ),
+    GameDefinition(
+        path='/Crossword',
+        template_path='Games/Cross word/Crossword.html',
+        endpoint='crossword',
+        slug='crossword',
+        title='Neural Crossword',
+        category='Brain',
+        controls_guide='Click on grid cells and type letters using keyboard.'
+    ),
+    GameDefinition(
+        path='/crossword2ndpage',
+        template_path='Games/Cross word/crossword2ndpage.html',
+        endpoint='crossword2ndpage',
+        slug='crossword',
+        title='Crossword Topic Select',
+        category='Brain'
+    ),
+    GameDefinition(
+        path='/animal',
+        template_path='Games/Cross word/crossword animal.html',
+        endpoint='animal',
+        slug='crossword',
+        title='Crossword (Animals)',
+        category='Brain'
+    ),
+    GameDefinition(
+        path='/anime',
+        template_path='Games/Cross word/crossword anime.html',
+        endpoint='anime',
+        slug='crossword',
+        title='Crossword (Anime)',
+        category='Brain'
+    ),
+    GameDefinition(
+        path='/cities',
+        template_path='Games/Cross word/crossword cities.html',
+        endpoint='cities',
+        slug='crossword',
+        title='Crossword (Cities)',
+        category='Brain'
+    ),
+    GameDefinition(
+        path='/movie',
+        template_path='Games/Cross word/crossword movie.html',
+        endpoint='movie',
+        slug='crossword',
+        title='Crossword (Movies)',
+        category='Brain'
+    ),
+    GameDefinition(
+        path='/sport',
+        template_path='Games/Cross word/crossword sport.html',
+        endpoint='sport',
+        slug='crossword',
+        title='Crossword (Sports)',
+        category='Brain'
+    ),
+    GameDefinition(
+        path='/state',
+        template_path='Games/Cross word/crossword state.html',
+        endpoint='state',
+        slug='crossword',
+        title='Crossword (States)',
+        category='Brain'
+    ),
+
+    # ── 16. CYBER QUIZ MATRIX ───────────────────────────────
+    GameDefinition(
+        path='/quiz',
+        template_path='Games/Quiz/quiz.html',
+        endpoint='quiz',
+        slug='quiz',
+        title='Cyber Quiz Matrix',
+        category='Trivia',
+        controls_guide='Select the correct multiple-choice options.'
+    ),
+    GameDefinition(
+        path='/quiz2ndpage',
+        template_path='Games/Quiz/quiz2ndpage.html',
+        endpoint='quiz2ndpage',
+        slug='quiz',
+        title='Quiz Categories',
+        category='Trivia'
+    ),
+    GameDefinition(
+        path='/aanimal',
+        template_path='Games/Quiz/animal.html',
+        endpoint='aanimal',
+        slug='quiz',
+        title='Quiz (Animal Kingdom)',
+        category='Trivia'
+    ),
+    GameDefinition(
+        path='/Cartoon',
+        template_path='Games/Quiz/Cartoon.html',
+        endpoint='cartoon',
+        slug='quiz',
+        title='Quiz (Cartoons & Anime)',
+        category='Trivia'
+    ),
+    GameDefinition(
+        path='/food',
+        template_path='Games/Quiz/food.html',
+        endpoint='food',
+        slug='quiz',
+        title='Quiz (Culinary & Food)',
+        category='Trivia'
+    ),
+    GameDefinition(
+        path='/gk',
+        template_path='Games/Quiz/gk.html',
+        endpoint='gk',
+        slug='quiz',
+        title='Quiz (General Knowledge)',
+        category='Trivia'
+    ),
+    GameDefinition(
+        path='/history',
+        template_path='Games/Quiz/history.html',
+        endpoint='history',
+        slug='quiz',
+        title='Quiz (World History)',
+        category='Trivia'
+    ),
+    GameDefinition(
+        path='/indiansport',
+        template_path='Games/Quiz/indiansport.html',
+        endpoint='indiansport',
+        slug='quiz',
+        title='Quiz (Sports Champions)',
+        category='Trivia'
+    ),
+    GameDefinition(
+        path='/movies',
+        template_path='Games/Quiz/movies.html',
+        endpoint='movies',
+        slug='quiz',
+        title='Quiz (Cinema & Movies)',
+        category='Trivia'
+    ),
+    GameDefinition(
+        path='/place',
+        template_path='Games/Quiz/place.html',
+        endpoint='place',
+        slug='quiz',
+        title='Quiz (Geography & Places)',
+        category='Trivia'
+    ),
+    GameDefinition(
+        path='/riddle',
+        template_path='Games/Quiz/riddle.html',
+        endpoint='riddle',
+        slug='quiz',
+        title='Quiz (Riddles & Logic)',
+        category='Trivia'
+    ),
+]
 
 GAME_REGISTRY: Dict[str, tuple[str, str]] = {
     def_item.path: (def_item.template_path, def_item.endpoint)

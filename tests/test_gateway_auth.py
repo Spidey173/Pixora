@@ -18,6 +18,11 @@ def gateway_client():
     """Create a fresh FastAPI test client for gateway.py."""
     if not FASTAPI_AVAILABLE or not TESTCLIENT_AVAILABLE:
         pytest.skip("FastAPI or httpx/TestClient is not installed.")
+    from app.database import db
+    try:
+        db.create_all()
+    except Exception:
+        pass
     with TestClient(app) as client:
         yield client
 

@@ -441,11 +441,20 @@ if FASTAPI_AVAILABLE:
             except Exception as e:
                 logger.warning("Redis operation warning: %s", e)
 
+        clean_game_name = req.game_slug
+        try:
+            from app.models import Game
+            game_record = Game.query.filter_by(slug=req.game_slug).first()
+            if game_record and game_record.title:
+                clean_game_name = game_record.title
+        except Exception:
+            clean_game_name = req.game_slug
+
         from app.utils.telemetry_queue import telemetry_queue
         score_dict = telemetry_queue.enqueue_score(
             player_id=player.id,
             username=player.username,
-            game_name=req.game_slug,
+            game_name=clean_game_name,
             score=req.score
         )
 
