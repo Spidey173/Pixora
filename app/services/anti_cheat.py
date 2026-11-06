@@ -8,6 +8,7 @@ Provides:
 """
 import hashlib
 import hmac
+import inspect
 import logging
 import threading
 import time
@@ -124,14 +125,18 @@ class AntiCheatValidator:
 
     @classmethod
     def is_token_replayed(cls, session_token: str, redis_client=None) -> bool:
-        """Check whether a session token has already been consumed (Replay Attack Guard)."""
+        """Check whether a session token has already been consumed (Replay Attack Guard).
+        Supports sync Redis clients. For async Redis, use async_is_token_replayed.
+        """
         if not session_token:
             return True
 
         if redis_client:
             try:
                 key = f"pixora:used_token:{session_token}"
-                return bool(redis_client.exists(key))
+                res = redis_client.exists(key)
+                # In case a sync call was made with an object returning int/bool
+                return bool(res)
             except Exception as e:
                 logger.warning("Redis error checking replayed token: %s", e)
 
@@ -146,8 +151,33 @@ class AntiCheatValidator:
             return session_token in cls._used_tokens_mem
 
     @classmethod
+    async def async_is_token_replayed(cls, session_token: str, redis_client=None) -> bool:
+        """Asynchronously check whether a session token has already been consumed."""
+        if not session_token:
+            return True
+
+        if redis_client:
+            try:
+                key = f"pixora:used_token:{session_token}"
+                res = redis_client.exists(key)
+                if inspect.isawaitable(res):
+                    res = await res
+                return bool(res)
+            except Exception as e:
+                logger.warning("Async Redis error checking replayed token: %s", e)
+
+        # In-memory fallback
+        with cls._lock:
+            now = time.time()
+            expired = [t for t, exp in cls._used_tokens_mem.items() if exp < now]
+            for t in expired:
+                del cls._used_tokens_mem[t]
+
+            return session_token in cls._used_tokens_mem
+
+    @classmethod
     def mark_token_used(cls, session_token: str, ttl: int = 7200, redis_client=None):
-        """Mark a session token as consumed."""
+        """Mark a session token as consumed (sync)."""
         if not session_token:
             return
 
@@ -158,6 +188,25 @@ class AntiCheatValidator:
                 return
             except Exception as e:
                 logger.warning("Redis error marking token used: %s", e)
+
+        with cls._lock:
+            cls._used_tokens_mem[session_token] = time.time() + ttl
+
+    @classmethod
+    async def async_mark_token_used(cls, session_token: str, ttl: int = 7200, redis_client=None):
+        """Mark a session token as consumed (async)."""
+        if not session_token:
+            return
+
+        if redis_client:
+            try:
+                key = f"pixora:used_token:{session_token}"
+                res = redis_client.set(key, "1", ex=ttl)
+                if inspect.isawaitable(res):
+                    await res
+                return
+            except Exception as e:
+                logger.warning("Async Redis error marking token used: %s", e)
 
         with cls._lock:
             cls._used_tokens_mem[session_token] = time.time() + ttl
@@ -216,6 +265,60 @@ class AntiCheatValidator:
             if score > 0 and action_count <= 0:
                 return False, "ZERO_ACTIONS_FOR_NONZERO_SCORE"
             # In speedtype, 1 word requires multiple keystrokes
+            if norm_slug == "speedtype" and score > 5 and action_count < score:
+                return False, "INSUFFICIENT_KEYSTROKES"
+
+        return True, "VERIFIED"
+
+    @classmethod
+    async def async_validate_submission(
+        cls,
+        player_id: int,
+        game_slug: str,
+        score: int,
+        start_time_ms: int,
+        session_token: str,
+        action_count: Optional[int] = None,
+        input_entropy_hash: Optional[str] = None,
+        redis_client=None,
+        check_replay: bool = True
+    ) -> Tuple[bool, str]:
+        """Asynchronously validate score submission using async Redis client for replay protection."""
+        # 1. Verify cryptographic token authenticity
+        expected_token = cls.generate_session_token(player_id, game_slug, start_time_ms)
+        if not hmac.compare_digest(expected_token, session_token):
+            return False, "INVALID_SESSION_SIGNATURE"
+
+        # 2. Replay attack guard: Ensure session_token can only be used once (async Redis)
+        if check_replay and await cls.async_is_token_replayed(session_token, redis_client=redis_client):
+            return False, "REPLAY_ATTACK_DETECTED"
+
+        # 3. Verify reasonable elapsed time
+        current_time_ms = int(time.time() * 1000)
+        elapsed_seconds = (current_time_ms - start_time_ms) / 1000.0
+
+        if elapsed_seconds < 0:
+            return False, "NEGATIVE_DURATION_ANOMALY"
+
+        # Token TTL check (2 hours)
+        max_session_age = getattr(settings, 'ANTI_CHEAT_TOKEN_TTL', 7200)
+        if elapsed_seconds > max_session_age:
+            return False, "SESSION_EXPIRED"
+
+        if elapsed_seconds < 2.0 and score > 10:
+            return False, "IMPOSSIBLE_DURATION"
+
+        # 4. Verify maximum possible velocity
+        norm_slug = cls.normalize_slug(game_slug)
+        max_rate = GAME_VELOCITY_LIMITS.get(norm_slug, 50.0)
+        calculated_rate = score / max(elapsed_seconds, 1.0)
+        if calculated_rate > max_rate:
+            return False, f"SCORE_VELOCITY_EXCEEDED (Rate: {calculated_rate:.1f}/s, Max: {max_rate}/s)"
+
+        # 5. Action Entropy & Heuristics Check (if reported by SDK)
+        if action_count is not None:
+            if score > 0 and action_count <= 0:
+                return False, "ZERO_ACTIONS_FOR_NONZERO_SCORE"
             if norm_slug == "speedtype" and score > 5 and action_count < score:
                 return False, "INSUFFICIENT_KEYSTROKES"
 

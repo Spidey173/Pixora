@@ -195,3 +195,69 @@ def test_issue_auth_token_endpoint(gateway_client):
     assert token_res.status_code == 200
     assert token_res.json()["player_id"] == 55
 
+
+def test_replay_token_rejection_with_mock_redis(gateway_client, monkeypatch):
+    """Verify that multi-worker Redis-backed replay protection prevents token replay attacks."""
+    class FakeAsyncRedis:
+        def __init__(self):
+            self.store = {}
+
+        async def exists(self, key):
+            return 1 if key in self.store else 0
+
+        async def set(self, key, value, ex=None):
+            self.store[key] = value
+
+        def pipeline(self):
+            class FakePipe:
+                def __init__(self, outer):
+                    self.outer = outer
+                def zadd(self, *args, **kwargs):
+                    return self
+                def zrevrank(self, *args, **kwargs):
+                    return self
+                def xadd(self, *args, **kwargs):
+                    return self
+                async def execute(self):
+                    return [1, 0, "123456"]
+            return FakePipe(self)
+
+    fake_redis = FakeAsyncRedis()
+    import gateway
+    monkeypatch.setattr(gateway, "redis_client", fake_redis)
+
+    player_id = 99
+    username = "SpeedRunner"
+    auth_token = AntiCheatValidator.create_player_token(player_id, username)
+
+    start_time_ms = int(time.time() * 1000) - 10000
+    session_token = AntiCheatValidator.generate_session_token(player_id, "2048", start_time_ms)
+
+    submission_payload = {
+        "game_slug": "2048",
+        "score": 50,
+        "session_token": session_token,
+        "start_time_ms": start_time_ms,
+        "action_count": 15
+    }
+
+    # First submission: succeeds and stores token in Redis
+    first_res = gateway_client.post(
+        "/api/v2/session/end",
+        json=submission_payload,
+        headers={"Authorization": f"Bearer {auth_token}"}
+    )
+    assert first_res.status_code == 200
+    assert f"pixora:used_token:{session_token}" in fake_redis.store
+
+    # Second submission with the exact same token (even from another worker): rejected by Redis
+    second_res = gateway_client.post(
+        "/api/v2/session/end",
+        json=submission_payload,
+        headers={"Authorization": f"Bearer {auth_token}"}
+    )
+    assert second_res.status_code == 401
+    assert second_res.json()["detail"]["code"] == "AUTH_FAILED"
+    assert second_res.json()["detail"]["error"] == "REPLAY_ATTACK_DETECTED"
+
+

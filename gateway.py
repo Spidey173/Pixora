@@ -294,8 +294,8 @@ if FASTAPI_AVAILABLE:
                 }
             )
 
-        # 1. Authoritative Anti-Cheat Verification using verified player identity
-        is_valid, reason = AntiCheatValidator.validate_submission(
+        # 1. Authoritative Anti-Cheat Verification using verified player identity & multi-worker Redis replay protection
+        is_valid, reason = await AntiCheatValidator.async_validate_submission(
             player_id=player.id,
             game_slug=req.game_slug,
             score=req.score,
@@ -303,6 +303,7 @@ if FASTAPI_AVAILABLE:
             session_token=req.session_token,
             action_count=req.action_count,
             input_entropy_hash=req.input_entropy_hash,
+            redis_client=redis_client,
             check_replay=True
         )
 
@@ -311,7 +312,7 @@ if FASTAPI_AVAILABLE:
                 raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail={"error": reason, "code": "AUTH_FAILED"})
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail={"error": reason, "code": "ANOMALOUS_VELOCITY"})
 
-        AntiCheatValidator.mark_token_used(req.session_token)
+        await AntiCheatValidator.async_mark_token_used(req.session_token, redis_client=redis_client)
 
         rank = None
         # 2. Redis Operations (Sorted Sets & Streams) strictly bound to verified player
