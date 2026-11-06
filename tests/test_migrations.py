@@ -32,12 +32,28 @@ def test_baseline_migration_covers_required_tables():
     assert "op.create_table('games'" in content or 'create_table("games"' in content
 
 
-def test_alembic_check_passes():
+def test_alembic_check_passes(tmp_path):
     """Verify that current SQLAlchemy models match Alembic migration state with no drift."""
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    test_db = tmp_path / "test_check.db"
+    env = os.environ.copy()
+    env['DATABASE_URL'] = f"sqlite:///{test_db}"
+
+    # Bring target test database to latest migration head
+    up_res = subprocess.run(
+        [sys.executable, '-m', 'alembic', 'upgrade', 'head'],
+        cwd=base_dir,
+        env=env,
+        capture_output=True,
+        text=True
+    )
+    assert up_res.returncode == 0, f"Alembic upgrade failed before check:\n{up_res.stdout}\n{up_res.stderr}"
+
+    # Verify model vs migration schema drift
     res = subprocess.run(
         [sys.executable, '-m', 'alembic', 'check'],
         cwd=base_dir,
+        env=env,
         capture_output=True,
         text=True
     )
