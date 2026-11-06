@@ -1,104 +1,58 @@
-"""Application Factory for Pixora Retro Arcade Hub."""
+"""Application Factory for Pixora (Unified ASGI FastAPI Architecture)."""
 import os
 
-from flask import Flask
-
 from app.config import config_by_name
-from app.extensions import csrf, db, limiter, login_manager, migrate
-from app.routes.admin import admin_bp
-from app.routes.auth import auth_bp
-from app.routes.errors import errors_bp
-from app.routes.games import register_game_routes
-from app.routes.main import main_bp
+from app.database import db, rebind_engine
+from app.utils.storage import r2_storage
+from app.utils.telemetry_queue import telemetry_queue
+
+__all__ = ["create_app", "db", "rebind_engine", "r2_storage", "telemetry_queue"]
+
+
+class AppContext:
+    """Compatibility app_context manager for database operations."""
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
 
 
 def create_app(config_name=None):
-    """Factory function to create and configure Flask application."""
+    """Factory function returning the unified FastAPI ASGI application."""
     if config_name is None:
         config_name = os.environ.get('FLASK_ENV', 'development')
 
-    base_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
-    template_dir = os.path.join(base_dir, 'templates')
-    static_dir = os.path.join(base_dir, 'static')
+    from gateway import app
 
-    is_serverless = bool(os.environ.get('VERCEL') or os.environ.get('AWS_LAMBDA_FUNCTION_NAME'))
-    if is_serverless:
-        instance_dir = '/tmp/instance'
-        os.makedirs(instance_dir, exist_ok=True)
-    else:
-        instance_dir = os.path.join(base_dir, 'instance')
-
-    app = Flask(
-        __name__,
-        template_folder=template_dir,
-        static_folder=static_dir,
-        instance_path=instance_dir
-    )
-
-    # Load configuration
     config_class = config_by_name.get(config_name, config_by_name['default'])
-    app.config.from_object(config_class)
+    db_uri = getattr(config_class, 'SQLALCHEMY_DATABASE_URI', None)
+    if db_uri:
+        rebind_engine(db_uri)
 
-    # Initialize extensions
-    db.init_app(app)
-    login_manager.init_app(app)
-    csrf.init_app(app)
-    limiter.init_app(app)
-    migrate.init_app(app, db)
+    app.config = {
+        k: getattr(config_class, k)
+        for k in dir(config_class)
+        if not k.startswith('_')
+    }
+    app.app_context = lambda: AppContext()
 
-    from app.utils.storage import r2_storage
-    r2_storage.init_app(app)
-
-    from app.utils.telemetry_queue import telemetry_queue
-    telemetry_queue.init_app(app)
-
-    # Register blueprints
-    app.register_blueprint(auth_bp)
-    app.register_blueprint(main_bp)
-    app.register_blueprint(admin_bp)
-    app.register_blueprint(errors_bp)
-
-    # Register all 15+ mini-games and subpage endpoints directly on app
-    register_game_routes(app)
-
-    # Static web bundle server for Poki architecture catalog games in /public/games/
-    @app.route('/public/games/<path:filename>')
-    def serve_public_games(filename):
-        from flask import send_from_directory
-        public_games_dir = os.path.join(base_dir, 'public', 'games')
-        return send_from_directory(public_games_dir, filename)
-
-    # Add legacy endpoint aliases for backward compatibility with older template calls
-    app.add_url_rule('/login', endpoint='login', view_func=app.view_functions['auth.login'], methods=['GET', 'POST'])
-    app.add_url_rule('/logout', endpoint='logout', view_func=app.view_functions['auth.logout'])
-    app.add_url_rule('/games', endpoint='games', view_func=app.view_functions['main.games'])
-
-    # Security response headers middleware
-    @app.after_request
-    def set_security_headers(response):
-        response.headers['X-Content-Type-Options'] = 'nosniff'
-        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
-        response.headers['X-XSS-Protection'] = '1; mode=block'
-        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
-        return response
-
-    # Auto-create tables and populate default catalog and leaderboard in development and serverless environments
+    # Auto-seed in development or serverless environments
     if config_name != 'testing':
-        with app.app_context():
-            try:
-                db.create_all()
-                from app.models import Game, GameScore
-                if Game.query.count() == 0 or GameScore.query.count() == 0:
-                    from app.utils.seed_games import seed_catalog
-                    seed_catalog(app)
-            except Exception:
-                pass
+        try:
+            db.create_all()
+            from app.models import Game, GameScore
+            if Game.query.count() == 0 or GameScore.query.count() == 0:
+                from app.utils.seed_games import seed_catalog
+                seed_catalog()
+        except Exception:
+            pass
 
     return app
 
 
 def __getattr__(name):
-    """Module-level attribute fallback for WSGI servers like Gunicorn (e.g. `gunicorn app:app`)."""
+    """Module-level attribute fallback (e.g. `uvicorn app:app` or `gunicorn app:app`)."""
     if name == 'app':
         return create_app(os.environ.get('FLASK_ENV', 'production'))
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

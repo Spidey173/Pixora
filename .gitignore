@@ -63,3 +63,12 @@ node_modules/
 .next/
 out/
 
+# Binary media assets (Offloaded to Cloudflare R2 / AWS S3)
+*.mp3
+*.wav
+*.ogg
+*.flac
+*.mp4
+*.webm
+
+

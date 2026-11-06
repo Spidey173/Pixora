@@ -338,19 +338,9 @@ def _populate_catalog_entries():
 
 
 def seed_catalog(app=None):
-    """Populate database with default arcade games."""
-    from flask import has_app_context
-
-    if has_app_context():
-        _populate_catalog_entries()
-    elif app is not None:
-        with app.app_context():
-            _populate_catalog_entries()
-    else:
-        from app import create_app
-        fresh_app = create_app()
-        with fresh_app.app_context():
-            _populate_catalog_entries()
+    """Populate database with default arcade games using pure SQLAlchemy."""
+    db.create_all()
+    _populate_catalog_entries()
 
 
 if __name__ == '__main__':

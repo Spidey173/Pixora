@@ -19,7 +19,7 @@ from typing import Dict, List, Optional
 try:
     from fastapi import (
         FastAPI, WebSocket, WebSocketDisconnect, HTTPException, status,
-        Request, Depends, Header, Cookie
+        Request, Response, Depends, Header, Cookie
     )
     from fastapi.middleware.cors import CORSMiddleware
     from pydantic import BaseModel
@@ -111,14 +111,22 @@ if FASTAPI_AVAILABLE:
                     pass
 
         async def broadcast_distributed(self, game_slug: str, message: dict, redis=None):
-            """Publish event to Redis so ALL Uvicorn worker processes broadcast to their clients."""
+            """Publish event to Redis Pub/Sub so ALL Uvicorn worker processes broadcast to their clients."""
+            payload = dict(message)
+            if "game" not in payload:
+                payload["game"] = game_slug
             if redis:
                 try:
-                    await redis.publish(f"{KEY_PREFIX}events:{game_slug}", json.dumps(message))
+                    payload_json = json.dumps(payload)
+                    await redis.publish("pixora:ws:broadcast", payload_json)
+                    await redis.publish(f"{KEY_PREFIX}events:{game_slug}", payload_json)
                     return
                 except Exception as err:
                     logger.warning("Redis Pub/Sub broadcast error: %s; falling back to local fanout", err)
-            await self.broadcast_local(game_slug, message)
+            await self.broadcast_local(game_slug, payload)
+
+        # Multi-worker local broadcast alias
+        local_broadcast = broadcast_local
 
         # Backward compatibility alias
         async def broadcast_to_game(self, game_slug: str, message: dict):
@@ -244,6 +252,7 @@ if FASTAPI_AVAILABLE:
         verified: bool = True
         rank: Optional[int] = None
         message: str
+        score: Optional[dict] = None
 
     # ─────────────────────────────────────────────────────────────
     # REDIS CLIENT LIFECYCLE & BACKGROUND PUB/SUB LISTENER
@@ -277,22 +286,32 @@ if FASTAPI_AVAILABLE:
             await redis_client.close()
 
     async def redis_pubsub_listener():
-        """Listen to Redis Pub/Sub events and broadcast via WebSockets in real time."""
+        """Listen to Redis Pub/Sub events and broadcast via WebSockets across all Uvicorn workers."""
         if not redis_client:
             return
         try:
             pubsub = redis_client.pubsub()
+            await pubsub.subscribe("pixora:ws:broadcast")
             await pubsub.psubscribe(f"{KEY_PREFIX}events:*")
-            logger.info("Subscribed to Redis Pub/Sub channel '%sevents:*'", KEY_PREFIX)
+            logger.info("Subscribed to Redis Pub/Sub channels 'pixora:ws:broadcast' and '%sevents:*'", KEY_PREFIX)
             async for msg in pubsub.listen():
-                if msg and msg["type"] == "pmessage":
-                    channel = msg["channel"]
+                if not msg:
+                    continue
+                if msg["type"] == "message" and msg.get("data"):
+                    try:
+                        event_data = json.loads(msg["data"])
+                        game_slug = event_data.get("game") or event_data.get("game_slug") or "all"
+                        await ws_manager.local_broadcast(game_slug, event_data)
+                    except Exception as err:
+                        logger.error("PubSub message error: %s", err)
+                elif msg["type"] == "pmessage" and msg.get("data"):
+                    channel = msg.get("channel", "")
                     game_slug = channel.split(":")[-1]
                     try:
                         event_data = json.loads(msg["data"])
-                        await ws_manager.broadcast_local(game_slug, event_data)
+                        await ws_manager.local_broadcast(game_slug, event_data)
                     except Exception as err:
-                        logger.error("PubSub broadcast error: %s", err)
+                        logger.error("PubSub pmessage error: %s", err)
         except Exception as e:
             logger.warning("PubSub listener stopped: %s", e)
 
@@ -300,23 +319,10 @@ if FASTAPI_AVAILABLE:
     # ASYNC REST ENDPOINTS & HEALTH
     # ─────────────────────────────────────────────────────────────
 
-    @app.get("/")
     @app.get("/health")
-    @app.get("/api/health")
-    async def health_check():
-        redis_ok = False
-        if redis_client:
-            try:
-                await redis_client.ping()
-                redis_ok = True
-            except Exception:
-                pass
-        return {
-            "status": "healthy",
-            "service": "pixora-fastapi-gateway",
-            "redis": "connected" if redis_ok else "offline",
-            "version": "2.0.0"
-        }
+    async def gateway_health_check():
+        from app.routers.hub import health_check
+        return await health_check()
 
     @app.post("/api/v2/session/start", response_model=SessionStartResponse)
     async def session_start(
@@ -350,6 +356,8 @@ if FASTAPI_AVAILABLE:
     @app.post("/api/v2/session/end", response_model=ScoreSubmissionResponse)
     async def session_end(
         req: ScoreSubmissionRequest,
+        request: Request,
+        response: Response,
         player: AuthenticatedPlayer = Depends(get_current_player)
     ):
         # Prevent identity spoofing: reject if client attempts to claim another player's score
@@ -375,12 +383,26 @@ if FASTAPI_AVAILABLE:
             check_replay=True
         )
 
+        is_bearer = bool(request.headers.get("authorization"))
         if not is_valid:
             if reason in ("INVALID_SESSION_SIGNATURE", "REPLAY_ATTACK_DETECTED", "SESSION_EXPIRED"):
-                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail={"error": reason, "code": "AUTH_FAILED"})
+                code = "AUTH_FAILED" if is_bearer else {
+                    "INVALID_SESSION_SIGNATURE": "INVALID_SIGNATURE",
+                    "REPLAY_ATTACK_DETECTED": "TOKEN_REUSED",
+                    "SESSION_EXPIRED": "SESSION_EXPIRED"
+                }.get(reason, "AUTH_FAILED")
+                error_msg = reason if is_bearer else {
+                    "REPLAY_ATTACK_DETECTED": "Session token has already been consumed",
+                    "SESSION_EXPIRED": "Session token expired",
+                    "INVALID_SESSION_SIGNATURE": reason
+                }.get(reason, reason)
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail={"error": error_msg, "code": code})
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail={"error": reason, "code": "ANOMALOUS_VELOCITY"})
 
         await AntiCheatValidator.async_mark_token_used(req.session_token, redis_client=redis_client)
+
+        if not is_bearer:
+            response.status_code = status.HTTP_201_CREATED
 
         rank = None
         # 2. Redis Operations (Sorted Sets & Streams) strictly bound to verified player
@@ -414,15 +436,23 @@ if FASTAPI_AVAILABLE:
                         "score": req.score,
                         "timestamp": time.time()
                     }
-                    await redis_client.publish(f"{KEY_PREFIX}events:{req.game_slug}", json.dumps(overtake_event))
-                    # Also broadcast directly to connected WebSockets
-                    await ws_manager.broadcast_to_game(req.game_slug, overtake_event)
+                    # Broadcast to all workers via Redis Pub/Sub (and local fallback)
+                    await ws_manager.broadcast_distributed(req.game_slug, overtake_event, redis=redis_client)
             except Exception as e:
                 logger.warning("Redis operation warning: %s", e)
+
+        from app.utils.telemetry_queue import telemetry_queue
+        score_dict = telemetry_queue.enqueue_score(
+            player_id=player.id,
+            username=player.username,
+            game_name=req.game_slug,
+            score=req.score
+        )
 
         return ScoreSubmissionResponse(
             verified=True,
             rank=rank,
+            score=score_dict,
             message="Score cryptographically validated and queued for ingestion"
         )
 
@@ -514,16 +544,51 @@ if FASTAPI_AVAILABLE:
             }, redis=redis_client)
 
     # ─────────────────────────────────────────────────────────────
-    # UNIFIED TIER S BACKEND: MOUNT FLASK AS ASGI MIDDLEWARE
+    # UNIFIED TIER S BACKEND: 100% PURE ASGI FASTAPI (NO FLASK)
     # ─────────────────────────────────────────────────────────────
-    try:
-        from a2wsgi import WSGIMiddleware
-        from app import create_app
-        flask_app = create_app(os.environ.get('FLASK_ENV', 'production'))
-        app.mount("/", WSGIMiddleware(flask_app))
-        logger.info("🚀 Unified Tier S Backend Active: Full platform & WebSockets on single ASGI engine")
-    except Exception as e:
-        logger.error("Could not mount Flask app into FastAPI: %s", e)
+    from fastapi.staticfiles import StaticFiles
+
+    base_dir = os.path.abspath(os.path.dirname(__file__))
+    static_dir = os.path.join(base_dir, "static")
+    public_dir = os.path.join(base_dir, "public")
+
+    if os.path.exists(static_dir):
+        app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    if os.path.exists(public_dir):
+        app.mount("/public", StaticFiles(directory=public_dir), name="public")
+
+    # Security headers middleware
+    @app.middleware("http")
+    async def set_security_headers(request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "SAMEORIGIN"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        return response
+
+    # Include native FastAPI routers
+    from app.routers.auth import auth_router
+    from app.routers.hub import hub_router
+    from app.routers.admin import admin_router
+    from app.routers.games import register_game_routes
+    from app.routers.errors import register_error_handlers
+
+    app.include_router(auth_router)
+    app.include_router(hub_router)
+    app.include_router(admin_router)
+    register_game_routes(app)
+    register_error_handlers(app)
+
+    class _AppContext:
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            pass
+
+    app.app_context = lambda: _AppContext()
+
+    logger.info("🚀 Unified Pure FastAPI Tier S Backend Active: 100% ASGI platform, games & WebSockets")
 
 else:
     logger.info("FastAPI not installed in current environment. Install via pip install fastapi uvicorn.")

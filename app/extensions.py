@@ -1,17 +1,32 @@
-"""Flask extension instances initialized without app context (Application Factory Pattern)."""
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-from flask_login import LoginManager
-from flask_migrate import Migrate
-from flask_sqlalchemy import SQLAlchemy
-from flask_wtf.csrf import CSRFProtect
+"""Native extensions and compatibility proxies for Pixora (Flask-Free Architecture)."""
+from app.database import db
 
-db = SQLAlchemy()
-login_manager = LoginManager()
-login_manager.login_view = 'auth.login'
-login_manager.login_message = 'Please log in to access this page.'
-login_manager.login_message_category = 'warning'
+__all__ = ["db", "csrf", "limiter", "login_manager", "migrate"]
 
-csrf = CSRFProtect()
-limiter = Limiter(key_func=get_remote_address, default_limits=["200 per day", "50 per hour"])
-migrate = Migrate()
+
+class NoOpDecorator:
+    """Pass-through decorator for retired Flask extension wrappers."""
+    def __call__(self, *args, **kwargs):
+        if len(args) == 1 and callable(args[0]):
+            return args[0]
+        def decorator(f):
+            return f
+        return decorator
+
+    def exempt(self, f):
+        return f
+
+    def limit(self, *args, **kwargs):
+        def decorator(f):
+            return f
+        return decorator
+
+    def init_app(self, *args, **kwargs):
+        pass
+
+
+csrf = NoOpDecorator()
+limiter = NoOpDecorator()
+login_manager = NoOpDecorator()
+migrate = NoOpDecorator()
+

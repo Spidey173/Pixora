@@ -1,45 +1,40 @@
 """SQLAlchemy database models for Pixora."""
 from datetime import datetime, timezone
+from typing import Optional
 
-from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from app.extensions import db, login_manager
+from app.database import db
 
 
-@login_manager.user_loader
-def load_user(user_id):
-    """Load user by ID for Flask-Login with serverless instance resilience."""
+class UserMixin:
+    """Authentication user mixin for session compatibility."""
+    is_active: bool = True
+    is_authenticated: bool = True
+    is_anonymous: bool = False
+
+    def get_id(self) -> str:
+        return str(getattr(self, 'id', ''))
+
+
+class AnonymousUser:
+    """Anonymous user representation."""
+    is_active: bool = False
+    is_authenticated: bool = False
+    is_anonymous: bool = True
+    id: Optional[int] = None
+    username: str = "Guest Pilot"
+    is_admin: bool = False
+
+
+def load_user(user_id) -> Optional['User']:
+    """Load user by ID from database."""
     try:
         uid = int(user_id)
     except (ValueError, TypeError):
         return None
 
-    user = db.session.get(User, uid)
-    if user:
-        return user
-
-    # Resilient serverless fallback: If SQLite was re-initialized in an ephemeral lambda
-    # retrieve user by username from session or recreate the active pilot record
-    try:
-        from flask import session as flask_session
-        pilot_username = flask_session.get('pilot_username')
-        if pilot_username:
-            user = User.query.filter_by(username=pilot_username).first()
-            if not user:
-                user = User(
-                    username=pilot_username,
-                    is_guest=flask_session.get('is_guest', True),
-                    created_at=datetime.now(timezone.utc),
-                    last_seen=datetime.now(timezone.utc)
-                )
-                db.session.add(user)
-                db.session.commit()
-            return user
-    except Exception:
-        db.session.rollback()
-
-    return None
+    return db.session.get(User, uid)
 
 
 
@@ -221,4 +216,12 @@ class Game(db.Model):
 
     def __repr__(self):
         return f"<Game id={self.id} slug='{self.slug}' title='{self.title}'>"
+
+
+# Attach query property for backward compatibility with existing services & tests
+User.query = db.session.query_property()
+GameplaySession.query = db.session.query_property()
+GameScore.query = db.session.query_property()
+Game.query = db.session.query_property()
+
 

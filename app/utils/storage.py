@@ -28,18 +28,21 @@ class CloudflareR2Storage:
 
         if app:
             self.init_app(app)
+        else:
+            self._init_from_settings()
 
-    def init_app(self, app):
-        """Initialize R2 client with Flask application config."""
-        self.enabled = app.config.get('CLOUDFLARE_R2_ENABLED', False)
-        self.bucket_name = app.config.get('CLOUDFLARE_R2_BUCKET_NAME')
-        self.public_url = (app.config.get('CLOUDFLARE_R2_PUBLIC_URL') or '').rstrip('/')
-        endpoint_url = app.config.get('CLOUDFLARE_R2_ENDPOINT_URL')
-        access_key = app.config.get('CLOUDFLARE_R2_ACCESS_KEY_ID')
-        secret_key = app.config.get('CLOUDFLARE_R2_SECRET_ACCESS_KEY')
+    def _init_from_settings(self):
+        """Initialize R2 client directly from app.config settings without Flask dependency."""
+        from app.config import settings
+        self.enabled = getattr(settings, 'CLOUDFLARE_R2_ENABLED', False)
+        self.bucket_name = getattr(settings, 'CLOUDFLARE_R2_BUCKET_NAME', 'glitch4ce-games')
+        self.public_url = (getattr(settings, 'CLOUDFLARE_R2_PUBLIC_URL', '') or 'https://pub-bbadfb1090074e17b2f5293b549ce094.r2.dev').rstrip('/')
+        endpoint_url = getattr(settings, 'CLOUDFLARE_R2_ENDPOINT_URL', '')
+        access_key = getattr(settings, 'CLOUDFLARE_R2_ACCESS_KEY_ID', '')
+        secret_key = getattr(settings, 'CLOUDFLARE_R2_SECRET_ACCESS_KEY', '')
 
         if not BOTO3_AVAILABLE or not self.enabled or not (endpoint_url and access_key and secret_key):
-            logger.info("Cloudflare R2 is disabled or boto3 not available; running in local fallback mode.")
+            logger.info("Cloudflare R2 running in public edge CDN resolution mode.")
             return
 
         try:
@@ -53,7 +56,34 @@ class CloudflareR2Storage:
             )
             logger.info("Cloudflare R2 Storage client initialized successfully.")
         except Exception as e:
-            logger.error(f"Failed to initialize Cloudflare R2 client: {e}")
+            logger.error("Failed to initialize Cloudflare R2 client: %s", e)
+            self.s3_client = None
+
+    def init_app(self, app):
+        """Initialize R2 client with application config object."""
+        self.enabled = app.config.get('CLOUDFLARE_R2_ENABLED', False)
+        self.bucket_name = app.config.get('CLOUDFLARE_R2_BUCKET_NAME')
+        self.public_url = (app.config.get('CLOUDFLARE_R2_PUBLIC_URL') or '').rstrip('/')
+        endpoint_url = app.config.get('CLOUDFLARE_R2_ENDPOINT_URL')
+        access_key = app.config.get('CLOUDFLARE_R2_ACCESS_KEY_ID')
+        secret_key = app.config.get('CLOUDFLARE_R2_SECRET_ACCESS_KEY')
+
+        if not BOTO3_AVAILABLE or not self.enabled or not (endpoint_url and access_key and secret_key):
+            logger.info("Cloudflare R2 running in public edge CDN resolution mode.")
+            return
+
+        try:
+            self.s3_client = boto3.client(
+                's3',
+                endpoint_url=endpoint_url,
+                aws_access_key_id=access_key,
+                aws_secret_access_key=secret_key,
+                region_name='auto',
+                config=Config(s3={'addressing_style': 'path'})
+            )
+            logger.info("Cloudflare R2 Storage client initialized successfully.")
+        except Exception as e:
+            logger.error("Failed to initialize Cloudflare R2 client: %s", e)
             self.s3_client = None
 
     def is_ready(self) -> bool:

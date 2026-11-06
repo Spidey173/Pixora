@@ -13,10 +13,11 @@ Verifies the Platform / Poki Architecture in a real headless browser:
 """
 
 import os
+import socket
 import threading
 import time
 import pytest
-from werkzeug.serving import make_server
+import uvicorn
 
 from app import create_app
 from app.extensions import db
@@ -92,14 +93,20 @@ def browser_test_env():
         db.session.add(pilot)
         db.session.commit()
 
-    server = make_server("127.0.0.1", 0, flask_app, threaded=True)
-    port = server.port
-    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind(("127.0.0.1", 0))
+    port = sock.getsockname()[1]
+    sock.close()
+
+    config = uvicorn.Config(app=flask_app, host="127.0.0.1", port=port, log_level="error")
+    server = uvicorn.Server(config)
+    server_thread = threading.Thread(target=server.run, daemon=True)
     server_thread.start()
+    time.sleep(0.5)
 
     # Pre-flight check: Can Chromium connect to loopback?
     if not _check_browser_loopback(port):
-        server.shutdown()
+        server.should_exit = True
         with flask_app.app_context():
             db.session.remove()
             db.drop_all()
@@ -112,7 +119,7 @@ def browser_test_env():
     yield {"url": base_url, "app": flask_app, "port": port}
 
     # Clean shutdown
-    server.shutdown()
+    server.should_exit = True
     with flask_app.app_context():
         db.session.remove()
         db.drop_all()
