@@ -793,6 +793,22 @@
             setTimeout(setupGameFrameBridge, 1500);
         });
 
+        // Offline / Local Development Fallback for CDN-hosted Games
+        const _origUrl = "{{ game.play_url }}";
+        const _slug = "{{ game.slug }}";
+        const _fallbackBundle = `/public/games/${_slug === 'neon-cyber-racer' ? 'neon-racer' : _slug}/index.html`;
+        if (_origUrl.startsWith('http') && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+            // In local environment, if CDN fails to respond, fallback to local bundle
+            fetch(_origUrl, { method: 'HEAD', mode: 'no-cors' }).catch(() => {
+                console.log(`[Pixora Poki Shell] CDN offline in local dev: switching to local web bundle ${_fallbackBundle}`);
+                gameFrame.src = _fallbackBundle;
+            });
+            gameFrame.addEventListener('error', () => {
+                console.log(`[Pixora Poki Shell] Iframe error: falling back to ${_fallbackBundle}`);
+                gameFrame.src = _fallbackBundle;
+            });
+        }
+
         // Auto-Start Gameplay Session for EVERY game
         fetch(`/start_game/${encodeURIComponent(GAME_TITLE)}`, { method: 'POST' }).catch(() => {});
 
@@ -902,7 +918,8 @@
         // Platform Shell Message Receiver (Pixora SDK Protocol v2 with Strict Origin Validation)
         const ALLOWED_ORIGINS = [
             window.location.origin,
-            'https://pub-bbadfb1090074e17b2f5293b549ce094.r2.dev'
+            'https://pub-bbadfb1090074e17b2f5293b549ce094.r2.dev',
+            'https://cdn.pixora.com'
         ];
 
         let activeV2Session = null;

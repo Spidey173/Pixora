@@ -54,7 +54,6 @@ def test_api_v2_session_end_valid(auth_client):
     # Start session 15 seconds in the past to allow realistic gameplay
     now_ms = int(time.time() * 1000) - 15000
     with auth_client.application.app_context():
-        from flask_login import current_user
         # Create token for player
         token = AntiCheatValidator.generate_session_token(1, 'flappybird', now_ms)
 

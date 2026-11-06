@@ -19,7 +19,7 @@ from typing import Dict, List, Optional
 try:
     from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, status
     from fastapi.middleware.cors import CORSMiddleware
-    from pydantic import BaseModel, Field
+    from pydantic import BaseModel
     FASTAPI_AVAILABLE = True
 except ImportError:
     FASTAPI_AVAILABLE = False
@@ -139,14 +139,20 @@ if FASTAPI_AVAILABLE:
     async def startup_event():
         global redis_client
         if AIOREDIS_AVAILABLE:
-            try:
-                redis_client = aioredis.from_url(REDIS_URL, decode_responses=True)
-                await redis_client.ping()
-                logger.info("Connected to Redis at %s", REDIS_URL)
-                # Launch Redis Pub/Sub listener task
-                asyncio.create_task(redis_pubsub_listener())
-            except Exception as e:
-                logger.warning("Redis async connection failed: %s; using in-memory mode", e)
+            for attempt in range(1, 11):
+                try:
+                    redis_client = aioredis.from_url(REDIS_URL, decode_responses=True)
+                    await redis_client.ping()
+                    logger.info("Connected to Redis at %s", REDIS_URL)
+                    # Launch Redis Pub/Sub listener task
+                    asyncio.create_task(redis_pubsub_listener())
+                    break
+                except Exception as e:
+                    logger.warning("Redis async connection attempt %d/10 failed: %s", attempt, e)
+                    if attempt < 10:
+                        await asyncio.sleep(1.5)
+                    else:
+                        logger.warning("Redis async connection could not be established; continuing in fallback mode")
 
     @app.on_event("shutdown")
     async def shutdown_event():
@@ -174,8 +180,26 @@ if FASTAPI_AVAILABLE:
             logger.warning("PubSub listener stopped: %s", e)
 
     # ─────────────────────────────────────────────────────────────
-    # ASYNC REST ENDPOINTS
+    # ASYNC REST ENDPOINTS & HEALTH
     # ─────────────────────────────────────────────────────────────
+
+    @app.get("/")
+    @app.get("/health")
+    @app.get("/api/health")
+    async def health_check():
+        redis_ok = False
+        if redis_client:
+            try:
+                await redis_client.ping()
+                redis_ok = True
+            except Exception:
+                pass
+        return {
+            "status": "healthy",
+            "service": "pixora-fastapi-gateway",
+            "redis": "connected" if redis_ok else "offline",
+            "version": "2.0.0"
+        }
 
     @app.post("/api/v2/session/start", response_model=SessionStartResponse)
     async def session_start(req: SessionStartRequest):

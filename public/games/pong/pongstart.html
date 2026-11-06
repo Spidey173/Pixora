@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select Mode - Pong Wars</title>
+    <style>
+        /* Animated Background */
+        @keyframes bgAnimation {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* General Body Styling */
+        body {
+            background: linear-gradient(135deg, #ff6a00, #ff8c00, #ffeb3b, #c2185b);
+            background-size: 400% 400%;
+            animation: bgAnimation 10s infinite alternate;
+            font-family: 'Arial', sans-serif;
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            text-align: center;
+        }
+
+        /* Title Styling */
+        h1 {
+            font-size: 55px;
+            color: black;
+            letter-spacing: 3px;
+            margin-bottom: 40px;
+            text-transform: uppercase;
+        }
+
+        /* Mode Container */
+        .modes-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 40px;
+            max-width: 900px;
+        }
+
+        /* Mode Frame (Glassmorphism & Neon Glow) */
+        .mode-frame {
+            width: 380px;
+            height: 220px;
+            background-size: cover;
+            background-position: center;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+            position: relative;
+            box-shadow: 0px 0px 10px rgba(255, 255, 255, 0.4);
+            border: 3px solid transparent;
+        }
+
+        /* Hover Effects - Neon Pulse */
+        .mode-frame:hover {
+            transform: scale(1.15) rotate(3deg);
+            box-shadow: 0px 0px 20px rgba(255, 255, 255, 0.8),
+                        0px 0px 40px rgba(255, 165, 0, 0.9);
+            border: 3px solid rgba(255, 255, 255, 0.6);
+        }
+
+        /* Mode Title with Neon Glow */
+        .mode-title {
+            color: black;
+            font-size: 40px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+    </style>
+
+<!-- Pixora Platform SDK v2 Bundle Bridge (Poki / Static CDN Architecture) -->
+<script>
+(function() {
+    'use strict';
+    const GAME_SLUG = "pong";
+    const GAME_TITLE = "Vector Pong Classic";
+
+    // 1. Universal Pixora / Glitch4ce SDK Client
+    const PixoraBridge = {
+        init: function() {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({
+                    source: 'PIXORA_GAME_CLIENT',
+                    type: 'PIXORA_HANDSHAKE',
+                    payload: { gameId: GAME_SLUG, version: '2.0.0' }
+                }, '*');
+            }
+        },
+        gameplayStart: function() {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({
+                    source: 'PIXORA_GAME_CLIENT',
+                    type: 'PIXORA_GAMEPLAY_START',
+                    payload: { game: GAME_TITLE, timestamp: Date.now() }
+                }, '*');
+            }
+        },
+        gameplayStop: function() {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({
+                    source: 'PIXORA_GAME_CLIENT',
+                    type: 'PIXORA_GAMEPLAY_STOP',
+                    payload: { game: GAME_TITLE, timestamp: Date.now() }
+                }, '*');
+            }
+        },
+        recordAction: function(action) {
+            // Track physical player interaction for anti-cheat entropy
+        },
+        submitScore: function(scoreVal) {
+            const num = Math.floor(Number(scoreVal));
+            if (isNaN(num) || num < 0) return;
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({
+                    source: 'PIXORA_GAME_CLIENT',
+                    type: 'PIXORA_SUBMIT_SCORE',
+                    payload: { game: GAME_TITLE, score: num, timestamp: Date.now() }
+                }, '*');
+            }
+        }
+    };
+
+    window.Pixora = window.Pixora || PixoraBridge;
+    window.Glitch4ce = window.Glitch4ce || PixoraBridge;
+
+    // Auto-initiate handshake with parent theater shell
+    PixoraBridge.init();
+    PixoraBridge.gameplayStart();
+
+    // Hook common score end functions
+    window.addEventListener('load', function() {
+        let _submitted = false;
+        function autoSubmit(val) {
+            const s = Math.floor(Number(val));
+            if (isNaN(s) || s <= 0 || _submitted) return;
+            _submitted = true;
+            PixoraBridge.submitScore(s);
+            setTimeout(() => { _submitted = false; }, 4000);
+        }
+
+        ['endGame', 'showResult', 'gameOver', 'showFinalScore', 'checkCompletion'].forEach(fn => {
+            if (typeof window[fn] === 'function') {
+                const orig = window[fn];
+                window[fn] = function(...args) {
+                    const res = orig.apply(this, args);
+                    const score = window.score || 
+                                  (window.player1 ? Math.max(window.player1.score, (window.player2 ? window.player2.score : 0)) * 100 : null) || 
+                                  (window.correctAnswers ? window.correctAnswers * 100 : null);
+                    if (score) autoSubmit(score);
+                    return res;
+                };
+            }
+        });
+    });
+})();
+</script>
+</head>
+<body>
+    <h1>Select Mode</h1>
+    <div class="modes-container">
+        <div>
+            <div class="mode-frame" style="background-image: url('/static/Games/pong/field.png');" onclick="window.location.href='pongeasy.html'"></div>
+            <div class="mode-title">Easy</div>
+        </div>
+        <div>
+            <div class="mode-frame" style="background-image: url('/static/Games/pong/field.png');" onclick="window.location.href='pongmedium.html'"></div>
+            <div class="mode-title">Medium</div>
+        </div>
+        <div>
+            <div class="mode-frame" style="background-image: url('/static/Games/pong/field.png');" onclick="window.location.href='ponghard.html'"></div>
+            <div class="mode-title">Hard</div>
+        </div>
+        <div>
+            <div class="mode-frame" style="background-image: url('/static/Games/pong/football.png');" onclick="window.location.href='football.html'"></div>
+            <div class="mode-title">Football</div>
+        </div>
+    </div>
+</body>
+</html>

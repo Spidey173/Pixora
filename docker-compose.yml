@@ -1,0 +1,134 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pixora-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pixora}
+      POSTGRES_USER: ${POSTGRES_USER:-pixora}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pixora_secret_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pixora} -d ${POSTGRES_DB:-pixora}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - pixora-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: pixora-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 3s
+    networks:
+      - pixora-net
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pixora-gateway
+    restart: unless-stopped
+    command: uvicorn gateway:app --host 0.0.0.0 --port 8000 --workers 2
+    ports:
+      - "${GATEWAY_PORT:-8000}:8000"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - TELEMETRY_STREAM_KEY=pixora:telemetry
+      - SECRET_KEY=${SECRET_KEY:-pixora-production-gateway-secret-key-32chars}
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - pixora-net
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pixora-worker
+    restart: unless-stopped
+    command: python worker.py --worker-name=worker-compose-1 --batch-size=50
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-pixora}:${POSTGRES_PASSWORD:-pixora_secret_password}@postgres:5432/${POSTGRES_DB:-pixora}
+      - REDIS_URL=redis://redis:6379/0
+      - TELEMETRY_STREAM_KEY=pixora:telemetry
+      - TELEMETRY_GROUP_NAME=pixora_telemetry_group
+      - TELEMETRY_DLQ_KEY=pixora:telemetry:dlq
+      - SECRET_KEY=${SECRET_KEY:-pixora-production-worker-secret-key-32chars}
+      - FLASK_ENV=production
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - pixora-net
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pixora-web
+    restart: unless-stopped
+    command: >
+      sh -c "alembic upgrade head &&
+             python -m app.utils.seed_games &&
+             gunicorn app:app --bind 0.0.0.0:5000 --workers 4 --threads 2 --access-logfile - --error-logfile -"
+    ports:
+      - "${WEB_PORT:-5000}:5000"
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-pixora}:${POSTGRES_PASSWORD:-pixora_secret_password}@postgres:5432/${POSTGRES_DB:-pixora}
+      - REDIS_URL=redis://redis:6379/0
+      - RATELIMIT_STORAGE_URI=redis://redis:6379/0
+      - GATEWAY_URL=http://gateway:8000
+      - SECRET_KEY=${SECRET_KEY:-pixora-production-web-secret-key-32chars}
+      - FLASK_ENV=production
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - pixora-net
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  pixora-net:
+    driver: bridge
+

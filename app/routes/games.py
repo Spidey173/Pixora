@@ -7,8 +7,9 @@ Architectural Features:
 - Full 100% Backward Compatibility with legacy endpoints and test suites
 - Dynamic metadata inspection helpers (get_all_games, get_game_by_path, get_categories)
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import logging
+import os
 from typing import Dict, List, Optional
 
 from flask import Blueprint, make_response, render_template
@@ -17,6 +18,7 @@ from jinja2 import TemplateNotFound
 logger = logging.getLogger('pixora.games')
 
 games_bp = Blueprint('games_catalog', __name__)
+basedir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 
 @dataclass(frozen=True)
@@ -694,36 +696,82 @@ def _generate_universal_bridge_script(slug: str, title: str) -> str:
 """
 
 
+def _resolve_bundle_html(template_path: str, game_def: Optional[GameDefinition] = None) -> Optional[str]:
+    """Resolve static web bundle HTML for catalog games loaded from /public/games/."""
+    parts = template_path.replace('\\', '/').split('/')
+    filename = parts[-1] if parts else ''
+    candidates = []
+
+    if game_def:
+        candidates.append(os.path.join(basedir, 'public', 'games', game_def.slug, filename))
+        candidates.append(os.path.join(basedir, 'public', 'games', game_def.slug, 'index.html'))
+
+    if len(parts) >= 2:
+        folder = parts[-2].lower().replace(' ', '').replace('_', '')
+        candidates.append(os.path.join(basedir, 'public', 'games', folder, filename))
+        candidates.append(os.path.join(basedir, 'public', 'games', folder, 'index.html'))
+        folder_map = {
+            'candycrush': 'candy-crush',
+            'crossword': 'crossword',
+            'wakeamole': 'mole',
+            'stonepaperscissors': 'stonepapersissors',
+            'stonepapersissors': 'stonepapersissors',
+            'memorymatch': 'memorymatch',
+            'relationship': 'relationship',
+            'sequence': 'sequence',
+            'tricky': 'tricky',
+            'towerblock': 'towerblock',
+            'tictactoe': 'tictactoe',
+            'pong': 'pong',
+            'maze': 'maze',
+            'quiz': 'quiz',
+        }
+        mapped_folder = folder_map.get(folder)
+        if mapped_folder:
+            candidates.append(os.path.join(basedir, 'public', 'games', mapped_folder, filename))
+            candidates.append(os.path.join(basedir, 'public', 'games', mapped_folder, 'index.html'))
+
+    for candidate in candidates:
+        if candidate and os.path.isfile(candidate):
+            try:
+                with open(candidate, 'r', encoding='utf-8') as f:
+                    return f.read()
+            except Exception as e:
+                logger.warning("Could not read bundle candidate %s: %s", candidate, e)
+    return None
+
+
 def create_game_view(template_path: str, game_def: Optional[GameDefinition] = None):
     """Factory creating view function with automatic PixoraSDK v2 injection and security headers."""
     def view():
         try:
             rendered = render_template(template_path)
-
-            # Auto-inject PixoraSDK v2 & universal bridge if not already present in the HTML template
-            if '<script src="/static/js/pixora-sdk.js"></script>' not in rendered:
-                game_slug = game_def.slug if game_def else 'arcade-game'
-                game_title = game_def.title if game_def else 'Arcade Game'
-                sdk_snippet = _generate_universal_bridge_script(game_slug, game_title)
-
-                if '</head>' in rendered:
-                    rendered = rendered.replace('</head>', f'{sdk_snippet}</head>', 1)
-                elif '</body>' in rendered:
-                    rendered = rendered.replace('</body>', f'{sdk_snippet}</body>', 1)
-                else:
-                    rendered = rendered + sdk_snippet
-
-            response = make_response(rendered)
-            response.headers['X-Frame-Options'] = 'SAMEORIGIN'
-            response.headers['X-Content-Type-Options'] = 'nosniff'
-            return response
-
         except TemplateNotFound:
-            logger.warning("Game template '%s' not found.", template_path)
-            return render_template('errors/404.html'), 404
+            rendered = _resolve_bundle_html(template_path, game_def)
+            if rendered is None:
+                logger.warning("Game template or bundle '%s' not found.", template_path)
+                return render_template('errors/404.html'), 404
         except Exception as err:
             logger.error("Error rendering game template '%s': %s", template_path, err)
             raise
+
+        # Auto-inject PixoraSDK v2 & universal bridge if not already present in the HTML template
+        if '<script src="/static/js/pixora-sdk.js"></script>' not in rendered and 'PIXORA_GAME_CLIENT' not in rendered:
+            game_slug = game_def.slug if game_def else 'arcade-game'
+            game_title = game_def.title if game_def else 'Arcade Game'
+            sdk_snippet = _generate_universal_bridge_script(game_slug, game_title)
+
+            if '</head>' in rendered:
+                rendered = rendered.replace('</head>', f'{sdk_snippet}</head>', 1)
+            elif '</body>' in rendered:
+                rendered = rendered.replace('</body>', f'{sdk_snippet}</body>', 1)
+            else:
+                rendered = rendered + sdk_snippet
+
+        response = make_response(rendered)
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        return response
 
     return view
 

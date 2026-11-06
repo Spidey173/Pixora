@@ -64,17 +64,27 @@ class TelemetryStreamWorker:
         logger.info("Shutdown signal received (%s). Draining and stopping worker...", signum)
         self.running = False
 
-    def _ensure_stream_and_group(self):
-        """Ensure Redis stream and consumer group exist."""
-        try:
-            self.redis_client.xgroup_create(STREAM_KEY, GROUP_NAME, id="0", mkstream=True)
-            logger.info("Created Consumer Group '%s' on Stream '%s'", GROUP_NAME, STREAM_KEY)
-        except redis.exceptions.ResponseError as e:
-            if "BUSYGROUP" in str(e):
-                logger.info("Consumer Group '%s' already exists on Stream '%s'", GROUP_NAME, STREAM_KEY)
-            else:
-                logger.error("Error creating consumer group: %s", e)
-                raise
+    def _ensure_stream_and_group(self, max_retries: int = 15, retry_delay: float = 2.0):
+        """Ensure Redis stream and consumer group exist, retrying on startup if Redis is initializing."""
+        for attempt in range(1, max_retries + 1):
+            try:
+                self.redis_client.ping()
+                try:
+                    self.redis_client.xgroup_create(STREAM_KEY, GROUP_NAME, id="0", mkstream=True)
+                    logger.info("Created Consumer Group '%s' on Stream '%s'", GROUP_NAME, STREAM_KEY)
+                except redis.exceptions.ResponseError as e:
+                    if "BUSYGROUP" in str(e):
+                        logger.info("Consumer Group '%s' already exists on Stream '%s'", GROUP_NAME, STREAM_KEY)
+                    else:
+                        logger.error("Error creating consumer group: %s", e)
+                        raise
+                return
+            except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError) as conn_err:
+                if attempt == max_retries:
+                    logger.critical("Failed to connect to Redis at %s after %d attempts: %s", REDIS_URL, max_retries, conn_err)
+                    raise
+                logger.warning("Redis connection attempt %d/%d failed: %s. Retrying in %.1fs...", attempt, max_retries, conn_err, retry_delay)
+                time.sleep(retry_delay)
 
     def process_batch(self, app):
         """Read and process a batch of telemetry events."""
@@ -104,6 +114,7 @@ class TelemetryStreamWorker:
 
         acked_ids = []
         score_records = []
+        session_records = []
         dlq_records = []
 
         with app.app_context():
@@ -127,6 +138,26 @@ class TelemetryStreamWorker:
                             score=score_val,
                             achieved_at=achieved_dt
                         ))
+                    elif event_type in ("session", "gameplay", "session_end"):
+                        started_str = payload.get("started_at")
+                        ended_str = payload.get("ended_at")
+                        duration_sec = int(payload.get("duration_seconds", 0))
+                        try:
+                            started_dt = datetime.fromisoformat(started_str) if started_str else datetime.now(timezone.utc)
+                        except Exception:
+                            started_dt = datetime.now(timezone.utc)
+                        try:
+                            ended_dt = datetime.fromisoformat(ended_str) if ended_str else datetime.now(timezone.utc)
+                        except Exception:
+                            ended_dt = datetime.now(timezone.utc)
+
+                        session_records.append(GameplaySession(
+                            player_id=player_id,
+                            game_name=game_name,
+                            started_at=started_dt,
+                            ended_at=ended_dt,
+                            duration_seconds=duration_sec
+                        ))
                     acked_ids.append(msg_id)
 
                 except Exception as ex:
@@ -134,11 +165,14 @@ class TelemetryStreamWorker:
                     dlq_records.append((msg_id, payload, str(ex)))
 
             # Batch insert to DB
-            if score_records:
+            if score_records or session_records:
                 try:
-                    db.session.add_all(score_records)
+                    if score_records:
+                        db.session.add_all(score_records)
+                    if session_records:
+                        db.session.add_all(session_records)
                     db.session.commit()
-                    logger.info("Committed batch of %d scores to database", len(score_records))
+                    logger.info("Committed batch (%d scores, %d sessions) to database", len(score_records), len(session_records))
                 except Exception as db_err:
                     db.session.rollback()
                     logger.critical("Database batch commit failed: %s", db_err)

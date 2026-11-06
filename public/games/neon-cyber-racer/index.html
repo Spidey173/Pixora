@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Cyber Racer // Pixora Engine</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.80.1/phaser.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: #060812;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: 'Courier New', monospace;
+            user-select: none;
+        }
+        #canvas-holder {
+            box-shadow: 0 0 40px rgba(0, 240, 255, 0.35), 0 0 100px rgba(0, 0, 0, 0.9);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+    </style>
+</head>
+<body>
+<div id="canvas-holder"></div>
+
+<script>
+    // ─── EMBEDDED PIXORA PLATFORM SDK (ZERO 404 FAILURE RISK) ───
+    const Glitch4ce = {
+        init: function() {
+            window.parent.postMessage({
+                source: 'GLITCH4CE_GAME_CLIENT',
+                type: 'GLITCH4CE_HANDSHAKE',
+                payload: { gameId: 'neon-cyber-racer', version: '2.0.0' }
+            }, '*');
+        },
+        gameplayStart: function() {
+            window.parent.postMessage({
+                source: 'GLITCH4CE_GAME_CLIENT',
+                type: 'GLITCH4CE_GAMEPLAY_START',
+                payload: { game: 'Neon Cyber Racer', timestamp: Date.now() }
+            }, '*');
+        },
+        submitScore: function(scoreVal) {
+            window.parent.postMessage({
+                source: 'GLITCH4CE_GAME_CLIENT',
+                type: 'GLITCH4CE_SUBMIT_SCORE',
+                payload: { game: 'Neon Cyber Racer', score: Math.floor(scoreVal), timestamp: Date.now() }
+            }, '*');
+        }
+    };
+    window.Glitch4ce = Glitch4ce;
+
+    // ─── GAME STATE & VARIABLES ───
+    let score = 0;
+    let scoreText;
+    let boostText;
+    let controlsHintText;
+    let player;
+    let thruster;
+    let obstacles;
+    let cursors;
+    let keyW, keyA, keyS, keyD, keySpace;
+    let gameOver = false;
+    let isBoosting = false;
+    let speedMultiplier = 1;
+    let spawnTimer;
+
+    const config = {
+        type: Phaser.AUTO,
+        width: 840,
+        height: 520,
+        parent: 'canvas-holder',
+        physics: {
+            default: 'arcade',
+            arcade: { gravity: { y: 0 }, debug: false }
+        },
+        scene: {
+            preload: preload,
+            create: create,
+            update: update
+        }
+    };
+
+    const game = new Phaser.Game(config);
+
+    function preload() {
+        Glitch4ce.init();
+    }
+
+    function create() {
+        gameOver = false;
+        score = 0;
+        isBoosting = false;
+        speedMultiplier = 1;
+
+        // Auto-focus canvas window on creation and click so controls work immediately
+        window.focus();
+        this.input.on('pointerdown', () => { window.focus(); });
+
+        // 1. Cyberpunk Synthwave Grid Backdrop
+        const grid = this.add.grid(420, 260, 840, 520, 40, 40, 0x050711, 1, 0x00f0ff, 0.14);
+
+        // 2. Neon Spaceship Graphic
+        const graphics = this.add.graphics();
+        graphics.fillStyle(0x00f0ff, 1);
+        graphics.beginPath();
+        graphics.moveTo(34, 16);
+        graphics.lineTo(0, 32);
+        graphics.lineTo(6, 16);
+        graphics.lineTo(0, 0);
+        graphics.closePath();
+        graphics.fillPath();
+
+        // Cockpit highlight
+        graphics.fillStyle(0xffffff, 1);
+        graphics.fillRect(14, 14, 8, 4);
+
+        graphics.generateTexture('neonShip', 36, 32);
+        graphics.destroy();
+
+        // 3. Thruster Flame Graphic
+        const flameG = this.add.graphics();
+        flameG.fillStyle(0xff007f, 1);
+        flameG.beginPath();
+        flameG.moveTo(0, 16);
+        flameG.lineTo(16, 22);
+        flameG.lineTo(12, 16);
+        flameG.lineTo(16, 10);
+        flameG.closePath();
+        flameG.fillPath();
+        flameG.generateTexture('thrusterFlame', 18, 32);
+        flameG.destroy();
+
+        // 4. Obstacle Graphics (Quantum Lasers & Mine Blocks)
+        const obsG = this.add.graphics();
+        obsG.fillStyle(0xff1a35, 1);
+        obsG.fillRect(0, 0, 26, 52);
+        obsG.lineStyle(2, 0xff8594, 1);
+        obsG.strokeRect(0, 0, 26, 52);
+        obsG.generateTexture('laserBarrier', 26, 52);
+        obsG.destroy();
+
+        // Player Sprite
+        player = this.physics.add.sprite(120, 260, 'neonShip');
+        player.setCollideWorldBounds(true);
+        player.setDepth(10);
+
+        // Thruster attached behind player
+        thruster = this.add.image(105, 260, 'thrusterFlame');
+        thruster.setDepth(9);
+
+        // Obstacles Group
+        obstacles = this.physics.add.group();
+
+        // Obstacle Spawner Event
+        spawnTimer = this.time.addEvent({
+            delay: 650,
+            callback: spawnObstacle,
+            callbackScope: this,
+            loop: true
+        });
+
+        // HUD: Telemetry & Distance Counter
+        scoreText = this.add.text(24, 20, 'DISTANCE: 0 KM', {
+            fontSize: '20px',
+            fill: '#00f0ff',
+            fontFamily: 'Courier New',
+            fontStyle: 'bold'
+        }).setDepth(20);
+
+        boostText = this.add.text(24, 48, '[CRUISE VELOCITY]', {
+            fontSize: '13px',
+            fill: '#94a3b8',
+            fontFamily: 'Courier New',
+            fontStyle: 'bold'
+        }).setDepth(20);
+
+        controlsHintText = this.add.text(820, 20, 'STEER: ARROWS or A/D | BOOST: SPACEBAR', {
+            fontSize: '12px',
+            fill: '#526077',
+            fontFamily: 'Courier New',
+            align: 'right'
+        }).setOrigin(1, 0).setDepth(20);
+
+        // 5. FLIGHT CONTROLS REGISTRATION (ARROWS + A/D + SPACEBAR)
+        cursors = this.input.keyboard.createCursorKeys();
+        keyW = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W);
+        keyA = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
+        keyS = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S);
+        keyD = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
+        keySpace = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+
+        // Collision Handler
+        this.physics.add.overlap(player, obstacles, hitObstacle, null, this);
+
+        // Inform Pixora Platform that gameplay has initiated
+        Glitch4ce.gameplayStart();
+    }
+
+    function spawnObstacle() {
+        if (gameOver) return;
+        const y = Phaser.Math.Between(45, 475);
+        const obs = obstacles.create(890, y, 'laserBarrier');
+        
+        // Base speed scaled by boost multiplier
+        const currentSpeed = (360 + (score * 3)) * (isBoosting ? 1.6 : 1.0);
+        obs.setVelocityX(-currentSpeed);
+        obs.checkWorldBounds = true;
+        obs.outOfBoundsKill = true;
+    }
+
+    function update() {
+        if (gameOver) {
+            // Allow restarting with Spacebar or pointer after game over
+            if (Phaser.Input.Keyboard.JustDown(keySpace)) {
+                this.scene.restart();
+            }
+            return;
+        }
+
+        // ─── BOOST CONTROLS (SPACEBAR) ───
+        if (keySpace.isDown) {
+            isBoosting = true;
+            speedMultiplier = 1.85;
+            boostText.setText('⚡ NITRO BOOST [SPACEBAR ACTIVE]');
+            boostText.setFill('#ffb800');
+            player.setTint(0xffb800);
+            thruster.setScale(1.8, 1.4);
+            thruster.setTint(0xff007f);
+            score += 3; // Triple distance accumulation during nitro boost!
+        } else {
+            isBoosting = false;
+            speedMultiplier = 1.0;
+            boostText.setText('[CRUISE VELOCITY] HOLD SPACE TO BOOST');
+            boostText.setFill('#94a3b8');
+            player.clearTint();
+            thruster.setScale(1.0, 1.0);
+            thruster.clearTint();
+            score += 1;
+        }
+
+        // Keep thruster flame positioned right behind the spaceship
+        thruster.setPosition(player.x - 24, player.y);
+
+        // ─── FLIGHT STEERING (ARROW KEYS OR A/D/W/S) ───
+        const baseSpeed = 260 * speedMultiplier;
+        let vx = 0;
+        let vy = 0;
+
+        // Up: Up Arrow OR W Key
+        if (cursors.up.isDown || keyW.isDown) {
+            vy = -baseSpeed;
+        }
+        // Down: Down Arrow OR S Key
+        else if (cursors.down.isDown || keyS.isDown) {
+            vy = baseSpeed;
+        }
+
+        // Left / Steer Backward: Left Arrow OR A Key
+        if (cursors.left.isDown || keyA.isDown) {
+            vx = -baseSpeed * 0.8;
+        }
+        // Right / Steer Forward: Right Arrow OR D Key
+        else if (cursors.right.isDown || keyD.isDown) {
+            vx = baseSpeed * 0.9;
+        }
+
+        player.setVelocity(vx, vy);
+
+        // HUD Update
+        const currentDistance = Math.floor(score / 5);
+        scoreText.setText('DISTANCE: ' + currentDistance + ' KM');
+    }
+
+    function hitObstacle(playerObj, obsObj) {
+        if (gameOver) return;
+        gameOver = true;
+        this.physics.pause();
+
+        playerObj.setTint(0xff1a35);
+        thruster.setVisible(false);
+
+        const finalScore = Math.floor(score / 5);
+
+        // Display High-End Cyberpunk Game Over Screen
+        const box = this.add.graphics();
+        box.fillStyle(0x0a0c16, 0.92);
+        box.lineStyle(2, 0xff1a35, 1);
+        box.fillRoundedRect(190, 130, 460, 260, 12);
+        box.strokeRoundedRect(190, 130, 460, 260, 12);
+        box.setDepth(100);
+
+        this.add.text(420, 175, 'CRASH DETECTED // GAME OVER', {
+            fontSize: '22px',
+            fill: '#ff1a35',
+            fontFamily: 'Courier New',
+            fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(101);
+
+        this.add.text(420, 225, 'FINAL FLIGHT DISTANCE', {
+            fontSize: '13px',
+            fill: '#94a3b8',
+            fontFamily: 'Courier New'
+        }).setOrigin(0.5).setDepth(101);
+
+        this.add.text(420, 265, finalScore + ' KM', {
+            fontSize: '38px',
+            fill: '#00f0ff',
+            fontFamily: 'Courier New',
+            fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(101);
+
+        this.add.text(420, 315, '🏆 RECORDED TO HALL OF FAME', {
+            fontSize: '13px',
+            fill: '#00ff66',
+            fontFamily: 'Courier New',
+            fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(101);
+
+        this.add.text(420, 355, '[PRESS SPACEBAR OR CLICK TO RELAUNCH]', {
+            fontSize: '12px',
+            fill: '#e5a93c',
+            fontFamily: 'Courier New'
+        }).setOrigin(0.5).setDepth(101);
+
+        // ─── TRANSMIT SCORE TO PIXORA PLATFORM & LEADERBOARD ───
+        Glitch4ce.submitScore(finalScore);
+
+        // Click to restart
+        this.input.once('pointerdown', () => {
+            this.scene.restart();
+        });
+    }
+</script>
+</body>
+</html>

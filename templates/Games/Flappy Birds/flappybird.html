@@ -198,6 +198,17 @@ body::before {
 
     <audio id="flyingSound" src="flap.mp3" loop></audio>
     <audio id="deathSound" src="death.mp3"></audio>
+
+    <!-- 
+    =============================================================================
+    PIXORASDK V2 REFERENCE IMPLEMENTATION (FEATURED REPOSITORY DEMO 2/3: FLAPPY BIRD)
+    Demonstrates the Authoritative Platform Anti-Cheat Handshake & Telemetry:
+      1. Handshake Handshake:  Pixora.init({ gameSlug: 'flappybird' })
+      2. Proof-of-Gameplay:    Pixora.gameplayStart()
+      3. Action Entropy:       Pixora.recordAction('flap') [Space / Jump / Click]
+      4. Anti-Cheat Submit:    Pixora.gameplayStop(); Pixora.submitScore(score)
+    =============================================================================
+    -->
     <script src="/static/js/pixora-sdk.js"></script>
 
     <script>

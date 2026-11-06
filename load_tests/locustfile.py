@@ -71,17 +71,15 @@ class PixoraArcadePlayer(FastHttpUser):
 
         data = start_res.json()
         token = data.get("session_token")
-        start_ms = data.get("start_time_ms")
 
         # 2. Simulate realistic gameplay duration (3 to 10 seconds)
         duration_s = random.uniform(3.0, 10.0)
-        # Calculate legitimate score within velocity limits
         max_rates = {"flappybird": 2.0, "2048": 30.0, "speedtype": 10.0, "neon-cyber-racer": 80.0}
         rate = max_rates.get(game, 20.0)
         legit_score = int(duration_s * random.uniform(0.5, rate))
 
         # Adjust start time to simulate the elapsed gameplay time
-        simulated_start_ms = int(time.time() * 1000) - int(duration_s * 1000)
+        simulated_start_ms = data.get("start_time_ms") or (int(time.time() * 1000) - int(duration_s * 1000))
 
         # 3. Submit Cryptographically Verified Score
         with self.client.post(

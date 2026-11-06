@@ -55,6 +55,8 @@ htmlcov/
 .nox/
 .vercel
 .env*
+!.env.example
+!.env.docker.example
 
 # Node / Next.js
 node_modules/

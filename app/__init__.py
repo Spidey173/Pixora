@@ -61,6 +61,13 @@ def create_app(config_name=None):
     # Register all 15+ mini-games and subpage endpoints directly on app
     register_game_routes(app)
 
+    # Static web bundle server for Poki architecture catalog games in /public/games/
+    @app.route('/public/games/<path:filename>')
+    def serve_public_games(filename):
+        from flask import send_from_directory
+        public_games_dir = os.path.join(base_dir, 'public', 'games')
+        return send_from_directory(public_games_dir, filename)
+
     # Add legacy endpoint aliases for backward compatibility with older template calls
     app.add_url_rule('/login', endpoint='login', view_func=app.view_functions['auth.login'], methods=['GET', 'POST'])
     app.add_url_rule('/logout', endpoint='logout', view_func=app.view_functions['auth.logout'])

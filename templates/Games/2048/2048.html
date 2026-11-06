@@ -382,6 +382,16 @@
     </div>
     <audio id="backgroundMusic" src="2048.mp3" loop></audio>
     <button id="muteButton" onclick="toggleMute()">🔇</button>
+    <!-- 
+    =============================================================================
+    PIXORASDK V2 REFERENCE IMPLEMENTATION (FEATURED REPOSITORY DEMO 1/3: 2048)
+    Demonstrates the Authoritative Platform Anti-Cheat Handshake & Telemetry:
+      1. Handshake Handshake:  Pixora.init({ gameSlug: '2048' })
+      2. Proof-of-Gameplay:    Pixora.gameplayStart()
+      3. Action Entropy:       Pixora.recordAction('slide') [Arrow Keys]
+      4. Anti-Cheat Submit:    Pixora.gameplayStop(); Pixora.submitScore(score)
+    =============================================================================
+    -->
     <script src="/static/js/pixora-sdk.js"></script>
     <script>
     // Function to display the game and hide the start screen

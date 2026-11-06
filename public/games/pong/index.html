@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pong Wars: Fight for the Win</title>
+    <style>
+        /* Vibrant animated gradient background */
+        body {
+            background: linear-gradient(135deg, #ff6a00, #ff8c00, #ffeb3b, #c2185b);
+            background-size: 400% 400%;
+            animation: gradientAnimation 6s infinite alternate;
+            font-family: 'Arial', sans-serif;
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            text-align: center;
+        }
+
+        @keyframes gradientAnimation {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 100% 50%; }
+        }
+
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
+
+h1 {
+    font-size: 80px;
+    font-family: 'Bebas Neue', sans-serif;
+    background: black; /* Luxury gold */
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    margin-bottom: 40px;
+    animation: titleEffect 4s ease-in-out;
+}
+/* Animation to make the title disappear and come back */
+@keyframes titleEffect {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0;
+        transform: scale(1.2);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+
+        /* Start button styling */
+        .start-btn {
+            padding: 18px 50px;
+            font-size: 24px;
+            font-weight: bold;
+            background: linear-gradient(90deg, #ff1744, #d500f9);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.3s ease-in-out;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Button hover effect */
+        .start-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Active button effect */
+        .start-btn:active {
+            transform: scale(0.95);
+            background: linear-gradient(90deg, #c51162, #6a1b9a);
+        }
+    </style>
+
+<!-- Pixora Platform SDK v2 Bundle Bridge (Poki / Static CDN Architecture) -->
+<script>
+(function() {
+    'use strict';
+    const GAME_SLUG = "pong";
+    const GAME_TITLE = "Vector Pong Classic";
+
+    // 1. Universal Pixora / Glitch4ce SDK Client
+    const PixoraBridge = {
+        init: function() {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({
+                    source: 'PIXORA_GAME_CLIENT',
+                    type: 'PIXORA_HANDSHAKE',
+                    payload: { gameId: GAME_SLUG, version: '2.0.0' }
+                }, '*');
+            }
+        },
+        gameplayStart: function() {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({
+                    source: 'PIXORA_GAME_CLIENT',
+                    type: 'PIXORA_GAMEPLAY_START',
+                    payload: { game: GAME_TITLE, timestamp: Date.now() }
+                }, '*');
+            }
+        },
+        gameplayStop: function() {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({
+                    source: 'PIXORA_GAME_CLIENT',
+                    type: 'PIXORA_GAMEPLAY_STOP',
+                    payload: { game: GAME_TITLE, timestamp: Date.now() }
+                }, '*');
+            }
+        },
+        recordAction: function(action) {
+            // Track physical player interaction for anti-cheat entropy
+        },
+        submitScore: function(scoreVal) {
+            const num = Math.floor(Number(scoreVal));
+            if (isNaN(num) || num < 0) return;
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({
+                    source: 'PIXORA_GAME_CLIENT',
+                    type: 'PIXORA_SUBMIT_SCORE',
+                    payload: { game: GAME_TITLE, score: num, timestamp: Date.now() }
+                }, '*');
+            }
+        }
+    };
+
+    window.Pixora = window.Pixora || PixoraBridge;
+    window.Glitch4ce = window.Glitch4ce || PixoraBridge;
+
+    // Auto-initiate handshake with parent theater shell
+    PixoraBridge.init();
+    PixoraBridge.gameplayStart();
+
+    // Hook common score end functions
+    window.addEventListener('load', function() {
+        let _submitted = false;
+        function autoSubmit(val) {
+            const s = Math.floor(Number(val));
+            if (isNaN(s) || s <= 0 || _submitted) return;
+            _submitted = true;
+            PixoraBridge.submitScore(s);
+            setTimeout(() => { _submitted = false; }, 4000);
+        }
+
+        ['endGame', 'showResult', 'gameOver', 'showFinalScore', 'checkCompletion'].forEach(fn => {
+            if (typeof window[fn] === 'function') {
+                const orig = window[fn];
+                window[fn] = function(...args) {
+                    const res = orig.apply(this, args);
+                    const score = window.score || 
+                                  (window.player1 ? Math.max(window.player1.score, (window.player2 ? window.player2.score : 0)) * 100 : null) || 
+                                  (window.correctAnswers ? window.correctAnswers * 100 : null);
+                    if (score) autoSubmit(score);
+                    return res;
+                };
+            }
+        });
+    });
+})();
+</script>
+</head>
+<body>
+    <h1>Pong Wars: Fight for the Win</h1>
+    <button class="start-btn" onclick="window.location.href='pongstart.html'">Start Game</button>
+</body>
+</html>

@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tricky Math Question</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap');
+
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            color: white;
+            font-family: 'Orbitron', sans-serif;
+            text-align: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .container {
+            text-align: center;
+            z-index: 2;
+        }
+
+        h1 {
+            font-size: 70px;
+            text-transform: uppercase;
+            background: linear-gradient(90deg, #ff00ff, #00ffff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 7px;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+            margin-bottom: 30px;
+        }
+
+        .start-btn {
+            font-size: 25px;
+            padding: 12px 30px;
+            border: 2px solid transparent;
+            background: #ff00ff;
+            color: white;
+            font-weight: bold;
+            text-transform: uppercase;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: 0 0 10px #ff00ff;
+            animation: pulse 1.5s infinite alternate;
+        }
+
+        .start-btn:hover {
+            background: #00ffff;
+            box-shadow: 0 0 20px #00ffff;
+            transform: scale(1.1);
+            color: black;
+            border-color: white;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 10px #ff00ff; }
+            100% { box-shadow: 0 0 20px #00ffff; }
+        }
+
+        /* Floating Math Symbols */
+        .math-symbol {
+            position: absolute;
+            font-size: 40px;
+            color: rgba(255, 255, 255, 0.3);
+            animation: float 5s infinite linear;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px) rotate(0deg); opacity: 0.8; }
+            50% { transform: translateY(-50px) rotate(180deg); opacity: 0.5; }
+            100% { transform: translateY(0px) rotate(360deg); opacity: 0.8; }
+        }
+    </style>
+
+<!-- Pixora Platform SDK v2 Bundle Bridge (Poki / Static CDN Architecture) -->
+<script>
+(function() {
+    'use strict';
+    const GAME_SLUG = "tricky";
+    const GAME_TITLE = "Tricky Brain Quest";
+
+    // 1. Universal Pixora / Glitch4ce SDK Client
+    const PixoraBridge = {
+        init: function() {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({
+                    source: 'PIXORA_GAME_CLIENT',
+                    type: 'PIXORA_HANDSHAKE',
+                    payload: { gameId: GAME_SLUG, version: '2.0.0' }
+                }, '*');
+            }
+        },
+        gameplayStart: function() {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({
+                    source: 'PIXORA_GAME_CLIENT',
+                    type: 'PIXORA_GAMEPLAY_START',
+                    payload: { game: GAME_TITLE, timestamp: Date.now() }
+                }, '*');
+            }
+        },
+        gameplayStop: function() {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({
+                    source: 'PIXORA_GAME_CLIENT',
+                    type: 'PIXORA_GAMEPLAY_STOP',
+                    payload: { game: GAME_TITLE, timestamp: Date.now() }
+                }, '*');
+            }
+        },
+        recordAction: function(action) {
+            // Track physical player interaction for anti-cheat entropy
+        },
+        submitScore: function(scoreVal) {
+            const num = Math.floor(Number(scoreVal));
+            if (isNaN(num) || num < 0) return;
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({
+                    source: 'PIXORA_GAME_CLIENT',
+                    type: 'PIXORA_SUBMIT_SCORE',
+                    payload: { game: GAME_TITLE, score: num, timestamp: Date.now() }
+                }, '*');
+            }
+        }
+    };
+
+    window.Pixora = window.Pixora || PixoraBridge;
+    window.Glitch4ce = window.Glitch4ce || PixoraBridge;
+
+    // Auto-initiate handshake with parent theater shell
+    PixoraBridge.init();
+    PixoraBridge.gameplayStart();
+
+    // Hook common score end functions
+    window.addEventListener('load', function() {
+        let _submitted = false;
+        function autoSubmit(val) {
+            const s = Math.floor(Number(val));
+            if (isNaN(s) || s <= 0 || _submitted) return;
+            _submitted = true;
+            PixoraBridge.submitScore(s);
+            setTimeout(() => { _submitted = false; }, 4000);
+        }
+
+        ['endGame', 'showResult', 'gameOver', 'showFinalScore', 'checkCompletion'].forEach(fn => {
+            if (typeof window[fn] === 'function') {
+                const orig = window[fn];
+                window[fn] = function(...args) {
+                    const res = orig.apply(this, args);
+                    const score = window.score || 
+                                  (window.player1 ? Math.max(window.player1.score, (window.player2 ? window.player2.score : 0)) * 100 : null) || 
+                                  (window.correctAnswers ? window.correctAnswers * 100 : null);
+                    if (score) autoSubmit(score);
+                    return res;
+                };
+            }
+        });
+    });
+})();
+</script>
+</head>
+<body>
+    <div class="container">
+        <h1>Tr!cky M@th QuesTi0n$</h1>
+        <button class="start-btn" onclick="startGame()">Start Game</button>
+    </div>
+
+    <!-- Floating Math Symbols -->
+    <script>
+        const symbols = ["+", "-", "×", "÷", "√", "∑", "π", "∞", "≠", "%", "^"];
+        
+        function createSymbol() {
+            const symbol = document.createElement("div");
+            symbol.className = "math-symbol";
+            symbol.innerText = symbols[Math.floor(Math.random() * symbols.length)];
+            document.body.appendChild(symbol);
+
+            const x = Math.random() * window.innerWidth;
+            const y = Math.random() * window.innerHeight;
+            symbol.style.left = `${x}px`;
+            symbol.style.top = `${y}px`;
+            symbol.style.animationDuration = `${3 + Math.random() * 5}s`;
+
+            setTimeout(() => symbol.remove(), 5000);
+        }
+
+        setInterval(createSymbol, 800);
+        
+        function startGame() {
+            window.location.href = "trickygame.html"; // Change this to your actual game file
+        }
+    </script>
+</body>
+</html>

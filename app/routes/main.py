@@ -525,7 +525,7 @@ def sse_game_events(game_name):
                     event = q.get(timeout=15.0)
                     yield f"data: {json.dumps(event)}\n\n"
                 except queue.Empty:
-                    yield f": heartbeat\n\n"
+                    yield ": heartbeat\n\n"
         finally:
             with telemetry_queue._lock:
                 if q in telemetry_queue._event_listeners[canonical_title]:
@@ -574,6 +574,7 @@ def get_leaderboard(game_name):
 
 
 @main_bp.route('/api/health')
+@main_bp.route('/health')
 def health_check():
     """Application health check and status telemetry API."""
     try:

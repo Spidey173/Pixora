@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Conquer the Maze</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: 'Arial', sans-serif;
+      background: #0a0a0a;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Animated grid background */
+    body::before {
+      content: '';
+      position: absolute;
+      width: 200%;
+      height: 200%;
+      background: 
+        linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+      background-size: 20px 20px;
+      animation: moveGrid 40s linear infinite;
+      z-index: -1;
+    }
+
+    @keyframes moveGrid {
+      0% { transform: translate(0, 0); }
+      100% { transform: translate(-50%, -50%); }
+    }
+
+
+    h1 {
+      font-size: 5em;
+      font-weight: 900;
+      text-transform: uppercase;
+      margin: 0;
+      position: relative;
+      background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 30px rgba(78, 205, 196, 0.4);
+      animation: titleGlitch 3s infinite;
+    }
+
+    @keyframes titleGlitch {
+      0%, 100% { transform: translate(0); }
+      20% { transform: translate(-2px, 2px); }
+      40% { transform: translate(-2px, -2px); }
+      60% { transform: translate(2px, 2px); }
+      80% { transform: translate(2px, -2px); }
+    }
+
+
+
+    .button-container {
+      display: flex;
+      justify-content: center;
+      gap: 20px; /* Space between buttons */
+      margin-top: 30px;
+    }
+    button {
+      font-size: 2em;
+      padding: 15px 40px;
+      background: transparent;
+      color: #fff;
+      border: 3px solid #4ecdc4;
+      border-radius: 15px;      
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    button::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(78, 205, 196, 0.4),
+        transparent
+      );
+      transition: 0.5s;
+    }
+
+    button:hover::before {
+      left: 100%;
+    }
+
+    button:hover {
+      background: rgba(78, 205, 196, 0.1);
+      box-shadow: 0 0 30px rgba(78, 205, 196, 0.4);
+      transform: scale(1.05);
+    }
+
+    .difficulty-button {
+      border-radius: 40px; /* More rounded edges */
+      font-size: 1.8em;
+      padding: 20px 60px;
+      width: 250px;
+      box-shadow: 0 12px 25px rgba(0, 0, 0, 0.4);
+    }
+
+    .difficulty-button:hover {
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+      transform: scale(1.05);
+    }
+  </style>
+
+<!-- Pixora Platform SDK v2 Bundle Bridge (Poki / Static CDN Architecture) -->
+<script>
+(function() {
+    'use strict';
+    const GAME_SLUG = "maze";
+    const GAME_TITLE = "Cyber Labyrinth";
+
+    // 1. Universal Pixora / Glitch4ce SDK Client
+    const PixoraBridge = {
+        init: function() {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({
+                    source: 'PIXORA_GAME_CLIENT',
+                    type: 'PIXORA_HANDSHAKE',
+                    payload: { gameId: GAME_SLUG, version: '2.0.0' }
+                }, '*');
+            }
+        },
+        gameplayStart: function() {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({
+                    source: 'PIXORA_GAME_CLIENT',
+                    type: 'PIXORA_GAMEPLAY_START',
+                    payload: { game: GAME_TITLE, timestamp: Date.now() }
+                }, '*');
+            }
+        },
+        gameplayStop: function() {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({
+                    source: 'PIXORA_GAME_CLIENT',
+                    type: 'PIXORA_GAMEPLAY_STOP',
+                    payload: { game: GAME_TITLE, timestamp: Date.now() }
+                }, '*');
+            }
+        },
+        recordAction: function(action) {
+            // Track physical player interaction for anti-cheat entropy
+        },
+        submitScore: function(scoreVal) {
+            const num = Math.floor(Number(scoreVal));
+            if (isNaN(num) || num < 0) return;
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({
+                    source: 'PIXORA_GAME_CLIENT',
+                    type: 'PIXORA_SUBMIT_SCORE',
+                    payload: { game: GAME_TITLE, score: num, timestamp: Date.now() }
+                }, '*');
+            }
+        }
+    };
+
+    window.Pixora = window.Pixora || PixoraBridge;
+    window.Glitch4ce = window.Glitch4ce || PixoraBridge;
+
+    // Auto-initiate handshake with parent theater shell
+    PixoraBridge.init();
+    PixoraBridge.gameplayStart();
+
+    // Hook common score end functions
+    window.addEventListener('load', function() {
+        let _submitted = false;
+        function autoSubmit(val) {
+            const s = Math.floor(Number(val));
+            if (isNaN(s) || s <= 0 || _submitted) return;
+            _submitted = true;
+            PixoraBridge.submitScore(s);
+            setTimeout(() => { _submitted = false; }, 4000);
+        }
+
+        ['endGame', 'showResult', 'gameOver', 'showFinalScore', 'checkCompletion'].forEach(fn => {
+            if (typeof window[fn] === 'function') {
+                const orig = window[fn];
+                window[fn] = function(...args) {
+                    const res = orig.apply(this, args);
+                    const score = window.score || 
+                                  (window.player1 ? Math.max(window.player1.score, (window.player2 ? window.player2.score : 0)) * 100 : null) || 
+                                  (window.correctAnswers ? window.correctAnswers * 100 : null);
+                    if (score) autoSubmit(score);
+                    return res;
+                };
+            }
+        });
+    });
+})();
+</script>
+</head>
+<body>
+  <h1>Select the level</h1>
+
+  <!-- Container for the difficulty buttons -->
+  <div class="button-container">
+    <button class="difficulty-button" onclick="location.href='mazeveasy.html'">Very Easy</button>
+    <button class="difficulty-button" onclick="location.href='mazeeasy.html'">Easy</button>
+    <button class="difficulty-button" onclick="location.href='mazemedium.html'">Medium</button>
+    <button class="difficulty-button" onclick="location.href='mazehard.html'">Hard</button>
+  </div>
+
+</body>
+</html>
