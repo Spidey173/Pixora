@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quiz</title>
+  <style>
+    /* Global Styles */
+body {
+    font-family: 'Arial', sans-serif;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: linear-gradient(135deg, #ff6ec4, #7873f5, #51c8ef, #ff9a8b);
+    background-size: 400% 400%; /* Creates a moving gradient effect */
+    animation: gradientAnimation 8s ease infinite;
+    color: #fff;
+}
+
+@keyframes gradientAnimation {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+#start-page {
+    text-align: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    height: 100%; /* Ensures the page takes up full height */
+    width: 100%; /* Ensures the page takes up full width */
+}
+
+.title {
+    font-size: 4rem;
+    text-align: center;
+    text-shadow: 4px 4px 8px rgba(0, 0, 0, 0.5);
+    margin-bottom: 30px;
+    color: #ffe94a; /* Bright yellow to contrast with the background */
+    animation: bounceIn 3s ease-out;
+    font-weight: bold;
+}
+
+button {
+    background: linear-gradient(to right, #34e89e, #0f3443); /* Teal to dark navy gradient */
+    color: #fdfdfd;
+    font-size: 1.8rem;
+    padding: 15px 40px;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.4s ease;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+    font-weight: bold;
+}
+
+button:hover {
+    transform: scale(1.15);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7);
+    background: linear-gradient(to right, #0f3443, #34e89e); /* Reversed gradient for hover effect */
+}
+
+button:focus {
+    outline: none;
+    box-shadow: 0 0 5px 2px #34e89e;
+}
+
+@keyframes bounceIn {
+    0% { transform: translateY(-300px); opacity: 0; }
+    60% { transform: translateY(30px); opacity: 1; }
+    100% { transform: translateY(0); }
+}
+
+  </style>
+
+<!-- Pixora Platform SDK v2 Bundle Bridge (Poki / Static CDN Architecture) -->
+<script>
+(function() {
+    'use strict';
+    const GAME_SLUG = "quiz";
+    const GAME_TITLE = "Cyber Quiz Matrix";
+
+    // 1. Universal Pixora / Glitch4ce SDK Client
+    const PixoraBridge = {
+        init: function() {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({
+                    source: 'PIXORA_GAME_CLIENT',
+                    type: 'PIXORA_HANDSHAKE',
+                    payload: { gameId: GAME_SLUG, version: '2.0.0' }
+                }, '*');
+            }
+        },
+        gameplayStart: function() {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({
+                    source: 'PIXORA_GAME_CLIENT',
+                    type: 'PIXORA_GAMEPLAY_START',
+                    payload: { game: GAME_TITLE, timestamp: Date.now() }
+                }, '*');
+            }
+        },
+        gameplayStop: function() {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({
+                    source: 'PIXORA_GAME_CLIENT',
+                    type: 'PIXORA_GAMEPLAY_STOP',
+                    payload: { game: GAME_TITLE, timestamp: Date.now() }
+                }, '*');
+            }
+        },
+        recordAction: function(action) {
+            // Track physical player interaction for anti-cheat entropy
+        },
+        submitScore: function(scoreVal) {
+            const num = Math.floor(Number(scoreVal));
+            if (isNaN(num) || num < 0) return;
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({
+                    source: 'PIXORA_GAME_CLIENT',
+                    type: 'PIXORA_SUBMIT_SCORE',
+                    payload: { game: GAME_TITLE, score: num, timestamp: Date.now() }
+                }, '*');
+            }
+        }
+    };
+
+    window.Pixora = window.Pixora || PixoraBridge;
+    window.Glitch4ce = window.Glitch4ce || PixoraBridge;
+
+    // Auto-initiate handshake with parent theater shell
+    PixoraBridge.init();
+    PixoraBridge.gameplayStart();
+
+    // Hook common score end functions
+    window.addEventListener('load', function() {
+        let _submitted = false;
+        function autoSubmit(val) {
+            const s = Math.floor(Number(val));
+            if (isNaN(s) || s <= 0 || _submitted) return;
+            _submitted = true;
+            PixoraBridge.submitScore(s);
+            setTimeout(() => { _submitted = false; }, 4000);
+        }
+
+        ['endGame', 'showResult', 'gameOver', 'showFinalScore', 'checkCompletion'].forEach(fn => {
+            if (typeof window[fn] === 'function') {
+                const orig = window[fn];
+                window[fn] = function(...args) {
+                    const res = orig.apply(this, args);
+                    const score = window.score || 
+                                  (window.player1 ? Math.max(window.player1.score, (window.player2 ? window.player2.score : 0)) * 100 : null) || 
+                                  (window.correctAnswers ? window.correctAnswers * 100 : null);
+                    if (score) autoSubmit(score);
+                    return res;
+                };
+            }
+        });
+    });
+})();
+</script>
+</head>
+<body>
+  <!-- First Page -->
+  <div id="start-page">
+    <h1 class="title">Trivia Madness<br>The Ultimate Smarts Showdown</h1>
+    <button id="start-button">Start Game</button>
+  </div>
+  <script>
+    // Linking the "Start Game" button to the next page
+document.getElementById("start-button").addEventListener("click", function() {
+    // Simulate navigating to the next page
+    window.location.href = "quiz2ndpage.html";  // Replace with actual link when ready
+  });
+  
+  </script>
+</body>
+</html>

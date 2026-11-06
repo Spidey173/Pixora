@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PIXORA // ARENA LEADERBOARDS & RANKINGS</title>
+    <link rel="icon" type="image/webp" href="{{ url_for('static', filename='Pixora.webp') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&family=Syne:wght@700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <style>
+        :root {
+            --bg-void: #050505;
+            --bg-secondary: #0B0B0B;
+            --bg-surface: #121212;
+            --text-pure: #FFFFFF;
+            --text-dim: #8E8E8E;
+            --text-dark: #4A4A4A;
+            --accent-cyan: #00F0FF;
+            --accent-green: #00FF66;
+            --accent-gold: #E5A93C;
+            --accent-crimson: #FF1A35;
+            --border-dim: rgba(255, 255, 255, 0.08);
+            --border-bright: rgba(255, 255, 255, 0.22);
+            --border-cyan: rgba(0, 240, 255, 0.35);
+            --font-display: 'Syne', sans-serif;
+            --font-body: 'Space Grotesk', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background-color: var(--bg-void);
+            color: var(--text-pure);
+            font-family: var(--font-body);
+            overflow-x: hidden;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Mouse Lighting Node */
+        #cursorLighting {
+            position: fixed;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(0, 240, 255, 0.04) 0%, transparent 70%);
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        /* Nav */
+        nav.glitch-nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 84px;
+            background: rgba(5, 5, 5, 0.85);
+            backdrop-filter: blur(24px);
+            border-bottom: 1px solid var(--border-dim);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 4rem;
+        }
+        @media (max-width: 768px) { nav.glitch-nav { padding: 0 1.5rem; } }
+
+        .brand-crest {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            text-decoration: none;
+            color: var(--text-pure);
+        }
+        .crest-icon {
+            width: 36px;
+            height: 36px;
+            background: #111;
+            border: 1px solid var(--border-bright);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transform: rotate(45deg);
+        }
+        .crest-icon i { transform: rotate(-45deg); color: var(--accent-cyan); }
+        .crest-name { font-family: var(--font-display); font-size: 1.3rem; font-weight: 900; letter-spacing: 0.15em; text-transform: uppercase; }
+
+        .nav-links { display: flex; gap: 2.5rem; list-style: none; }
+        @media (max-width: 900px) { .nav-links { display: none; } }
+        .nav-links a {
+            color: var(--text-dim);
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            transition: color 0.3s;
+        }
+        .nav-links a:hover, .nav-links a.active { color: var(--text-pure); }
+        .nav-links a.active { color: var(--accent-cyan); }
+
+        .nav-btn-launcher {
+            background: var(--text-pure);
+            color: #000;
+            padding: 10px 22px;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s var(--ease-out);
+        }
+        .nav-btn-launcher:hover { background: var(--accent-cyan); transform: translateY(-1px); }
+
+        /* Main Workspace */
+        main.leaderboard-universe {
+            flex: 1;
+            padding: 140px 4rem 80px 4rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        @media (max-width: 768px) { main.leaderboard-universe { padding: 120px 1.5rem 60px 1.5rem; } }
+
+        .page-masthead {
+            margin-bottom: 4rem;
+            position: relative;
+        }
+        .tag-sub {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--accent-cyan);
+            letter-spacing: 0.25em;
+            margin-bottom: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--accent-green);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--accent-green);
+        }
+        .page-h1 {
+            font-family: var(--font-display);
+            font-size: clamp(2.8rem, 6vw, 5.5rem);
+            font-weight: 900;
+            line-height: 1;
+            text-transform: uppercase;
+            letter-spacing: -0.03em;
+            margin-bottom: 1.2rem;
+        }
+        .page-copy {
+            color: var(--text-dim);
+            font-size: 1.15rem;
+            max-width: 680px;
+            line-height: 1.6;
+        }
+
+        /* Telemetry Cards Grid */
+        .podium-matrix {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            margin-bottom: 4rem;
+        }
+        @media (max-width: 900px) { .podium-matrix { grid-template-columns: 1fr; } }
+
+        .podium-box {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-dim);
+            padding: 2.5rem;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 220px;
+        }
+        .podium-box.rank-1 {
+            border-color: var(--accent-gold);
+            background: linear-gradient(135deg, rgba(229, 169, 60, 0.08) 0%, #121212 100%);
+        }
+        .podium-rank-tag {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            color: var(--text-dim);
+        }
+        .podium-box.rank-1 .podium-rank-tag { color: var(--accent-gold); }
+
+        .podium-pilot {
+            font-family: var(--font-display);
+            font-size: 1.8rem;
+            font-weight: 800;
+            margin: 0.5rem 0;
+        }
+        .podium-score {
+            font-family: var(--font-mono);
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--accent-cyan);
+        }
+        .podium-box.rank-1 .podium-score { color: var(--accent-gold); }
+
+        /* Full Table Matrix */
+        .board-container {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-dim);
+            overflow: hidden;
+        }
+        .board-header-bar {
+            padding: 1.5rem 2rem;
+            background: #0E0E0E;
+            border-bottom: 1px solid var(--border-dim);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+        }
+        .board-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--font-body);
+        }
+        .board-table th {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            text-align: left;
+            padding: 1.2rem 2rem;
+            border-bottom: 1px solid var(--border-dim);
+        }
+        .board-table td {
+            padding: 1.25rem 2rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            font-size: 0.95rem;
+        }
+        .board-table tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+        .td-rank { font-family: var(--font-mono); font-weight: 700; color: var(--text-dim); }
+        .td-pilot { font-weight: 700; }
+        .td-game { color: var(--text-dim); }
+        .td-score { font-family: var(--font-mono); font-weight: 700; color: var(--accent-cyan); }
+        .td-date { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-dark); }
+
+        footer.studio-footer {
+            padding: 4rem;
+            background: #020202;
+            border-top: 1px solid var(--border-dim);
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: gap;
+        }
+    </style>
+</head>
+<body>
+    <div id="cursorLighting"></div>
+
+    <nav class="glitch-nav">
+        <a href="/" class="brand-crest">
+            <div class="crest-icon"><i class="fa-solid fa-crosshairs"></i></div>
+            <span class="crest-name">Pixora</span>
+        </a>
+        <ul class="nav-links">
+            <li><a href="/">Hub</a></li>
+            <li><a href="/leaderboard" class="active">Leaderboards</a></li>
+            <li><a href="/infrastructure">Infrastructure</a></li>
+        </ul>
+        <a href="/games" class="nav-btn-launcher">LAUNCH VAULT</a>
+    </nav>
+
+    <main class="leaderboard-universe">
+        <div class="page-masthead">
+            <div class="tag-sub">
+                <span class="live-dot"></span>
+                <span>GLOBAL TELEMETRY // REAL-TIME SYNCHRONIZATION</span>
+            </div>
+            <h1 class="page-h1">COMPETITIVE ARENA</h1>
+            <p class="page-copy">
+                High-score authentication verified through the Pixora SDK HMAC signature runtime. Real-time scores committed across all simulation modules.
+            </p>
+        </div>
+
+        <div class="podium-matrix">
+            <div class="podium-box rank-1">
+                <span class="podium-rank-tag">🏆 RANK 01 // WORLD RECORD</span>
+                <h3 class="podium-pilot">{{ top_scores[0].player.username if top_scores and top_scores[0].player else 'ApexSpectre' }}</h3>
+                <span class="podium-score">{{ top_scores[0].score if top_scores else '84,920' }} PTS</span>
+                <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-dim); margin-top: 8px;">
+                    MODULE: {{ top_scores[0].game_name if top_scores else 'Neon Cyber Racer' }}
+                </span>
+            </div>
+
+            <div class="podium-box">
+                <span class="podium-rank-tag">🥈 RANK 02 // ELITE</span>
+                <h3 class="podium-pilot">{{ top_scores[1].player.username if top_scores|length > 1 and top_scores[1].player else 'Valkyrie_Zero' }}</h3>
+                <span class="podium-score">{{ top_scores[1].score if top_scores|length > 1 else '61,400' }} PTS</span>
+                <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-dim); margin-top: 8px;">
+                    MODULE: {{ top_scores[1].game_name if top_scores|length > 1 else 'Neon Cyber Racer' }}
+                </span>
+            </div>
+
+            <div class="podium-box">
+                <span class="podium-rank-tag">🥉 RANK 03 // VANGUARD</span>
+                <h3 class="podium-pilot">{{ top_scores[2].player.username if top_scores|length > 2 and top_scores[2].player else 'NovaPulse' }}</h3>
+                <span class="podium-score">{{ top_scores[2].score if top_scores|length > 2 else '54,120' }} PTS</span>
+                <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-dim); margin-top: 8px;">
+                    MODULE: {{ top_scores[2].game_name if top_scores|length > 2 else 'Flappy Drone Pro' }}
+                </span>
+            </div>
+        </div>
+
+        <div class="board-container">
+            <div class="board-header-bar">
+                <span>// GLOBAL COMBAT ROSTER</span>
+                <span style="color: var(--accent-green);">ONLINE TELEMETRY FEED</span>
+            </div>
+            <table class="board-table">
+                <thead>
+                    <tr>
+                        <th>RANK</th>
+                        <th>PILOT</th>
+                        <th>MODULE</th>
+                        <th>SCORE</th>
+                        <th>TIMESTAMP</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for score in all_scores %}
+                    <tr>
+                        <td class="td-rank">#{{ "%02d" % loop.index }}</td>
+                        <td class="td-pilot">{{ score.player.username if score.player else 'Guest' }}</td>
+                        <td class="td-game">{{ score.game_name }}</td>
+                        <td class="td-score">{{ score.score }}</td>
+                        <td class="td-date">{{ score.achieved_at.strftime('%Y-%m-%d %H:%M') if score.achieved_at else 'Verified' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: var(--text-dim); padding: 40px;">
+                            No scores recorded in this epoch. Be the first to establish a high score!
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <footer class="studio-footer">
+        <span>© 2026 PIXORA GAMING ENTERTAINMENT INC.</span>
+        <span>GLOBAL LEADERBOARD TELEMETRY PROTOCOL V2.0</span>
+    </footer>
+
+    <script>
+        const cursorLight = document.getElementById('cursorLighting');
+        window.addEventListener('mousemove', (e) => {
+            cursorLight.style.left = e.clientX + 'px';
+            cursorLight.style.top = e.clientY + 'px';
+        });
+    </script>
+</body>
+</html>

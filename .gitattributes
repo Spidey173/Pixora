@@ -1,0 +1,6 @@
+# Ignore HTML, CSS, and JS from repository language statistics so GitHub displays Python as the primary language
+*.html linguist-detectable=false
+*.css linguist-detectable=false
+*.js linguist-detectable=false
+templates/** linguist-detectable=false
+static/** linguist-detectable=false

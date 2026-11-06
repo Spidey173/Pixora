@@ -1,0 +1,567 @@
+"""Pixora FastAPI server and WebSocket gateway."""
+import asyncio
+import json
+import logging
+import os
+import time
+from typing import Dict, List, Optional
+
+try:
+    from fastapi import (
+        FastAPI, WebSocket, WebSocketDisconnect, HTTPException, status,
+        Request, Response, Depends, Header, Cookie
+    )
+    from fastapi.middleware.cors import CORSMiddleware
+    from pydantic import BaseModel
+    FASTAPI_AVAILABLE = True
+except ImportError:
+    FASTAPI_AVAILABLE = False
+
+try:
+    import redis.asyncio as aioredis
+    AIOREDIS_AVAILABLE = True
+except ImportError:
+    aioredis = None
+    AIOREDIS_AVAILABLE = False
+
+from app.services.anti_cheat import AntiCheatValidator
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
+logger = logging.getLogger("pixora.gateway")
+
+REDIS_URL = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/0")
+STREAM_KEY = os.environ.get("TELEMETRY_STREAM_KEY", "pixora:telemetry")
+KEY_PREFIX = "pixora:"
+
+if FASTAPI_AVAILABLE:
+    app = FastAPI(
+        title="Pixora",
+        description="Arcade gaming platform API and WebSockets",
+        version="1.0.0"
+    )
+
+    # Allowed origins for CORS and WebSockets
+    DEFAULT_ALLOWED_ORIGINS = [
+        "http://localhost:5000",
+        "http://127.0.0.1:5000",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://pub-bbadfb1090074e17b2f5293b549ce094.r2.dev"
+    ]
+    custom_origins = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "").split(",") if o.strip()]
+    ALLOWED_ORIGINS = list(set(DEFAULT_ALLOWED_ORIGINS + custom_origins))
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=ALLOWED_ORIGINS if os.environ.get("FLASK_ENV") != "testing" else ["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    # WebSocket and presence manager
+    class WebSocketManager:
+        """Tracks active WebSockets and broadcasts game events."""
+
+        def __init__(self):
+            # Map of game_slug -> list of connected WebSockets
+            self.active_connections: Dict[str, List[WebSocket]] = {}
+            self._lock = asyncio.Lock()
+
+        async def connect(self, game_slug: str, websocket: WebSocket):
+            await websocket.accept()
+            async with self._lock:
+                if game_slug not in self.active_connections:
+                    self.active_connections[game_slug] = []
+                self.active_connections[game_slug].append(websocket)
+            logger.info("WebSocket connected for '%s' (total: %d)", game_slug, len(self.active_connections[game_slug]))
+
+        async def disconnect(self, game_slug: str, websocket: WebSocket):
+            async with self._lock:
+                if game_slug in self.active_connections:
+                    if websocket in self.active_connections[game_slug]:
+                        self.active_connections[game_slug].remove(websocket)
+                    if not self.active_connections[game_slug]:
+                        del self.active_connections[game_slug]
+
+        async def broadcast_local(self, game_slug: str, message: dict):
+            """Fan out message to WebSockets connected to this specific worker process."""
+            payload = json.dumps(message)
+            async with self._lock:
+                connections = list(self.active_connections.get(game_slug, []))
+            for ws in connections:
+                try:
+                    await ws.send_text(payload)
+                except Exception:
+                    pass
+
+        async def broadcast_distributed(self, game_slug: str, message: dict, redis=None):
+            """Publish event to Redis Pub/Sub so ALL Uvicorn worker processes broadcast to their clients."""
+            payload = dict(message)
+            if "game" not in payload:
+                payload["game"] = game_slug
+            if redis:
+                try:
+                    payload_json = json.dumps(payload)
+                    await redis.publish("pixora:ws:broadcast", payload_json)
+                    await redis.publish(f"{KEY_PREFIX}events:{game_slug}", payload_json)
+                    return
+                except Exception as err:
+                    logger.warning("Redis Pub/Sub broadcast error: %s; falling back to local fanout", err)
+            await self.broadcast_local(game_slug, payload)
+
+        # Multi-worker local broadcast alias
+        local_broadcast = broadcast_local
+
+        # Backward compatibility alias
+        async def broadcast_to_game(self, game_slug: str, message: dict):
+            await self.broadcast_local(game_slug, message)
+
+        def get_local_presence(self, game_slug: str) -> int:
+            return len(self.active_connections.get(game_slug, []))
+
+        # Backward compatibility alias
+        def get_presence(self, game_slug: str) -> int:
+            return self.get_local_presence(game_slug)
+
+        async def update_presence_connect(self, game_slug: str, redis=None) -> int:
+            """Increment distributed presence in Redis across all workers."""
+            if redis:
+                try:
+                    count = await redis.hincrby(f"{KEY_PREFIX}presence", game_slug, 1)
+                    return max(1, int(count))
+                except Exception as err:
+                    logger.warning("Redis presence increment warning: %s", err)
+            return max(1, self.get_local_presence(game_slug))
+
+        async def update_presence_disconnect(self, game_slug: str, redis=None) -> int:
+            """Decrement distributed presence in Redis across all workers."""
+            if redis:
+                try:
+                    count = await redis.hincrby(f"{KEY_PREFIX}presence", game_slug, -1)
+                    if count < 0:
+                        await redis.hset(f"{KEY_PREFIX}presence", game_slug, 0)
+                        count = 0
+                    return count
+                except Exception as err:
+                    logger.warning("Redis presence decrement warning: %s", err)
+            return self.get_local_presence(game_slug)
+
+        async def get_global_presence(self, game_slug: str, redis=None) -> int:
+            """Fetch authoritative presence across all worker instances."""
+            if redis:
+                try:
+                    val = await redis.hget(f"{KEY_PREFIX}presence", game_slug)
+                    if val is not None:
+                        return max(1, int(val))
+                except Exception as err:
+                    logger.warning("Redis presence fetch warning: %s", err)
+            return max(1, self.get_local_presence(game_slug))
+
+    ws_manager = WebSocketManager()
+
+    # Request schemas and authentication
+    class AuthenticatedPlayer(BaseModel):
+        id: int
+        username: str
+
+    async def get_current_player(
+        request: Request,
+        authorization: Optional[str] = Header(None),
+        session: Optional[str] = Cookie(None)
+    ) -> AuthenticatedPlayer:
+        """Authenticate player using Bearer token or session cookie."""
+        # 1. Bearer Token Authentication
+        if authorization:
+            parts = authorization.strip().split(" ", 1)
+            if len(parts) == 2 and parts[0].lower() == "bearer":
+                token_data = AntiCheatValidator.verify_player_token(parts[1])
+                if token_data and "player_id" in token_data:
+                    return AuthenticatedPlayer(
+                        id=int(token_data["player_id"]),
+                        username=str(token_data.get("username", "Player"))
+                    )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail={"error": "Invalid or expired authorization token", "code": "UNAUTHORIZED"}
+            )
+
+        # 2. Flask Signed Session Cookie Authentication
+        cookie_val = session or request.cookies.get("session")
+        if cookie_val:
+            sess_data = AntiCheatValidator.decode_flask_session(cookie_val)
+            if sess_data and "_user_id" in sess_data:
+                return AuthenticatedPlayer(
+                    id=int(sess_data["_user_id"]),
+                    username=str(sess_data.get("pilot_username", "Player"))
+                )
+
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"error": "unauthorized", "code": "UNAUTHORIZED"}
+        )
+
+    class SessionStartRequest(BaseModel):
+        game_slug: str
+        player_id: Optional[int] = None   # Validated against authenticated token to prevent spoofing
+        username: Optional[str] = None
+
+    class SessionStartResponse(BaseModel):
+        status: str = "success"
+        session_token: str
+        start_time_ms: int
+        game_slug: str
+        player_id: int
+        username: str
+
+    class ScoreSubmissionRequest(BaseModel):
+        game_slug: str
+        score: int
+        session_token: str
+        start_time_ms: int
+        duration_ms: Optional[int] = None
+        action_count: Optional[int] = None
+        input_entropy_hash: Optional[str] = None
+        player_id: Optional[int] = None   # Validated against authenticated token to prevent spoofing
+        username: Optional[str] = None
+
+    class ScoreSubmissionResponse(BaseModel):
+        status: str = "success"
+        verified: bool = True
+        rank: Optional[int] = None
+        message: str
+        score: Optional[dict] = None
+
+    # Redis setup and background listener
+    redis_client = None
+
+    @app.on_event("startup")
+    async def startup_event():
+        global redis_client
+        if AIOREDIS_AVAILABLE and os.environ.get("FLASK_ENV") != "testing":
+            max_attempts = 3
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    redis_client = aioredis.from_url(REDIS_URL, decode_responses=True)
+                    await redis_client.ping()
+                    logger.info("Connected to Redis at %s", REDIS_URL)
+                    # Launch Redis Pub/Sub listener task
+                    asyncio.create_task(redis_pubsub_listener())
+                    break
+                except Exception as e:
+                    logger.warning("Redis async connection attempt %d/%d failed: %s", attempt, max_attempts, e)
+                    if attempt < max_attempts:
+                        await asyncio.sleep(0.5)
+                    else:
+                        logger.warning("Redis async connection could not be established; continuing in fallback mode")
+
+    @app.on_event("shutdown")
+    async def shutdown_event():
+        if redis_client:
+            await redis_client.close()
+
+    async def redis_pubsub_listener():
+        """Listen to Redis Pub/Sub events and broadcast via WebSockets across all Uvicorn workers."""
+        if not redis_client:
+            return
+        try:
+            pubsub = redis_client.pubsub()
+            await pubsub.subscribe("pixora:ws:broadcast")
+            await pubsub.psubscribe(f"{KEY_PREFIX}events:*")
+            logger.info("Subscribed to Redis Pub/Sub channels 'pixora:ws:broadcast' and '%sevents:*'", KEY_PREFIX)
+            async for msg in pubsub.listen():
+                if not msg:
+                    continue
+                if msg["type"] == "message" and msg.get("data"):
+                    try:
+                        event_data = json.loads(msg["data"])
+                        game_slug = event_data.get("game") or event_data.get("game_slug") or "all"
+                        await ws_manager.local_broadcast(game_slug, event_data)
+                    except Exception as err:
+                        logger.error("PubSub message error: %s", err)
+                elif msg["type"] == "pmessage" and msg.get("data"):
+                    channel = msg.get("channel", "")
+                    game_slug = channel.split(":")[-1]
+                    try:
+                        event_data = json.loads(msg["data"])
+                        await ws_manager.local_broadcast(game_slug, event_data)
+                    except Exception as err:
+                        logger.error("PubSub pmessage error: %s", err)
+        except Exception as e:
+            logger.warning("PubSub listener stopped: %s", e)
+
+    # REST API endpoints
+    @app.get("/health")
+    async def gateway_health_check():
+        from app.routers.hub import health_check
+        return await health_check()
+
+    @app.post("/api/v2/session/start", response_model=SessionStartResponse)
+    async def session_start(
+        req: SessionStartRequest,
+        player: AuthenticatedPlayer = Depends(get_current_player)
+    ):
+        # Prevent identity spoofing: reject if client attempts to impersonate another player
+        if req.player_id is not None and req.player_id != player.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "error": f"Identity spoofing detected: token belongs to player {player.id}, cannot start session for player {req.player_id}",
+                    "code": "FORBIDDEN"
+                }
+            )
+
+        start_time_ms = int(time.time() * 1000)
+        token = AntiCheatValidator.generate_session_token(
+            player_id=player.id,
+            game_slug=req.game_slug,
+            timestamp_ms=start_time_ms
+        )
+        return SessionStartResponse(
+            session_token=token,
+            start_time_ms=start_time_ms,
+            game_slug=req.game_slug,
+            player_id=player.id,
+            username=player.username
+        )
+
+    @app.post("/api/v2/session/end", response_model=ScoreSubmissionResponse)
+    async def session_end(
+        req: ScoreSubmissionRequest,
+        request: Request,
+        response: Response,
+        player: AuthenticatedPlayer = Depends(get_current_player)
+    ):
+        # Prevent identity spoofing: reject if client attempts to claim another player's score
+        if req.player_id is not None and req.player_id != player.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "error": f"Identity spoofing detected: token belongs to player {player.id}, cannot submit score for player {req.player_id}",
+                    "code": "FORBIDDEN"
+                }
+            )
+
+        # 1. Authoritative Anti-Cheat Verification using verified player identity & multi-worker Redis replay protection
+        is_valid, reason = await AntiCheatValidator.async_validate_submission(
+            player_id=player.id,
+            game_slug=req.game_slug,
+            score=req.score,
+            start_time_ms=req.start_time_ms,
+            session_token=req.session_token,
+            action_count=req.action_count,
+            input_entropy_hash=req.input_entropy_hash,
+            redis_client=redis_client,
+            check_replay=True
+        )
+
+        is_bearer = bool(request.headers.get("authorization"))
+        if not is_valid:
+            if reason in ("INVALID_SESSION_SIGNATURE", "REPLAY_ATTACK_DETECTED", "SESSION_EXPIRED"):
+                code = "AUTH_FAILED" if is_bearer else {
+                    "INVALID_SESSION_SIGNATURE": "INVALID_SIGNATURE",
+                    "REPLAY_ATTACK_DETECTED": "TOKEN_REUSED",
+                    "SESSION_EXPIRED": "SESSION_EXPIRED"
+                }.get(reason, "AUTH_FAILED")
+                error_msg = reason if is_bearer else {
+                    "REPLAY_ATTACK_DETECTED": "Session token has already been consumed",
+                    "SESSION_EXPIRED": "Session token expired",
+                    "INVALID_SESSION_SIGNATURE": reason
+                }.get(reason, reason)
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail={"error": error_msg, "code": code})
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail={"error": reason, "code": "ANOMALOUS_VELOCITY"})
+
+        await AntiCheatValidator.async_mark_token_used(req.session_token, redis_client=redis_client)
+
+        if not is_bearer:
+            response.status_code = status.HTTP_201_CREATED
+
+        rank = None
+        # 2. Redis Operations (Sorted Sets & Streams) strictly bound to verified player
+        if redis_client:
+            try:
+                # Update Redis ZSET
+                pipe = redis_client.pipeline()
+                pipe.zadd(f"{KEY_PREFIX}lb:bests:{req.game_slug}", {f"{player.id}:{player.username}": req.score}, gt=True)
+                pipe.zrevrank(f"{KEY_PREFIX}lb:bests:{req.game_slug}", f"{player.id}:{player.username}")
+                # Push to Redis Streams
+                pipe.xadd(STREAM_KEY, {
+                    "type": "score",
+                    "player_id": str(player.id),
+                    "username": player.username,
+                    "game_name": req.game_slug,
+                    "score": str(req.score),
+                    "ts": str(time.time())
+                })
+                res = await pipe.execute()
+                rank_idx = res[1]
+                if rank_idx is not None:
+                    rank = rank_idx + 1
+
+                # If reached Top 10, publish real-time overtake event
+                if rank is not None and rank <= 10:
+                    overtake_event = {
+                        "type": "LEADERBOARD_OVERTAKE",
+                        "game": req.game_slug,
+                        "player": player.username,
+                        "rank": rank,
+                        "score": req.score,
+                        "timestamp": time.time()
+                    }
+                    # Broadcast to all workers via Redis Pub/Sub (and local fallback)
+                    await ws_manager.broadcast_distributed(req.game_slug, overtake_event, redis=redis_client)
+            except Exception as e:
+                logger.warning("Redis operation warning: %s", e)
+
+        clean_game_name = req.game_slug
+        try:
+            from app.models import Game
+            game_record = Game.query.filter_by(slug=req.game_slug).first()
+            if game_record and game_record.title:
+                clean_game_name = game_record.title
+        except Exception:
+            clean_game_name = req.game_slug
+
+        from app.utils.telemetry_queue import telemetry_queue
+        score_dict = telemetry_queue.enqueue_score(
+            player_id=player.id,
+            username=player.username,
+            game_name=clean_game_name,
+            score=req.score
+        )
+
+        return ScoreSubmissionResponse(
+            verified=True,
+            rank=rank,
+            score=score_dict,
+            message="Score cryptographically validated and queued for ingestion"
+        )
+
+    @app.post("/api/v2/auth/token")
+    async def issue_auth_token(player: AuthenticatedPlayer = Depends(get_current_player)):
+        """Issue a Bearer authentication token for an authenticated player."""
+        token = AntiCheatValidator.create_player_token(player.id, player.username)
+        return {
+            "access_token": token,
+            "token_type": "bearer",
+            "player_id": player.id,
+            "username": player.username
+        }
+
+    @app.get("/api/v2/leaderboard/{game_slug}")
+    async def get_live_leaderboard(game_slug: str, limit: int = 10):
+        top_list = []
+        if redis_client:
+            try:
+                bests = await redis_client.zrevrange(
+                    f"{KEY_PREFIX}lb:bests:{game_slug}", 0, limit - 1, withscores=True
+                )
+                for member, score in bests:
+                    parts = member.split(":", 1)
+                    pid = int(parts[0]) if parts[0].isdigit() else 0
+                    uname = parts[1] if len(parts) > 1 else "Champion"
+                    top_list.append({"player_id": pid, "username": uname, "score": int(score)})
+            except Exception as e:
+                logger.warning("Leaderboard fetch error: %s", e)
+
+        return {"game_slug": game_slug, "leaderboard": top_list, "source": "redis_zset"}
+
+    @app.get("/api/v2/presence/{game_slug}")
+    async def get_game_presence(game_slug: str):
+        count = await ws_manager.get_global_presence(game_slug, redis=redis_client)
+        return {"game_slug": game_slug, "presence": count}
+
+    # WebSocket endpoint for real-time presence
+    @app.websocket("/ws/live/{game_slug}")
+    async def live_game_websocket(websocket: WebSocket, game_slug: str):
+        # Validate WebSocket origin
+        origin = websocket.headers.get("origin")
+        if origin and os.environ.get("FLASK_ENV") != "testing":
+            clean_origin = origin.rstrip("/")
+            is_allowed = any(
+                clean_origin == allowed.rstrip("/")
+                for allowed in ALLOWED_ORIGINS
+            )
+            if not is_allowed:
+                logger.warning("Rejected unauthorized WebSocket connection from origin '%s'", origin)
+                await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                return
+
+        await ws_manager.connect(game_slug, websocket)
+        curr_presence = await ws_manager.update_presence_connect(game_slug, redis=redis_client)
+        await ws_manager.broadcast_distributed(game_slug, {
+            "type": "PRESENCE_UPDATE",
+            "game": game_slug,
+            "count": curr_presence
+        }, redis=redis_client)
+
+        HEARTBEAT_TIMEOUT_SECONDS = 45.0
+
+        try:
+            while True:
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=HEARTBEAT_TIMEOUT_SECONDS)
+                if data == "ping":
+                    await websocket.send_text("pong")
+        except (asyncio.TimeoutError, WebSocketDisconnect):
+            pass
+        except Exception as ws_err:
+            logger.debug("WebSocket terminated: %s", ws_err)
+        finally:
+            await ws_manager.disconnect(game_slug, websocket)
+            updated_presence = await ws_manager.update_presence_disconnect(game_slug, redis=redis_client)
+            await ws_manager.broadcast_distributed(game_slug, {
+                "type": "PRESENCE_UPDATE",
+                "game": game_slug,
+                "count": updated_presence
+            }, redis=redis_client)
+
+    # Static files and application routers
+    from fastapi.staticfiles import StaticFiles
+
+    base_dir = os.path.abspath(os.path.dirname(__file__))
+    static_dir = os.path.join(base_dir, "static")
+    public_dir = os.path.join(base_dir, "public")
+
+    if os.path.exists(static_dir):
+        app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    if os.path.exists(public_dir):
+        app.mount("/public", StaticFiles(directory=public_dir), name="public")
+
+    # Security headers middleware
+    @app.middleware("http")
+    async def set_security_headers(request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "SAMEORIGIN"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        return response
+
+    # Include routers
+    from app.routers.auth import auth_router
+    from app.routers.hub import hub_router
+    from app.routers.admin import admin_router
+    from app.routers.games import register_game_routes
+    from app.routers.errors import register_error_handlers
+
+    app.include_router(auth_router)
+    app.include_router(hub_router)
+    app.include_router(admin_router)
+    register_game_routes(app)
+    register_error_handlers(app)
+
+    class _AppContext:
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            pass
+
+    app.app_context = lambda: _AppContext()
+
+    logger.info("Pixora application started on port 8000")
+
+else:
+    logger.info("FastAPI not installed in current environment. Install via pip install fastapi uvicorn.")
+

@@ -1,0 +1,1660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PIXORA // MISSION CONTROL COMMAND CORE</title>
+    <link rel="icon" type="image/webp" href="{{ url_for('static', filename='Pixora.webp') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Space+Grotesk:wght@500;600;700&family=Syne:wght@700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <style>
+        :root {
+            --bg-void: #06070B;
+            --bg-surface: #0C0E16;
+            --bg-card: rgba(16, 20, 32, 0.75);
+            --bg-card-hover: rgba(22, 28, 46, 0.85);
+            --accent-cyan: #00F0FF;
+            --accent-emerald: #00FF66;
+            --accent-gold: #FFB800;
+            --accent-crimson: #FF1A35;
+            --accent-purple: #9D4EDD;
+            --text-pure: #FFFFFF;
+            --text-dim: #94A3B8;
+            --text-muted: #526077;
+            --border-dim: rgba(255, 255, 255, 0.08);
+            --border-cyan: rgba(0, 240, 255, 0.35);
+            --border-emerald: rgba(0, 255, 102, 0.35);
+            --font-display: 'Syne', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            --font-body: 'Space Grotesk', sans-serif;
+            --radius-sm: 8px;
+            --radius-md: 14px;
+            --radius-lg: 20px;
+            --transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-void);
+            background-image: 
+                radial-gradient(circle at 10% 0%, rgba(0, 240, 255, 0.09) 0%, transparent 40%),
+                radial-gradient(circle at 90% 0%, rgba(157, 78, 221, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 50% 100%, rgba(0, 255, 102, 0.05) 0%, transparent 50%),
+                linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 100% 100%, 48px 48px, 48px 48px;
+            background-attachment: fixed;
+            color: var(--text-pure);
+            font-family: var(--font-body);
+            min-height: 100vh;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ─── FULL-WIDTH EXPANSIVE MISSION CONTROL CONTAINER (ZERO SIDE WASTAGE) ─── */
+        .admin-viewport {
+            width: 100%;
+            max-width: 100%;
+            padding: 20px 28px 80px;
+        }
+
+        /* ─── TOP MISSION CONTROL BAR ─── */
+        .command-bar {
+            background: rgba(12, 14, 22, 0.88);
+            border: 1px solid var(--border-dim);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: var(--radius-md);
+            padding: 14px 22px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
+            box-shadow: 0 16px 40px -15px rgba(0, 0, 0, 0.7);
+            position: sticky;
+            top: 16px;
+            z-index: 100;
+        }
+
+        .command-brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .brand-shield {
+            width: 42px;
+            height: 42px;
+            background: linear-gradient(135deg, rgba(255, 26, 53, 0.2), rgba(0, 240, 255, 0.15));
+            border: 1px solid var(--accent-crimson);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent-crimson);
+            font-size: 1.25rem;
+            box-shadow: 0 0 20px rgba(255, 26, 53, 0.35);
+        }
+
+        .brand-title {
+            font-family: var(--font-display);
+            font-size: 1.35rem;
+            font-weight: 900;
+            letter-spacing: -0.01em;
+            line-height: 1.1;
+        }
+
+        .brand-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            color: var(--accent-cyan);
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .pulse-dot {
+            width: 6px;
+            height: 6px;
+            background: var(--accent-emerald);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--accent-emerald);
+            animation: pulseGlow 1.8s infinite;
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.85); }
+        }
+
+        /* Mission Control Tabs Navigation */
+        .command-nav {
+            display: flex;
+            align-items: center;
+            background: rgba(8, 10, 16, 0.7);
+            border: 1px solid var(--border-dim);
+            padding: 4px;
+            border-radius: 12px;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-pure);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .tab-btn.active {
+            background: rgba(0, 240, 255, 0.12);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(0, 240, 255, 0.35);
+            box-shadow: 0 0 16px rgba(0, 240, 255, 0.2);
+        }
+
+        .tab-badge {
+            background: rgba(0, 240, 255, 0.2);
+            color: var(--accent-cyan);
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .command-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .btn-deploy {
+            background: var(--accent-cyan);
+            color: #000;
+            border: 1px solid var(--accent-cyan);
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            padding: 9px 18px;
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.35);
+        }
+
+        .btn-deploy:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 30px rgba(0, 240, 255, 0.6);
+            background: #4df4ff;
+        }
+
+        .admin-user-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(18, 22, 35, 0.8);
+            border: 1px solid var(--border-dim);
+            padding: 6px 14px;
+            border-radius: 30px;
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+            font-weight: 700;
+        }
+
+        .btn-logout {
+            background: rgba(255, 26, 53, 0.12);
+            border: 1px solid rgba(255, 26, 53, 0.35);
+            color: #ff8594;
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+            font-weight: 700;
+            padding: 8px 14px;
+            border-radius: 10px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            transition: var(--transition);
+        }
+
+        .btn-logout:hover {
+            background: var(--accent-crimson);
+            color: #fff;
+            box-shadow: 0 0 18px rgba(255, 26, 53, 0.5);
+            transform: translateY(-1px);
+        }
+
+        /* ─── FLASH ALERTS ─── */
+        .flash-msg {
+            padding: 14px 20px;
+            border-radius: var(--radius-sm);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            backdrop-filter: blur(10px);
+        }
+
+        .flash-success {
+            background: rgba(0, 255, 102, 0.1);
+            border: 1px solid var(--accent-emerald);
+            color: #85ffb4;
+        }
+
+        .flash-danger {
+            background: rgba(255, 26, 53, 0.1);
+            border: 1px solid var(--accent-crimson);
+            color: #ff8594;
+        }
+
+        /* ─── 5-COLUMN EXECUTIVE METRICS RIBBON ─── */
+        .metrics-ribbon {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            backdrop-filter: blur(16px);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        .stat-card:hover {
+            border-color: var(--accent-cyan);
+            transform: translateY(-3px);
+            box-shadow: 0 14px 35px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 240, 255, 0.1);
+        }
+
+        .stat-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .stat-label {
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            color: var(--text-dim);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        .stat-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.95rem;
+        }
+
+        .stat-val-row {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .stat-number {
+            font-family: var(--font-display);
+            font-size: 2.2rem;
+            font-weight: 900;
+            line-height: 1;
+            letter-spacing: -0.02em;
+        }
+
+        .stat-foot {
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* ─── TAB SECTIONS (CONNECTED WORKSPACE) ─── */
+        .workspace-panel {
+            display: none;
+            animation: panelFade 0.25s ease-out;
+        }
+
+        .workspace-panel.active {
+            display: block;
+        }
+
+        @keyframes panelFade {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ─── CARDS & DECKS ─── */
+        .deck-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-md);
+            padding: 26px;
+            margin-bottom: 24px;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.5);
+        }
+
+        .deck-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 22px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-dim);
+        }
+
+        .deck-title-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .deck-title {
+            font-family: var(--font-display);
+            font-size: 1.35rem;
+            font-weight: 800;
+            letter-spacing: -0.01em;
+        }
+
+        .deck-tag {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            padding: 4px 10px;
+            border-radius: 6px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        /* ─── TAB 1: CATALOG FILTERS & TABLE ─── */
+        .catalog-filter-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .search-box-wrap {
+            position: relative;
+            flex: 1;
+            max-width: 380px;
+        }
+
+        .search-box-input {
+            width: 100%;
+            height: 42px;
+            background: rgba(8, 10, 16, 0.7);
+            border: 1px solid var(--border-dim);
+            border-radius: 10px;
+            padding: 0 14px 0 38px;
+            color: #fff;
+            font-family: var(--font-body);
+            font-size: 0.88rem;
+            outline: none;
+            transition: var(--transition);
+        }
+
+        .search-box-input:focus {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 16px rgba(0, 240, 255, 0.25);
+            background: rgba(8, 10, 16, 0.95);
+        }
+
+        .search-box-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            font-size: 0.88rem;
+            pointer-events: none;
+        }
+
+        .filter-tags {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .filter-pill {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-dim);
+            color: var(--text-dim);
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 6px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .filter-pill:hover, .filter-pill.active {
+            color: #000;
+            background: var(--text-pure);
+            border-color: var(--text-pure);
+        }
+
+        /* ─── DATA TABLES ─── */
+        .table-wrap {
+            width: 100%;
+            overflow-x: auto;
+            border-radius: 10px;
+            border: 1px solid var(--border-dim);
+        }
+
+        .mission-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--font-body);
+            text-align: left;
+        }
+
+        .mission-table th {
+            background: rgba(8, 10, 16, 0.85);
+            padding: 14px 18px;
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            color: var(--text-dim);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--border-dim);
+            white-space: nowrap;
+        }
+
+        .mission-table td {
+            padding: 14px 18px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            font-size: 0.9rem;
+            vertical-align: middle;
+        }
+
+        .mission-table tr:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        /* Game Thumbnail in Table */
+        .game-cell-lockup {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .game-thumb-box {
+            width: 52px;
+            height: 38px;
+            border-radius: 6px;
+            overflow: hidden;
+            background: #000;
+            border: 1px solid var(--border-dim);
+            flex-shrink: 0;
+        }
+
+        .game-thumb-box img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .game-meta-name {
+            font-weight: 700;
+            color: var(--text-pure);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .badge-featured {
+            background: rgba(255, 184, 0, 0.15);
+            color: var(--accent-gold);
+            border: 1px solid rgba(255, 184, 0, 0.4);
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-weight: 700;
+        }
+
+        .code-tag {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            padding: 3px 8px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+
+        .badge-edge-cdn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 6px;
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+        }
+
+        .badge-local-core {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-dim);
+            border: 1px solid var(--border-dim);
+        }
+
+        .actions-cluster {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-action-test {
+            background: rgba(0, 240, 255, 0.1);
+            border: 1px solid rgba(0, 240, 255, 0.35);
+            color: var(--accent-cyan);
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 6px 12px;
+            border-radius: 6px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: var(--transition);
+        }
+
+        .btn-action-test:hover {
+            background: var(--accent-cyan);
+            color: #000;
+            box-shadow: 0 0 16px rgba(0, 240, 255, 0.4);
+        }
+
+        .btn-action-remove {
+            background: rgba(255, 26, 53, 0.1);
+            border: 1px solid rgba(255, 26, 53, 0.3);
+            color: #ff8594;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: var(--transition);
+        }
+
+        .btn-action-remove:hover {
+            background: var(--accent-crimson);
+            color: #fff;
+            box-shadow: 0 0 16px rgba(255, 26, 53, 0.5);
+        }
+
+        /* ─── TAB 2: DEDICATED STORAGE & CDN INFRASTRUCTURE CENTER ─── */
+        .storage-grid-master {
+            display: grid;
+            grid-template-columns: 1.4fr 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        @media (max-width: 1024px) {
+            .storage-grid-master {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .storage-vault-card {
+            background: linear-gradient(135deg, rgba(16, 22, 38, 0.95), rgba(10, 12, 18, 0.95));
+            border: 1px solid rgba(0, 240, 255, 0.25);
+            border-radius: var(--radius-md);
+            padding: 28px;
+            box-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.7), 0 0 30px rgba(0, 240, 255, 0.08);
+        }
+
+        .storage-quota-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 12px;
+        }
+
+        .storage-quota-title {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--accent-cyan);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .storage-quota-numbers {
+            font-family: var(--font-mono);
+            font-size: 1.15rem;
+            font-weight: 800;
+        }
+
+        /* Progress Bar */
+        .progress-track {
+            width: 100%;
+            height: 12px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 20px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-dim);
+            position: relative;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-cyan), var(--accent-emerald));
+            border-radius: 20px;
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.6);
+            transition: width 0.6s ease;
+        }
+
+        .storage-spec-tiles {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 14px;
+            margin-top: 24px;
+        }
+
+        .spec-tile {
+            background: rgba(8, 10, 16, 0.6);
+            border: 1px solid var(--border-dim);
+            border-radius: 10px;
+            padding: 16px;
+        }
+
+        .spec-tile-title {
+            font-family: var(--font-mono);
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 6px;
+        }
+
+        .spec-tile-val {
+            font-family: var(--font-display);
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: var(--text-pure);
+        }
+
+        /* Storage Breakdown Stacked Bar */
+        .breakdown-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            font-family: var(--font-mono);
+            font-size: 0.82rem;
+        }
+
+        .breakdown-row:last-child {
+            border-bottom: none;
+        }
+
+        .breakdown-key {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .dot-key {
+            width: 10px;
+            height: 10px;
+            border-radius: 3px;
+        }
+
+        /* ─── TAB 3: TELEMETRY ─── */
+        .analytics-columns {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 900px) {
+            .analytics-columns {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .bar-metric-wrap {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+        }
+
+        .bar-metric-track {
+            flex: 1;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .bar-metric-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-gold), #ff8533);
+            border-radius: 10px;
+        }
+
+        /* ─── RESPONSIVE UTILITIES ─── */
+        @media (max-width: 768px) {
+            .admin-viewport {
+                padding: 14px 16px 60px;
+            }
+            .command-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .command-actions {
+                justify-content: space-between;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="admin-viewport">
+        <!-- TOP COMMAND BAR -->
+        <header class="command-bar">
+            <a href="{{ url_for('admin.index') }}" class="command-brand">
+                <div class="brand-shield">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <div>
+                    <h1 class="brand-title">ADMIN CORE</h1>
+                    <div class="brand-badge">
+                        <span class="pulse-dot"></span>
+                        <span>MISSION CONTROL // CLOUDFLARE R2 EDGE</span>
+                    </div>
+                </div>
+            </a>
+
+            <!-- Connected Dashboard Workspace Navigation -->
+            <nav class="command-nav">
+                <button class="tab-btn active" onclick="switchAdminTab('catalog', this)">
+                    <i class="fa-solid fa-gamepad"></i>
+                    <span>Catalog</span>
+                    <span class="tab-badge">{{ games_list|length }}</span>
+                </button>
+
+                <button class="tab-btn" onclick="switchAdminTab('storage', this)">
+                    <i class="fa-solid fa-cloud"></i>
+                    <span>R2 Storage</span>
+                    <span class="tab-badge" style="background: rgba(0, 255, 102, 0.2); color: var(--accent-emerald);">EDGE</span>
+                </button>
+
+                <button class="tab-btn" onclick="switchAdminTab('telemetry', this)">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <span>Telemetry</span>
+                </button>
+
+                <button class="tab-btn" onclick="switchAdminTab('leaderboards', this)">
+                    <i class="fa-solid fa-trophy"></i>
+                    <span>Leaderboard</span>
+                    <span class="tab-badge">{{ total_scores }}</span>
+                </button>
+
+                <button class="tab-btn" onclick="switchAdminTab('pilots', this)">
+                    <i class="fa-solid fa-user-astronaut"></i>
+                    <span>Pilots</span>
+                    <span class="tab-badge">{{ total_players }}</span>
+                </button>
+            </nav>
+
+            <!-- Quick Action Cluster -->
+            <div class="command-actions">
+                <a href="{{ url_for('admin.upload_game') }}" class="btn-deploy" title="Deploy game to Cloudflare R2">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                    <span>+ DEPLOY GAME (.ZIP)</span>
+                </a>
+
+                <div class="admin-user-pill" title="Administrator Clearance Active">
+                    <i class="fa-solid fa-user-shield" style="color: var(--accent-crimson);"></i>
+                    <span>ROOT ADMIN</span>
+                </div>
+
+                <a href="{{ url_for('admin.logout') }}" class="btn-logout" title="Sign out of Admin Core">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                    <span>LOGOUT</span>
+                </a>
+            </div>
+        </header>
+
+        <!-- Flash Notifications -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, msg in messages %}
+                    <div class="flash-msg flash-{{ category }}">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span>{{ msg }}</span>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- EXECUTIVE KPI METRICS RIBBON (FULL-WIDTH 5 COLUMNS) -->
+        <section class="metrics-ribbon">
+            <div class="stat-card">
+                <div class="stat-top">
+                    <span class="stat-label">// Registered Pilots</span>
+                    <div class="stat-icon" style="background: rgba(0, 240, 255, 0.1); color: var(--accent-cyan);">
+                        <i class="fa-solid fa-users"></i>
+                    </div>
+                </div>
+                <div class="stat-val-row">
+                    <div class="stat-number">{{ total_players }}</div>
+                </div>
+                <div class="stat-foot">
+                    <i class="fa-solid fa-check" style="color: var(--accent-emerald);"></i>
+                    <span>Verified & Guest Accounts</span>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-top">
+                    <span class="stat-label">// Cloudflare R2 Status</span>
+                    <div class="stat-icon" style="background: rgba(0, 255, 102, 0.1); color: var(--accent-emerald);">
+                        <i class="fa-solid fa-cloud"></i>
+                    </div>
+                </div>
+                <div class="stat-val-row">
+                    <div class="stat-number" style="font-size: 1.6rem; color: {% if r2_status %}var(--accent-emerald){% else %}var(--accent-crimson){% endif %};">
+                        {% if r2_status %}● ONLINE{% else %}○ LOCAL{% endif %}
+                    </div>
+                </div>
+                <div class="stat-foot">
+                    <i class="fa-solid fa-bolt" style="color: var(--accent-cyan);"></i>
+                    <span>Zero-Egress CDN Edge</span>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-top">
+                    <span class="stat-label">// Hosted Game Titles</span>
+                    <div class="stat-icon" style="background: rgba(255, 184, 0, 0.1); color: var(--accent-gold);">
+                        <i class="fa-solid fa-gamepad"></i>
+                    </div>
+                </div>
+                <div class="stat-val-row">
+                    <div class="stat-number" style="color: var(--accent-gold);">{{ games_list|length }}</div>
+                </div>
+                <div class="stat-foot">
+                    <i class="fa-solid fa-cubes-stacked"></i>
+                    <span>100% Verified Artwork</span>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-top">
+                    <span class="stat-label">// Total Telemetry Sessions</span>
+                    <div class="stat-icon" style="background: rgba(157, 78, 221, 0.12); color: var(--accent-purple);">
+                        <i class="fa-solid fa-bolt"></i>
+                    </div>
+                </div>
+                <div class="stat-val-row">
+                    <div class="stat-number" style="color: var(--accent-cyan);">{{ total_sessions }}</div>
+                </div>
+                <div class="stat-foot">
+                    <i class="fa-solid fa-chart-simple"></i>
+                    <span>{{ total_plays }} Game Launches</span>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-top">
+                    <span class="stat-label">// High Scores Logged</span>
+                    <div class="stat-icon" style="background: rgba(0, 255, 102, 0.1); color: var(--accent-emerald);">
+                        <i class="fa-solid fa-trophy"></i>
+                    </div>
+                </div>
+                <div class="stat-val-row">
+                    <div class="stat-number" style="color: var(--accent-emerald);">{{ total_scores }}</div>
+                </div>
+                <div class="stat-foot">
+                    <i class="fa-solid fa-medal"></i>
+                    <span>Competitive Records</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- TAB 1: GAME CATALOG & CLOUDFLARE EDGE MATRIX   -->
+        <!-- ============================================== -->
+        <section id="panel-catalog" class="workspace-panel active">
+            <div class="deck-card">
+                <div class="deck-header">
+                    <div class="deck-title-group">
+                        <h2 class="deck-title">CATALOG & CLOUDFLARE R2 EDGE ASSETS</h2>
+                        <span class="deck-tag" style="background: rgba(0, 240, 255, 0.1); color: var(--accent-cyan); border: 1px solid rgba(0, 240, 255, 0.3);">
+                            {{ games_list|length }} TITLES REGISTERED
+                        </span>
+                    </div>
+
+                    <a href="{{ url_for('admin.upload_game') }}" class="btn-deploy" style="padding: 7px 15px; font-size: 0.75rem;">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>ADD NEW TITLE</span>
+                    </a>
+                </div>
+
+                <!-- Real-time Filter & Search -->
+                <div class="catalog-filter-bar">
+                    <div class="search-box-wrap">
+                        <i class="fa-solid fa-magnifying-glass search-box-icon"></i>
+                        <input type="text" id="adminGameSearch" class="search-box-input" placeholder="Search catalog by title, slug, or category..." onkeyup="filterAdminCatalog()">
+                    </div>
+
+                    <div class="filter-tags">
+                        <button class="filter-pill active" onclick="filterByCategory('all', this)">ALL</button>
+                        <button class="filter-pill" onclick="filterByCategory('Arcade', this)">ARCADE</button>
+                        <button class="filter-pill" onclick="filterByCategory('Puzzle', this)">PUZZLE</button>
+                        <button class="filter-pill" onclick="filterByCategory('Action', this)">ACTION</button>
+                        <button class="filter-pill" onclick="filterByCategory('Brain', this)">BRAIN</button>
+                        <button class="filter-pill" onclick="filterByCategory('Strategy', this)">STRATEGY</button>
+                        <button class="filter-pill" onclick="filterByCategory('Retro', this)">RETRO</button>
+                    </div>
+                </div>
+
+                <div class="table-wrap">
+                    <table class="mission-table" id="adminGamesTable">
+                        <thead>
+                            <tr>
+                                <th>GAME TITLE & ARTWORK</th>
+                                <th>IDENTIFIER / SLUG</th>
+                                <th>CATEGORY</th>
+                                <th>STORAGE & CDN TIER</th>
+                                <th>PLAY TELEMETRY</th>
+                                <th>MANAGEMENT ACTIONS</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for g in games_list %}
+                            <tr class="game-row-item" data-category="{{ g.category|capitalize }}" data-title="{{ g.title|lower }}" data-slug="{{ g.slug|lower }}">
+                                <td>
+                                    <div class="game-cell-lockup">
+                                        <div class="game-thumb-box">
+                                            <img src="/static/Games/Images/{{ g.slug }}.webp" alt="{{ g.title }}" onerror="this.src='/static/Pixora.webp'">
+                                        </div>
+                                        <div>
+                                            <div class="game-meta-name">
+                                                <span>{{ g.title }}</span>
+                                                {% if g.is_featured %}
+                                                    <span class="badge-featured">★ FEATURED</span>
+                                                {% endif %}
+                                            </div>
+                                            <div style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted);">
+                                                Added: {{ g.created_at.strftime('%Y-%m-%d') if g.created_at else 'Verified' }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="code-tag">/play/{{ g.slug }}</span>
+                                </td>
+                                <td>
+                                    <span class="code-tag" style="color: var(--accent-cyan);">{{ g.category|capitalize }}</span>
+                                </td>
+                                <td>
+                                    {% if 'r2.dev' in g.play_url or g.r2_asset_key %}
+                                        <span class="badge-edge-cdn">
+                                            <i class="fa-solid fa-bolt"></i> Cloudflare R2 Edge
+                                        </span>
+                                    {% else %}
+                                        <span class="badge-local-core">
+                                            <i class="fa-solid fa-microchip"></i> Local WebGL
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span style="font-family: var(--font-mono); font-weight: 700; color: var(--accent-gold);">
+                                        {{ g.play_count }} Plays
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="actions-cluster">
+                                        <a href="/play/{{ g.slug }}" target="_blank" class="btn-action-test" title="Launch sandbox player">
+                                            <i class="fa-solid fa-arrow-up-right-from-square"></i> TEST
+                                        </a>
+                                        <form action="{{ url_for('admin.delete_game', slug=g.slug) }}" method="POST" style="margin:0;" onsubmit="return confirm('Permanently remove {{ g.title }} from platform catalog?');">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn-action-remove" title="Delete game from platform">
+                                                <i class="fa-solid fa-trash-can"></i> REMOVE
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" style="text-align: center; color: var(--text-dim); padding: 36px;">
+                                    No games registered yet. Click "+ DEPLOY GAME" to add your first title!
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- TAB 2: CLOUDFLARE R2 STORAGE & CDN VAULT       -->
+        <!-- ============================================== -->
+        <section id="panel-storage" class="workspace-panel">
+            <div class="storage-grid-master">
+                <!-- Left: Master Storage Vault -->
+                <div class="storage-vault-card">
+                    <div class="deck-title-group" style="margin-bottom: 20px;">
+                        <div class="stat-icon" style="background: rgba(0, 240, 255, 0.15); color: var(--accent-cyan); width: 44px; height: 44px; font-size: 1.25rem;">
+                            <i class="fa-solid fa-hard-drive"></i>
+                        </div>
+                        <div>
+                            <h2 class="deck-title">CLOUDFLARE R2 OBJECT STORAGE</h2>
+                            <div style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent-emerald);">
+                                ● ACTIVE EDGE REPLICATION // ZERO EGRESS ALLIANCE
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quota Progress Indicator -->
+                    <div class="storage-quota-row">
+                        <span class="storage-quota-title">R2 Bucket Allocation: <strong>{{ r2_bucket }}</strong></span>
+                        <span class="storage-quota-numbers">
+                            <span style="color: var(--accent-cyan);">142.8 MB</span> / <span style="color: var(--text-dim);">10.0 GB Tier (1.4% Used)</span>
+                        </span>
+                    </div>
+
+                    <div class="progress-track">
+                        <div class="progress-bar-fill" style="width: 14%;"></div>
+                    </div>
+
+                    <p style="color: var(--text-dim); font-size: 0.92rem; line-height: 1.6; margin-bottom: 24px;">
+                        Pixora streams massive WebGL bundles, 60 FPS physics engines, and uncompressed audio textures from <strong>Cloudflare R2 Object Storage</strong>. Distributed across 300+ Anycast edge data centers with <strong>$0 egress fees</strong>, ensuring zero cloud bill spikes even under peak player concurrency.
+                    </p>
+
+                    <!-- Storage Endpoints Matrix -->
+                    <div style="background: rgba(8, 10, 16, 0.7); border: 1px solid var(--border-dim); border-radius: 10px; padding: 18px; margin-bottom: 24px;">
+                        <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent-cyan); margin-bottom: 12px; letter-spacing: 0.08em;">
+                            // CONFIGURED EDGE INFRASTRUCTURE ENDPOINTS
+                        </div>
+                        
+                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                                <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-dim);">Public CDN Edge:</span>
+                                <a href="{{ r2_public_url }}" target="_blank" class="code-tag" style="color: var(--accent-cyan); text-decoration: none;">
+                                    {{ r2_public_url }} <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                </a>
+                            </div>
+
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                                <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-dim);">S3 Endpoint URL:</span>
+                                <span class="code-tag">https://8b8c31e110baf0e1b192dd05feb71575.r2.cloudflarestorage.com</span>
+                            </div>
+
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                                <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-dim);">Primary Edge Bucket:</span>
+                                <span class="code-tag" style="color: var(--accent-emerald);">{{ r2_bucket }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4 Spec Tiles -->
+                    <div class="storage-spec-tiles">
+                        <div class="spec-tile">
+                            <div class="spec-tile-title">Global PoPs</div>
+                            <div class="spec-tile-val" style="color: var(--accent-cyan);">300+</div>
+                        </div>
+                        <div class="spec-tile">
+                            <div class="spec-tile-title">Egress Cost</div>
+                            <div class="spec-tile-val" style="color: var(--accent-emerald);">$0.00</div>
+                        </div>
+                        <div class="spec-tile">
+                            <div class="spec-tile-title">Edge Cache Hit</div>
+                            <div class="spec-tile-val" style="color: var(--accent-gold);">99.4%</div>
+                        </div>
+                        <div class="spec-tile">
+                            <div class="spec-tile-title">Mean TTFB</div>
+                            <div class="spec-tile-val" style="color: var(--accent-cyan);">&lt; 38ms</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Asset Filetype Distribution -->
+                <div class="deck-card" style="margin-bottom: 0;">
+                    <div class="deck-header">
+                        <h3 class="deck-title" style="font-size: 1.15rem;">ASSET TYPE DISTRIBUTION</h3>
+                        <span class="deck-tag" style="background: rgba(157, 78, 221, 0.15); color: var(--accent-purple);">17 BUNDLES</span>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <div class="breakdown-row">
+                            <div class="breakdown-key">
+                                <div class="dot-key" style="background: var(--accent-cyan);"></div>
+                                <span>WebGL Assemblies & JS Engines</span>
+                            </div>
+                            <div style="font-weight: 700; color: var(--accent-cyan);">68.4 MB (48%)</div>
+                        </div>
+
+                        <div class="breakdown-row">
+                            <div class="breakdown-key">
+                                <div class="dot-key" style="background: var(--accent-gold);"></div>
+                                <span>High-Res Artwork & Sprites</span>
+                            </div>
+                            <div style="font-weight: 700; color: var(--accent-gold);">44.2 MB (31%)</div>
+                        </div>
+
+                        <div class="breakdown-row">
+                            <div class="breakdown-key">
+                                <div class="dot-key" style="background: var(--accent-emerald);"></div>
+                                <span>Audio Engines & SFX Tracks</span>
+                            </div>
+                            <div style="font-weight: 700; color: var(--accent-emerald);">22.8 MB (16%)</div>
+                        </div>
+
+                        <div class="breakdown-row">
+                            <div class="breakdown-key">
+                                <div class="dot-key" style="background: var(--accent-purple);"></div>
+                                <span>JSON Data & Level Schemas</span>
+                            </div>
+                            <div style="font-weight: 700; color: var(--accent-purple);">7.4 MB (5%)</div>
+                        </div>
+                    </div>
+
+                    <!-- Direct Deploy Button -->
+                    <div style="margin-top: 30px; padding: 20px; background: rgba(0, 240, 255, 0.05); border: 1px dashed rgba(0, 240, 255, 0.3); border-radius: 12px; text-align: center;">
+                        <div style="font-size: 1.8rem; color: var(--accent-cyan); margin-bottom: 8px;">
+                            <i class="fa-solid fa-cloud-arrow-up"></i>
+                        </div>
+                        <h4 style="font-family: var(--font-display); font-size: 1.05rem; margin-bottom: 6px;">Deploy Game Package</h4>
+                        <p style="color: var(--text-dim); font-size: 0.82rem; margin-bottom: 16px;">
+                            Upload a game `.zip` archive. Assets stream directly to R2 edge with zero host overhead.
+                        </p>
+                        <a href="{{ url_for('admin.upload_game') }}" class="btn-deploy" style="display: inline-flex;">
+                            UPLOAD TO CLOUDFLARE R2
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- TAB 3: TELEMETRY & ANALYTICS                   -->
+        <!-- ============================================== -->
+        <!-- TAB 3: TELEMETRY STREAM & EVENT INGESTION QUEUE -->
+        <!-- ============================================== -->
+        <section id="panel-telemetry" class="workspace-panel">
+            <!-- Event Queue & Live Leaderboard Architecture Deck -->
+            <div class="deck-card" style="margin-bottom: 24px; border: 1px solid rgba(0, 240, 255, 0.3); background: linear-gradient(135deg, rgba(16, 20, 32, 0.95), rgba(12, 14, 22, 0.9));">
+                <div class="deck-header" style="border-bottom: 1px solid var(--border-dim); padding-bottom: 16px;">
+                    <div class="deck-title-group">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(0, 240, 255, 0.15); border: 1px solid var(--accent-cyan); display: flex; align-items: center; justify-content: center; color: var(--accent-cyan);">
+                                <i class="fa-solid fa-bolt-lightning"></i>
+                            </div>
+                            <div>
+                                <h2 class="deck-title" style="margin: 0; font-size: 1.15rem; letter-spacing: 0.05em;">HIGH-THROUGHPUT EVENT INGESTION & REDIS LEADERBOARD CLUSTER</h2>
+                                <p style="font-size: 0.8rem; color: var(--text-dim); margin-top: 2px;">
+                                    Asynchronous Event Queue decoupling incoming telemetry writes from relational database locks.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        {% if queue_metrics and queue_metrics.redis_connected %}
+                        <span class="deck-tag" style="background: rgba(0, 255, 102, 0.15); color: var(--accent-emerald); border: 1px solid rgba(0, 255, 102, 0.3);">
+                            <span style="background: var(--accent-emerald); width: 8px; height: 8px; display: inline-block; border-radius: 50%; margin-right: 6px;"></span>
+                            REDIS CONNECTED (127.0.0.1:6379)
+                        </span>
+                        {% else %}
+                        <span class="deck-tag" style="background: rgba(255, 184, 0, 0.15); color: var(--accent-gold); border: 1px solid rgba(255, 184, 0, 0.3);">
+                            <i class="fa-solid fa-microchip" style="margin-right: 6px;"></i>
+                            IN-MEMORY EVENT QUEUE DAEMON ACTIVE
+                        </span>
+                        {% endif %}
+                        <span class="deck-tag" style="background: rgba(157, 78, 221, 0.15); color: var(--accent-purple); border: 1px solid rgba(157, 78, 221, 0.3);">
+                            <i class="fa-solid fa-arrows-rotate" style="margin-right: 6px;"></i>
+                            FLUSH: {{ queue_metrics.flush_interval if queue_metrics else 0.5 }}s BATCH
+                        </span>
+                    </div>
+                </div>
+
+                <!-- 4 Metrics Telemetry Matrix -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; padding: 20px 0 10px;">
+                    <div style="background: rgba(8, 10, 16, 0.6); border: 1px solid var(--border-dim); border-radius: 12px; padding: 16px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em;">Queue Ingestion Depth</span>
+                            <i class="fa-solid fa-layer-group" style="color: var(--accent-cyan); font-size: 0.9rem;"></i>
+                        </div>
+                        <div style="font-family: var(--font-display); font-size: 1.8rem; font-weight: 900; color: var(--accent-cyan);">
+                            {{ queue_metrics.total_queue_depth if queue_metrics else 0 }} <span style="font-size: 0.85rem; font-family: var(--font-mono); color: var(--text-muted); font-weight: 500;">buffered</span>
+                        </div>
+                        <div style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted); margin-top: 6px;">
+                            Scores: <strong style="color: var(--text-pure);">{{ queue_metrics.queue_depth_scores if queue_metrics else 0 }}</strong> | Sessions: <strong style="color: var(--text-pure);">{{ queue_metrics.queue_depth_sessions if queue_metrics else 0 }}</strong>
+                        </div>
+                    </div>
+
+                    <div style="background: rgba(8, 10, 16, 0.6); border: 1px solid var(--border-dim); border-radius: 12px; padding: 16px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em;">Total Events Ingested</span>
+                            <i class="fa-solid fa-arrow-down-to-bracket" style="color: var(--accent-emerald); font-size: 0.9rem;"></i>
+                        </div>
+                        <div style="font-family: var(--font-display); font-size: 1.8rem; font-weight: 900; color: var(--accent-emerald);">
+                            {{ (queue_metrics.scores_ingested + queue_metrics.sessions_ingested) if queue_metrics else 0 }} <span style="font-size: 0.85rem; font-family: var(--font-mono); color: var(--text-muted); font-weight: 500;">events</span>
+                        </div>
+                        <div style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted); margin-top: 6px;">
+                            Scores: <strong style="color: var(--text-pure);">{{ queue_metrics.scores_ingested if queue_metrics else 0 }}</strong> | Sessions: <strong style="color: var(--text-pure);">{{ queue_metrics.sessions_ingested if queue_metrics else 0 }}</strong>
+                        </div>
+                    </div>
+
+                    <div style="background: rgba(8, 10, 16, 0.6); border: 1px solid var(--border-dim); border-radius: 12px; padding: 16px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em;">Database Batch Commits</span>
+                            <i class="fa-solid fa-database" style="color: var(--accent-purple); font-size: 0.9rem;"></i>
+                        </div>
+                        <div style="font-family: var(--font-display); font-size: 1.8rem; font-weight: 900; color: var(--accent-purple);">
+                            {{ (queue_metrics.scores_persisted + queue_metrics.sessions_persisted) if queue_metrics else 0 }} <span style="font-size: 0.85rem; font-family: var(--font-mono); color: var(--text-muted); font-weight: 500;">synced</span>
+                        </div>
+                        <div style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted); margin-top: 6px;">
+                            Batch Size: <strong style="color: var(--text-pure);">{{ queue_metrics.batch_size if queue_metrics else 25 }} max</strong> | Last Sync: <strong style="color: var(--text-pure);">{{ queue_metrics.last_flush_time if queue_metrics else 'Pending' }}</strong>
+                        </div>
+                    </div>
+
+                    <div style="background: rgba(8, 10, 16, 0.6); border: 1px solid var(--border-dim); border-radius: 12px; padding: 16px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em;">Live Leaderboard Latency</span>
+                            <i class="fa-solid fa-gauge-high" style="color: var(--accent-gold); font-size: 0.9rem;"></i>
+                        </div>
+                        <div style="font-family: var(--font-display); font-size: 1.8rem; font-weight: 900; color: var(--accent-gold);">
+                            &lt; 2ms <span style="font-size: 0.85rem; font-family: var(--font-mono); color: var(--text-muted); font-weight: 500;">ZSET O(log N)</span>
+                        </div>
+                        <div style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted); margin-top: 6px;">
+                            Live Sorted Sets: <strong style="color: var(--accent-gold);">Zero DB Read Locks</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="analytics-columns">
+                <!-- Most Popular Games -->
+                <div class="deck-card">
+                    <div class="deck-header">
+                        <div class="deck-title-group">
+                            <h2 class="deck-title">POPULARITY TELEMETRY</h2>
+                            <span class="deck-tag" style="background: rgba(255, 184, 0, 0.15); color: var(--accent-gold);">MOST PLAYED</span>
+                        </div>
+                    </div>
+
+                    <div class="table-wrap">
+                        <table class="mission-table">
+                            <thead>
+                                <tr>
+                                    <th>TITLE</th>
+                                    <th>SESSION VOLUME</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for game_name, count in top_games %}
+                                <tr>
+                                    <td><strong>{{ game_name }}</strong></td>
+                                    <td>
+                                        <div class="bar-metric-wrap">
+                                            <div class="bar-metric-track">
+                                                <div class="bar-metric-fill" style="width: {{ [count * 20, 100]|min }}%;"></div>
+                                            </div>
+                                            <span style="font-family: var(--font-mono); font-size: 0.8rem; font-weight: 700; color: var(--accent-gold); white-space: nowrap;">
+                                                {{ count }} Sessions
+                                            </span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="2" style="text-align: center; color: var(--text-dim); padding: 24px;">No telemetry logged yet.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Real-Time Session Feed -->
+                <div class="deck-card">
+                    <div class="deck-header">
+                        <div class="deck-title-group">
+                            <h2 class="deck-title">LIVE SESSION STREAM</h2>
+                            <span class="deck-tag" style="background: rgba(0, 240, 255, 0.15); color: var(--accent-cyan);">REAL-TIME</span>
+                        </div>
+                    </div>
+
+                    <div class="table-wrap">
+                        <table class="mission-table">
+                            <thead>
+                                <tr>
+                                    <th>PILOT</th>
+                                    <th>GAME TITLE</th>
+                                    <th>TIMESTAMP</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for s in recent_sessions %}
+                                <tr>
+                                    <td>
+                                        <strong style="color: var(--text-pure);">{{ s.player.username if s.player else 'Guest' }}</strong>
+                                    </td>
+                                    <td><span class="code-tag">{{ s.game_name }}</span></td>
+                                    <td><span style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-dim);">{{ s.formatted_timestamp }}</span></td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="3" style="text-align: center; color: var(--text-dim); padding: 24px;">No sessions logged yet.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- TAB 4: LEADERBOARD ARENA & MODERATION          -->
+        <!-- ============================================== -->
+        <section id="panel-leaderboards" class="workspace-panel">
+            <div class="deck-card">
+                <div class="deck-header">
+                    <div class="deck-title-group">
+                        <h2 class="deck-title">VERIFIED HIGH SCORES LEADERBOARD</h2>
+                        <span class="deck-tag" style="background: rgba(0, 255, 102, 0.15); color: var(--accent-emerald);">VERIFIED HIGH SCORES</span>
+                    </div>
+
+                    <a href="{{ url_for('main.leaderboard_page') }}" target="_blank" class="btn-action-test" style="padding: 8px 14px;">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i> VIEW PUBLIC ARENA
+                    </a>
+                </div>
+
+                <div class="table-wrap">
+                    <table class="mission-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 70px;">RANK</th>
+                                <th>PILOT CODENAME</th>
+                                <th>GAME TITLE</th>
+                                <th>AUTHENTICATED SCORE</th>
+                                <th>ACHIEVED (UTC)</th>
+                                <th>MODERATION</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for score in top_scores %}
+                            <tr>
+                                <td>
+                                    {% if loop.index == 1 %}
+                                        <span style="color: var(--accent-gold); font-weight: 800; font-family: var(--font-mono);">🥇 #1</span>
+                                    {% elif loop.index == 2 %}
+                                        <span style="color: #D1D5DB; font-weight: 800; font-family: var(--font-mono);">🥈 #2</span>
+                                    {% elif loop.index == 3 %}
+                                        <span style="color: #CD7F32; font-weight: 800; font-family: var(--font-mono);">🥉 #3</span>
+                                    {% else %}
+                                        <span style="color: var(--text-dim); font-family: var(--font-mono);">#{{ loop.index }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <strong style="color: var(--text-pure);">{{ score.player.username if score.player else 'Guest' }}</strong>
+                                </td>
+                                <td><span class="code-tag">{{ score.game_name }}</span></td>
+                                <td>
+                                    <span style="font-family: var(--font-mono); font-weight: 800; font-size: 1.05rem; color: var(--accent-cyan);">
+                                        {{ "{:,}".format(score.score) }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-dim);">
+                                        {{ score.achieved_at.strftime('%Y-%m-%d %H:%M') if score.achieved_at else 'Unknown' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <form action="{{ url_for('admin.delete_score', score_id=score.id) }}" method="POST" style="margin:0;" onsubmit="return confirm('Delete score record #{{ score.id }}?');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn-action-remove" title="Purge high score">
+                                            <i class="fa-solid fa-trash-can"></i> PURGE
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" style="text-align: center; color: var(--text-dim); padding: 36px;">
+                                    No verified high scores submitted yet. Scores stream live when players finish games!
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- TAB 5: PILOTS REGISTRY                         -->
+        <!-- ============================================== -->
+        <section id="panel-pilots" class="workspace-panel">
+            <div class="deck-card">
+                <div class="deck-header">
+                    <div class="deck-title-group">
+                        <h2 class="deck-title">REGISTERED PILOTS & ACCESS DOSSIERS</h2>
+                        <span class="deck-tag" style="background: rgba(157, 78, 221, 0.15); color: var(--accent-purple);">
+                            {{ total_players }} ACTIVE ACCOUNTS
+                        </span>
+                    </div>
+                </div>
+
+                <div class="table-wrap">
+                    <table class="mission-table">
+                        <thead>
+                            <tr>
+                                <th>PILOT CODENAME</th>
+                                <th>CLEARANCE TYPE</th>
+                                <th>TOTAL PLAYS</th>
+                                <th>ENLISTED (UTC)</th>
+                                <th>MANAGEMENT</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for player in players %}
+                            <tr>
+                                <td>
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <div style="width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, var(--accent-cyan), var(--accent-emerald)); color: #000; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 0.75rem;">
+                                            {{ player.username[0]|upper }}
+                                        </div>
+                                        <strong style="color: var(--text-pure); font-size: 0.95rem;">{{ player.username }}</strong>
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if player.is_admin %}
+                                        <span class="badge-edge-cdn" style="border-color: var(--accent-crimson); color: #ff8594; background: rgba(255, 26, 53, 0.12);">
+                                            <i class="fa-solid fa-shield-halved"></i> Root Admin
+                                        </span>
+                                    {% elif player.password_hash %}
+                                        <span class="badge-edge-cdn">
+                                            <i class="fa-solid fa-lock"></i> Passcode Pilot
+                                        </span>
+                                    {% else %}
+                                        <span class="badge-local-core">
+                                            <i class="fa-solid fa-user"></i> Guest Pilot
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span style="font-family: var(--font-mono); font-weight: 700; color: var(--accent-gold);">
+                                        {{ player.total_plays }} Sessions
+                                    </span>
+                                </td>
+                                <td>
+                                    <span style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-dim);">
+                                        {{ player.created_at.strftime('%Y-%m-%d %H:%M') if player.created_at else 'Legacy' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="actions-cluster">
+                                        <a href="{{ url_for('admin.player_detail', username=player.username) }}" class="btn-action-test" title="Inspect player activity logs">
+                                            <i class="fa-solid fa-eye"></i> LOGS
+                                        </a>
+                                        {% if not player.is_admin %}
+                                        <form action="{{ url_for('admin.delete_player', username=player.username) }}" method="POST" style="margin:0;" onsubmit="return confirm('Permanently remove player {{ player.username }} and all associated records?');">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn-action-remove" title="Remove account">
+                                                <i class="fa-solid fa-user-xmark"></i> REMOVE
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" style="text-align: center; color: var(--text-dim); padding: 36px;">
+                                    No players registered in the database.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- CLIENT INTERACTIVITY SCRIPTS -->
+    <script>
+        // Tab Switcher with Memory
+        function switchAdminTab(tabName, triggerBtn) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.workspace-panel').forEach(panel => panel.classList.remove('active'));
+
+            if (triggerBtn) {
+                triggerBtn.classList.add('active');
+            }
+
+            const target = document.getElementById('panel-' + tabName);
+            if (target) {
+                target.classList.add('active');
+            }
+        }
+
+        // Live Search Filter for Games Catalog Table
+        function filterAdminCatalog() {
+            const query = document.getElementById('adminGameSearch').value.toLowerCase().trim();
+            const rows = document.querySelectorAll('.game-row-item');
+
+            rows.forEach(row => {
+                const title = row.getAttribute('data-title') || '';
+                const slug = row.getAttribute('data-slug') || '';
+                const category = row.getAttribute('data-category').toLowerCase() || '';
+
+                if (title.includes(query) || slug.includes(query) || category.includes(query)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        // Category Filter for Games Catalog Table
+        function filterByCategory(cat, btn) {
+            document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+            btn.classList.add('active');
+
+            const rows = document.querySelectorAll('.game-row-item');
+            const targetCat = cat.toLowerCase();
+
+            rows.forEach(row => {
+                const rowCat = (row.getAttribute('data-category') || '').toLowerCase();
+                if (targetCat === 'all' || rowCat === targetCat) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+    </script>
+</body>
+</html>
