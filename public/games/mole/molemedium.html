@@ -31,7 +31,7 @@ h2 {
     margin: 20px auto;
     display: flex;
     flex-wrap: wrap;
-    background: url("static/Games/wake a mole/soil.png");
+    background: url("soil.png");
     background-size: cover;
     border: 3px solid white;
     border-radius: 25px;
@@ -40,7 +40,7 @@ h2 {
 #board div {
     width: 180px;
     height: 180px;
-    background-image: url("static/Games/wake a mole/pipe.png");
+    background-image: url("pipe.png");
     background-size: cover;
     display: flex;
     align-items: center;
@@ -297,7 +297,7 @@ function setMole() {
     if (currMoleTile) currMoleTile.innerHTML = ""; // Clear previous mole
 
     let mole = document.createElement("img");
-    mole.src = "static/Games/wake a mole/monty-mole.png"; // Path to mole image
+    mole.src = "monty-mole.png"; // Path to mole image
 
     let num = getRandomTile();
     if (currPlantTile && currPlantTile.id === num) return; // Don't overlap with plant
@@ -312,7 +312,7 @@ function setPlant() {
     if (currPlantTile) currPlantTile.innerHTML = ""; // Clear previous plant
 
     let plant = document.createElement("img");
-    plant.src = "static/Games/wake a mole/piranha-plant.png"; // Path to plant image
+    plant.src = "piranha-plant.png"; // Path to plant image
 
     let num = getRandomTile();
     if (currMoleTile && currMoleTile.id === num) return; // Don't overlap with mole

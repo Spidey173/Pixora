@@ -251,7 +251,7 @@
     
     // Load background image
     const boardBackground = new Image();
-    boardBackground.src = '/static/Games/pong/field.png'; // Replace with your image path
+    boardBackground.src = 'field.png'; // Load directly from bundle
     boardBackground.onload = drawGame; // Ensure the game draws once the image is loaded
     
     startGameButton.addEventListener('click', startGame);

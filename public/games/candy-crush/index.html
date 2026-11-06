@@ -6,7 +6,7 @@
     <title>Candy Crush</title>
     <style>
  body {
-    background: url("/static/Games/Candy Crush/background.jpg") no-repeat center center fixed;
+    background: url("background.jpg") no-repeat center center fixed;
                 background-size: cover;
                 font-family: 'Arial Rounded MT Bold', Arial, sans-serif;
                 color: white;
@@ -361,12 +361,12 @@
         </ul>
 
         <div class="candy-preview">
-            <img src="/static/Games/Candy Crush/Blue.png" alt="Blue candy">
-            <img src="/static/Games/Candy Crush/Green.png" alt="Green candy">
-            <img src="/static/Games/Candy Crush/Orange.png" alt="Orange candy">
-            <img src="/static/Games/Candy Crush/Purple.png" alt="Purple candy">
-            <img src="/static/Games/Candy Crush/Red.png" alt="Red candy">
-            <img src="/static/Games/Candy Crush/Yellow.png" alt="Yellow candy">
+            <img src="Blue.png" alt="Blue candy">
+            <img src="Green.png" alt="Green candy">
+            <img src="Orange.png" alt="Orange candy">
+            <img src="Purple.png" alt="Purple candy">
+            <img src="Red.png" alt="Red candy">
+            <img src="Yellow.png" alt="Yellow candy">
         </div>
     </div>
 
@@ -399,8 +399,8 @@
         let currTile = null;
         let otherTile = null;
 
-        // Base path for candy images
-        const basePath = "/static/Games/Candy Crush/";
+        // Base path for candy images (loads directly from bundle)
+        const basePath = "";
 
         // DOM Elements
         const boardElement = document.getElementById("board");

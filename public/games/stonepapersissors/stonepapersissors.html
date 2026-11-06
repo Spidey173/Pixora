@@ -168,11 +168,11 @@
     <div class="images">
       <div class="computer">
         <!-- Initial computer image -->
-        <img src="static/Games/Stone Paper Scissors/stoneComputer.png" alt="Computer Choice" />
+        <img src="stoneComputer.png" alt="Computer Choice" />
       </div>
       <div class="player">
         <!-- Initial player image -->
-        <img src="static/Games/Stone Paper Scissors/stonePlayer.png" alt="Player Choice" />
+        <img src="stonePlayer.png" alt="Player Choice" />
       </div>
     </div>
     <div class="points">
@@ -183,9 +183,9 @@
 
     <div class="options">
       <!-- Replace these src attributes with your own images if needed -->
-      <img src="static/Games/Stone Paper Scissors/stonePlayer.png" alt="STONE" data-choice="STONE" />
-      <img src="static/Games/Stone Paper Scissors/paperPlayer.png" alt="PAPER" data-choice="PAPER" />
-      <img src="static/Games/Stone Paper Scissors/scissorsPlayer.png" alt="SCISSORS" data-choice="SCISSORS" />
+      <img src="stonePlayer.png" alt="STONE" data-choice="STONE" />
+      <img src="paperPlayer.png" alt="PAPER" data-choice="PAPER" />
+      <img src="scissorsPlayer.png" alt="SCISSORS" data-choice="SCISSORS" />
     </div>
   </div>
   <script>
@@ -206,13 +206,13 @@
 
           // Get player's choice from the data attribute
           const playerChoice = option.getAttribute("data-choice");
-          // Updated image source without "./images/"
-          player.src = "static/Games/Stone Paper Scissors/" + playerChoice.toLowerCase() + "Player.png";
+          // Updated image source directly from bundle
+          player.src = playerChoice.toLowerCase() + "Player.png";
 
           const choices = ["STONE", "PAPER", "SCISSORS"];
           const randomIndex = Math.floor(Math.random() * 3);
           const computerChoice = choices[randomIndex];
-          computer.src = "static/Games/Stone Paper Scissors/" + computerChoice.toLowerCase() + "Computer.png";
+          computer.src = computerChoice.toLowerCase() + "Computer.png";
 
           let cPoints = parseInt(computerPoints.innerHTML);
           let pPoints = parseInt(playerPoints.innerHTML);
