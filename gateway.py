@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import time
+from contextlib import asynccontextmanager
 from typing import Dict, List, Optional
 
 try:
@@ -37,7 +38,8 @@ if FASTAPI_AVAILABLE:
     app = FastAPI(
         title="Pixora",
         description="Arcade gaming platform API and WebSockets",
-        version="1.0.0"
+        version="1.0.0",
+        lifespan=lambda app_instance: lifespan(app_instance)
     )
 
     # Allowed origins for CORS and WebSockets
@@ -237,31 +239,6 @@ if FASTAPI_AVAILABLE:
     # Redis setup and background listener
     redis_client = None
 
-    @app.on_event("startup")
-    async def startup_event():
-        global redis_client
-        if AIOREDIS_AVAILABLE and os.environ.get("FLASK_ENV") != "testing":
-            max_attempts = 3
-            for attempt in range(1, max_attempts + 1):
-                try:
-                    redis_client = aioredis.from_url(REDIS_URL, decode_responses=True)
-                    await redis_client.ping()
-                    logger.info("Connected to Redis at %s", REDIS_URL)
-                    # Launch Redis Pub/Sub listener task
-                    asyncio.create_task(redis_pubsub_listener())
-                    break
-                except Exception as e:
-                    logger.warning("Redis async connection attempt %d/%d failed: %s", attempt, max_attempts, e)
-                    if attempt < max_attempts:
-                        await asyncio.sleep(0.5)
-                    else:
-                        logger.warning("Redis async connection could not be established; continuing in fallback mode")
-
-    @app.on_event("shutdown")
-    async def shutdown_event():
-        if redis_client:
-            await redis_client.close()
-
     async def redis_pubsub_listener():
         """Listen to Redis Pub/Sub events and broadcast via WebSockets across all Uvicorn workers."""
         if not redis_client:
@@ -291,6 +268,38 @@ if FASTAPI_AVAILABLE:
                         logger.error("PubSub pmessage error: %s", err)
         except Exception as e:
             logger.warning("PubSub listener stopped: %s", e)
+
+    @asynccontextmanager
+    async def lifespan(app_instance: FastAPI):
+        global redis_client
+        pubsub_task = None
+        if AIOREDIS_AVAILABLE and os.environ.get("FLASK_ENV") != "testing":
+            max_attempts = 3
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    redis_client = aioredis.from_url(REDIS_URL, decode_responses=True)
+                    await redis_client.ping()
+                    logger.info("Connected to Redis at %s", REDIS_URL)
+                    pubsub_task = asyncio.create_task(redis_pubsub_listener())
+                    break
+                except Exception as e:
+                    logger.warning("Redis async connection attempt %d/%d failed: %s", attempt, max_attempts, e)
+                    if attempt < max_attempts:
+                        await asyncio.sleep(0.5)
+                    else:
+                        logger.warning("Redis async connection could not be established; continuing in fallback mode")
+        yield
+        if pubsub_task and not pubsub_task.done():
+            pubsub_task.cancel()
+            try:
+                await pubsub_task
+            except asyncio.CancelledError:
+                pass
+        if redis_client:
+            try:
+                await redis_client.aclose()
+            except AttributeError:
+                await redis_client.close()
 
     # REST API endpoints
     @app.get("/health")
