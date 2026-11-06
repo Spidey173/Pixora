@@ -48,7 +48,8 @@ class Config:
 
     # Rate Limiting
     RATELIMIT_ENABLED = True
-    RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_STORAGE_URI', os.environ.get('REDIS_URL', 'memory://'))
+    RATELIMIT_SWALLOW_ERRORS = True
+    RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_STORAGE_URI', 'memory://')
     RATELIMIT_DEFAULT = os.environ.get('RATELIMIT_DEFAULT', '200/hour')
     RATELIMIT_AUTH = os.environ.get('RATELIMIT_AUTH', '20/minute')
 
