@@ -42,6 +42,7 @@ class TelemetryQueueManager:
         self.worker_thread = None
         self.running = False
         self._lock = threading.RLock()
+        self._db_lock = threading.Lock()
 
         # In-memory fallbacks when Redis is not available or disabled
         self._memory_score_queue = collections.deque()
@@ -50,6 +51,8 @@ class TelemetryQueueManager:
         self._memory_bests = collections.defaultdict(dict)  # game -> {player_id: max_score}
         self._memory_active_sessions = {}  # (player_id, game) -> {session_id, started_at}
         self._memory_dedup_starts = {}  # (player_id, game) -> timestamp
+        self._presence = collections.defaultdict(int)  # game -> live players
+        self._event_listeners = collections.defaultdict(list)  # game -> list of queue.Queue
 
         # Telemetry metrics counters
         self.scores_ingested = 0
@@ -153,7 +156,18 @@ class TelemetryQueueManager:
         }
 
         # 1. Update Live Microsecond Leaderboard (Redis ZSET or in-memory)
-        self._update_live_leaderboard(clean_game, player_id, username, int(score), score_data)
+        rank = self._update_live_leaderboard(clean_game, player_id, username, int(score), score_data)
+
+        # Broadcast live overtake event if player reached Top 10
+        if rank is not None and rank <= 10:
+            self.publish_event(clean_game, {
+                'type': 'LEADERBOARD_OVERTAKE',
+                'game': clean_game,
+                'player': username or 'Guest',
+                'rank': rank,
+                'score': int(score),
+                'timestamp': time.time()
+            })
 
         # 2. Push to asynchronous ingestion queue
         with self._lock:
@@ -161,6 +175,16 @@ class TelemetryQueueManager:
 
         if self.redis_enabled and self.redis_client:
             try:
+                # Push to Redis Streams for dedicated consumer workers
+                stream_payload = {
+                    'type': 'score',
+                    'player_id': str(player_id),
+                    'username': username or 'Guest',
+                    'game_name': clean_game,
+                    'score': str(score),
+                    'achieved_at': score_data['achieved_at']
+                }
+                self.redis_client.xadd(f'{self.key_prefix}telemetry', stream_payload)
                 self.redis_client.lpush(f'{self.key_prefix}queue:scores', json.dumps(score_data))
             except Exception as err:
                 logger.error("Redis queue push failed: %s; falling back to memory queue", err)
@@ -176,15 +200,17 @@ class TelemetryQueueManager:
 
         return score_data
 
-    def _update_live_leaderboard(self, game_name: str, player_id: int, username: str, score: int, entry_dict: dict):
-        """Update live sorted sets in Redis or in-memory structures."""
+    def _update_live_leaderboard(self, game_name: str, player_id: int, username: str, score: int, entry_dict: dict) -> int | None:
+        """Update live sorted sets in Redis or in-memory structures and return rank."""
         if self.redis_enabled and self.redis_client:
             try:
                 pipe = self.redis_client.pipeline()
                 pipe.zadd(f'{self.key_prefix}lb:entries:{game_name}', {json.dumps(entry_dict): score})
                 pipe.zadd(f'{self.key_prefix}lb:bests:{game_name}', {f'{player_id}:{username}': score}, gt=True)
-                pipe.execute()
-                return
+                pipe.zrevrank(f'{self.key_prefix}lb:bests:{game_name}', f'{player_id}:{username}')
+                res = pipe.execute()
+                rank_idx = res[2] if len(res) > 2 else None
+                return (rank_idx + 1) if rank_idx is not None else None
             except Exception as err:
                 logger.warning("Redis leaderboard update failed: %s", err)
 
@@ -199,6 +225,84 @@ class TelemetryQueueManager:
             curr_best = self._memory_bests[game_name].get(player_id, 0)
             if score > curr_best:
                 self._memory_bests[game_name][player_id] = score
+
+            # Calculate live rank
+            seen = set()
+            rank = None
+            u_rank = 0
+            for e in entries:
+                if e['player_id'] not in seen:
+                    seen.add(e['player_id'])
+                    u_rank += 1
+                    if e['player_id'] == player_id:
+                        rank = u_rank
+                        break
+            return rank
+
+    def publish_event(self, game_name: str, event_data: dict):
+        """Publish real-time telemetry event to Redis Pub/Sub and in-memory listeners."""
+        payload_str = json.dumps(event_data)
+        if self.redis_enabled and self.redis_client:
+            try:
+                self.redis_client.publish(f'{self.key_prefix}events:{game_name}', payload_str)
+                self.redis_client.publish(f'{self.key_prefix}events:global', payload_str)
+            except Exception as err:
+                logger.warning("Redis Pub/Sub publish error: %s", err)
+
+        with self._lock:
+            listeners = self._event_listeners.get(game_name, []) + self._event_listeners.get('*', [])
+            for q in listeners:
+                try:
+                    q.put_nowait(event_data)
+                except Exception:
+                    pass
+
+    def record_presence(self, game_name: str, delta: int = 1) -> int:
+        """Update live concurrent players for a game (Phase 3 Presence)."""
+        clean_game = game_name.strip()
+        if self.redis_enabled and self.redis_client:
+            try:
+                key = f'{self.key_prefix}presence:{clean_game}'
+                val = self.redis_client.incrby(key, delta)
+                val = max(0, int(val))
+                if delta < 0 and val <= 0:
+                    self.redis_client.set(key, 0)
+                # Broadcast presence update
+                self.publish_event(clean_game, {
+                    'type': 'PRESENCE_UPDATE',
+                    'game': clean_game,
+                    'count': val,
+                    'timestamp': time.time()
+                })
+                return val
+            except Exception as e:
+                logger.warning("Redis presence update failed: %s", e)
+
+        with self._lock:
+            self._presence[clean_game] = max(0, self._presence[clean_game] + delta)
+            curr = self._presence[clean_game]
+
+        self.publish_event(clean_game, {
+            'type': 'PRESENCE_UPDATE',
+            'game': clean_game,
+            'count': curr,
+            'timestamp': time.time()
+        })
+        return curr
+
+    def get_presence(self, game_name: str) -> int:
+        """Get live concurrent players count."""
+        clean_game = game_name.strip()
+        if self.redis_enabled and self.redis_client:
+            try:
+                key = f'{self.key_prefix}presence:{clean_game}'
+                val = self.redis_client.get(key)
+                return max(0, int(val)) if val else 0
+            except Exception:
+                pass
+        with self._lock:
+            return self._presence.get(clean_game, 0)
+
 
     # ─────────────────────────────────────────────────────────────
     # INGESTION API: SESSION TELEMETRY
@@ -384,7 +488,49 @@ class TelemetryQueueManager:
             except Exception as err:
                 logger.warning("Redis get_live_leaderboard error: %s; falling back to DB", err)
 
-        # 2. Database Fallback & Cache Warming
+        # 2. Check in-memory live leaderboard if active
+        with self._lock:
+            mem_entries = self._memory_leaderboards.get(clean_game, [])
+            if mem_entries:
+                seen = set()
+                unique_top = []
+                for entry in mem_entries:
+                    if entry['player_id'] not in seen:
+                        seen.add(entry['player_id'])
+                        unique_top.append(entry)
+                    if len(unique_top) >= limit:
+                        break
+
+                top_list = [
+                    {'username': e['username'], 'score': e['score'], 'player_id': e['player_id']}
+                    for e in unique_top
+                ]
+                world_record = {
+                    'score': top_list[0]['score'],
+                    'username': top_list[0]['username'],
+                    'achieved_at': unique_top[0].get('achieved_at')
+                } if top_list else None
+
+                user_best = None
+                user_rank = None
+                if current_player_id:
+                    for r_idx, e in enumerate(unique_top):
+                        if e['player_id'] == current_player_id:
+                            user_best = e['score']
+                            user_rank = r_idx + 1
+                            break
+
+                return {
+                    'game_name': clean_game,
+                    'leaderboard': top_list,
+                    'user_best': user_best,
+                    'world_record': world_record,
+                    'user_rank': user_rank,
+                    'total_scores_logged': len(mem_entries),
+                    'source': 'memory_live'
+                }
+
+        # 3. Database Fallback & Cache Warming
         return self._fetch_and_warm_db_leaderboard(clean_game, names, limit, current_player_id)
 
     def _fetch_and_warm_db_leaderboard(
@@ -540,108 +686,109 @@ class TelemetryQueueManager:
         from app.extensions import db
         from app.models import GameplaySession, GameScore
 
-        try:
-            # 1. Persist Scores
-            if scores_batch:
-                score_objs = []
-                for s in scores_batch:
-                    achieved = s.get('achieved_at')
-                    if isinstance(achieved, str):
-                        try:
-                            dt = datetime.fromisoformat(achieved)
-                        except Exception:
-                            dt = datetime.now(timezone.utc)
-                    else:
-                        dt = datetime.now(timezone.utc)
-
-                    score_objs.append(
-                        GameScore(
-                            player_id=s['player_id'],
-                            game_name=s['game_name'],
-                            score=s['score'],
-                            achieved_at=dt
-                        )
-                    )
-                db.session.add_all(score_objs)
-                with self._lock:
-                    self.scores_persisted += len(score_objs)
-
-            # 2. Persist Sessions
-            if sessions_batch:
-                for sess in sessions_batch:
-                    action = sess.get('action')
-                    player_id = sess.get('player_id')
-                    game_name = sess.get('game_name')
-
-                    if action == 'start':
-                        started_str = sess.get('started_at')
-                        try:
-                            started_dt = datetime.fromisoformat(started_str) if started_str else datetime.now(timezone.utc)
-                        except Exception:
-                            started_dt = datetime.now(timezone.utc)
-
-                        db_session = GameplaySession(
-                            player_id=player_id,
-                            game_name=game_name,
-                            started_at=started_dt
-                        )
-                        db.session.add(db_session)
-                        with self._lock:
-                            self.sessions_persisted += 1
-
-                    elif action == 'end':
-                        # Match with active session record in DB
-                        active_rec = (
-                            GameplaySession.query
-                            .filter_by(player_id=player_id, game_name=game_name)
-                            .filter(GameplaySession.ended_at.is_(None))
-                            .order_by(GameplaySession.id.desc())
-                            .first()
-                        )
-                        ended_str = sess.get('ended_at')
-                        try:
-                            ended_dt = datetime.fromisoformat(ended_str) if ended_str else datetime.now(timezone.utc)
-                        except Exception:
-                            ended_dt = datetime.now(timezone.utc)
-
-                        if active_rec:
-                            active_rec.ended_at = ended_dt
-                            duration = sess.get('duration_seconds')
-                            if duration is not None:
-                                active_rec.duration_seconds = duration
-                            elif active_rec.started_at:
-                                sat = active_rec.started_at
-                                if sat.tzinfo is None:
-                                    sat = sat.replace(tzinfo=timezone.utc)
-                                eat = active_rec.ended_at
-                                if eat.tzinfo is None:
-                                    eat = eat.replace(tzinfo=timezone.utc)
-                                active_rec.duration_seconds = max(0, int((eat - sat).total_seconds()))
+        with self._db_lock:
+            try:
+                # 1. Persist Scores
+                if scores_batch:
+                    score_objs = []
+                    for s in scores_batch:
+                        achieved = s.get('achieved_at')
+                        if isinstance(achieved, str):
+                            try:
+                                dt = datetime.fromisoformat(achieved)
+                            except Exception:
+                                dt = datetime.now(timezone.utc)
                         else:
-                            fallback_sess = GameplaySession(
+                            dt = datetime.now(timezone.utc)
+
+                        score_objs.append(
+                            GameScore(
+                                player_id=s['player_id'],
+                                game_name=s['game_name'],
+                                score=s['score'],
+                                achieved_at=dt
+                            )
+                        )
+                    db.session.add_all(score_objs)
+                    with self._lock:
+                        self.scores_persisted += len(score_objs)
+
+                # 2. Persist Sessions
+                if sessions_batch:
+                    for sess in sessions_batch:
+                        action = sess.get('action')
+                        player_id = sess.get('player_id')
+                        game_name = sess.get('game_name')
+
+                        if action == 'start':
+                            started_str = sess.get('started_at')
+                            try:
+                                started_dt = datetime.fromisoformat(started_str) if started_str else datetime.now(timezone.utc)
+                            except Exception:
+                                started_dt = datetime.now(timezone.utc)
+
+                            db_session = GameplaySession(
                                 player_id=player_id,
                                 game_name=game_name,
-                                started_at=ended_dt,
-                                ended_at=ended_dt,
-                                duration_seconds=sess.get('duration_seconds', 0)
+                                started_at=started_dt
                             )
-                            db.session.add(fallback_sess)
+                            db.session.add(db_session)
+                            with self._lock:
+                                self.sessions_persisted += 1
 
-                        with self._lock:
-                            self.sessions_persisted += 1
+                        elif action == 'end':
+                            # Match with active session record in DB
+                            active_rec = (
+                                GameplaySession.query
+                                .filter_by(player_id=player_id, game_name=game_name)
+                                .filter(GameplaySession.ended_at.is_(None))
+                                .order_by(GameplaySession.id.desc())
+                                .first()
+                            )
+                            ended_str = sess.get('ended_at')
+                            try:
+                                ended_dt = datetime.fromisoformat(ended_str) if ended_str else datetime.now(timezone.utc)
+                            except Exception:
+                                ended_dt = datetime.now(timezone.utc)
 
-            db.session.commit()
-            self.last_flush_time = datetime.now(timezone.utc).strftime('%H:%M:%S UTC')
-            logger.debug("TelemetryQueue: Flushed %d scores, %d sessions to database",
-                         len(scores_batch), len(sessions_batch))
-        except Exception as err:
-            db.session.rollback()
-            logger.error("TelemetryQueue: Database commit error: %s", err)
-            with self._lock:
-                for s in scores_batch:
-                    self._memory_score_queue.append(s)
-                for sess in sessions_batch:
-                    self._memory_session_queue.append(sess)
+                            if active_rec:
+                                active_rec.ended_at = ended_dt
+                                duration = sess.get('duration_seconds')
+                                if duration is not None:
+                                    active_rec.duration_seconds = duration
+                                elif active_rec.started_at:
+                                    sat = active_rec.started_at
+                                    if sat.tzinfo is None:
+                                        sat = sat.replace(tzinfo=timezone.utc)
+                                    eat = active_rec.ended_at
+                                    if eat.tzinfo is None:
+                                        eat = eat.replace(tzinfo=timezone.utc)
+                                    active_rec.duration_seconds = max(0, int((eat - sat).total_seconds()))
+                            else:
+                                fallback_sess = GameplaySession(
+                                    player_id=player_id,
+                                    game_name=game_name,
+                                    started_at=ended_dt,
+                                    ended_at=ended_dt,
+                                    duration_seconds=sess.get('duration_seconds', 0)
+                                )
+                                db.session.add(fallback_sess)
+
+                            with self._lock:
+                                self.sessions_persisted += 1
+
+                db.session.commit()
+                self.last_flush_time = datetime.now(timezone.utc).strftime('%H:%M:%S UTC')
+                logger.debug("TelemetryQueue: Flushed %d scores, %d sessions to database",
+                             len(scores_batch), len(sessions_batch))
+            except Exception as err:
+                db.session.rollback()
+                logger.error("TelemetryQueue: Database commit error: %s", err)
+                with self._lock:
+                    for s in scores_batch:
+                        self._memory_score_queue.append(s)
+                    for sess in sessions_batch:
+                        self._memory_session_queue.append(sess)
 
     # ─────────────────────────────────────────────────────────────
     # TELEMETRY STATUS & HEALTH METRICS

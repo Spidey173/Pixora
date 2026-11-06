@@ -9,6 +9,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&family=JetBrains+Mono:wght@400;600;800&family=Inter:wght@400;600;700&display=swap"
         rel="stylesheet">
+    <script src="/static/js/pixora-sdk.js"></script>
     <style>
         :root {
             --neon-cyan: #00f3ff;
@@ -1127,6 +1128,10 @@
 
         // Initialize Session with Pixora Server
         function logGameStart() {
+            if (window.Pixora) {
+                Pixora.init({ gameSlug: 'speedtype' });
+                Pixora.gameplayStart();
+            }
             fetch('/start_game/SpeedType%20Pro', { method: 'POST' })
                 .then(res => res.json())
                 .then(data => console.log('SpeedType Pro session started:', data))
@@ -1350,6 +1355,7 @@
             const targetChar = currentTargetWord[typedLen - 1];
 
             if (lastChar === targetChar) {
+                if (window.Pixora) Pixora.recordAction('keystroke');
                 correctChars++;
                 streak++;
                 audio.playKeyClick();
@@ -1468,6 +1474,10 @@
             const accuracy = totalTypedChars > 0 ? Math.round((correctChars / totalTypedChars) * 100) : 100;
 
             logGameEnd();
+            if (window.Pixora && netWpm > 0) {
+                Pixora.gameplayStop();
+                Pixora.submitScore(netWpm);
+            }
             audio.playMilestone();
 
             // Store high score locally

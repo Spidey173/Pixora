@@ -1,12 +1,14 @@
 """Main arcade hub views and gameplay tracking API."""
 from datetime import datetime, timezone
+import json
 
-from flask import Blueprint, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, jsonify, redirect, render_template, request, url_for, Response
 from flask_login import current_user, login_required
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.extensions import csrf, db
 from app.models import Game, GameplaySession, GameScore
+from app.services.anti_cheat import AntiCheatValidator
 from app.utils.telemetry_queue import telemetry_queue
 
 main_bp = Blueprint('main', __name__)
@@ -350,6 +352,193 @@ def submit_score():
         'message': 'Score recorded via high-throughput event queue',
         'score': score_dict
     }), 201
+
+
+@main_bp.route('/api/v2/session/start', methods=['POST'])
+@csrf.exempt
+def session_start_v2():
+    """Phase 1: Cryptographic session handshake for proof-of-gameplay."""
+    if not current_user.is_authenticated:
+        return jsonify({'error': 'unauthorized', 'code': 'UNAUTHORIZED'}), 401
+
+    data = request.get_json(silent=True) or request.form
+    raw_slug = (data.get('game_slug') or data.get('game_name') or '').strip()
+    if not raw_slug:
+        return jsonify({'error': 'game_slug or game_name is required', 'code': 'BAD_REQUEST'}), 400
+
+    matched_game = _resolve_game(raw_slug)
+    canonical_slug = matched_game.slug if matched_game else raw_slug.lower()
+    canonical_title = matched_game.title if matched_game else raw_slug
+
+    start_time_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+    session_token = AntiCheatValidator.generate_session_token(
+        player_id=current_user.id,
+        game_slug=canonical_slug,
+        timestamp_ms=start_time_ms
+    )
+
+    # Automatically notify telemetry queue of session initiation
+    try:
+        telemetry_queue.enqueue_session_start(
+            player_id=current_user.id,
+            game_name=canonical_title
+        )
+    except Exception:
+        pass
+
+    return jsonify({
+        'status': 'success',
+        'session_token': session_token,
+        'start_time_ms': start_time_ms,
+        'game_slug': canonical_slug,
+        'game_title': canonical_title,
+        'player_id': current_user.id,
+        'username': current_user.username
+    }), 200
+
+
+@main_bp.route('/api/v2/session/end', methods=['POST'])
+@csrf.exempt
+def session_end_v2():
+    """Phase 1: Validates cryptographic game session and submits high score."""
+    if not current_user.is_authenticated:
+        return jsonify({'error': 'unauthorized', 'code': 'UNAUTHORIZED'}), 401
+
+    data = request.get_json(silent=True) or request.form
+    game_slug = (data.get('game_slug') or data.get('game_name') or '').strip()
+    score_val = data.get('score')
+    session_token = data.get('session_token')
+    start_time_ms = data.get('start_time_ms')
+    action_count = data.get('action_count')
+    input_entropy_hash = data.get('input_entropy_hash')
+
+    if not game_slug or score_val is None or not session_token or start_time_ms is None:
+        return jsonify({
+            'error': 'Missing required fields: game_slug, score, session_token, start_time_ms',
+            'code': 'BAD_REQUEST'
+        }), 400
+
+    try:
+        score_int = int(score_val)
+        if score_int < 0:
+            return jsonify({'error': 'score cannot be negative', 'code': 'BAD_REQUEST'}), 400
+    except (ValueError, TypeError):
+        return jsonify({'error': 'score must be an integer', 'code': 'BAD_REQUEST'}), 400
+
+    try:
+        start_time_int = int(start_time_ms)
+    except (ValueError, TypeError):
+        return jsonify({'error': 'start_time_ms must be an integer timestamp', 'code': 'BAD_REQUEST'}), 400
+
+    action_count_int = None
+    if action_count is not None:
+        try:
+            action_count_int = int(action_count)
+        except (ValueError, TypeError):
+            pass
+
+    # Resolve matched game for canonical title and slug
+    matched_game = _resolve_game(game_slug)
+    canonical_slug = matched_game.slug if matched_game else game_slug
+    canonical_title = matched_game.title if matched_game else game_slug
+
+    redis_cli = telemetry_queue.redis_client if telemetry_queue.redis_enabled else None
+
+    # Perform Authoritative Anti-Cheat Verification
+    is_valid, reason = AntiCheatValidator.validate_submission(
+        player_id=current_user.id,
+        game_slug=canonical_slug,
+        score=score_int,
+        start_time_ms=start_time_int,
+        session_token=session_token,
+        action_count=action_count_int,
+        input_entropy_hash=input_entropy_hash,
+        redis_client=redis_cli,
+        check_replay=True
+    )
+
+    if not is_valid:
+        if reason == "INVALID_SESSION_SIGNATURE":
+            return jsonify({'error': reason, 'code': 'INVALID_SIGNATURE'}), 401
+        elif reason == "REPLAY_ATTACK_DETECTED":
+            return jsonify({'error': 'Session token has already been consumed', 'code': 'TOKEN_REUSED'}), 401
+        elif reason == "SESSION_EXPIRED":
+            return jsonify({'error': 'Session token expired', 'code': 'SESSION_EXPIRED'}), 401
+        else:
+            # Velocity or duration anomalies return 422 Unprocessable Entity
+            return jsonify({'error': reason, 'code': 'ANOMALOUS_VELOCITY'}), 422
+
+    # Mark session token as consumed (prevents replay attacks)
+    AntiCheatValidator.mark_token_used(session_token, redis_client=redis_cli)
+
+    # Enqueue verified score into live Redis ZSET leaderboard and batch ingestion queue
+    score_dict = telemetry_queue.enqueue_score(
+        player_id=current_user.id,
+        username=current_user.username,
+        game_name=canonical_title,
+        score=score_int
+    )
+
+    return jsonify({
+        'status': 'success',
+        'message': 'Score cryptographically verified and recorded',
+        'verified': True,
+        'score': score_dict
+    }), 201
+
+
+@main_bp.route('/api/v2/presence/<path:game_name>')
+def get_game_presence(game_name):
+    """Phase 3: Retrieve live concurrent player presence."""
+    clean_game = game_name.strip()
+    matched_game = _resolve_game(clean_game)
+    canonical_title = matched_game.title if matched_game else clean_game
+    count = telemetry_queue.get_presence(canonical_title)
+    return jsonify({
+        'status': 'success',
+        'game': canonical_title,
+        'presence': max(1, count)
+    })
+
+
+@main_bp.route('/api/v2/events/<path:game_name>')
+def sse_game_events(game_name):
+    """Phase 3: Server-Sent Events (SSE) live broadcast stream for leaderboard overtakes and presence."""
+    import queue
+    clean_game = game_name.strip()
+    matched_game = _resolve_game(clean_game)
+    canonical_title = matched_game.title if matched_game else clean_game
+
+    def event_stream():
+        q = queue.Queue(maxsize=30)
+        with telemetry_queue._lock:
+            telemetry_queue._event_listeners[canonical_title].append(q)
+
+        # Increment presence
+        telemetry_queue.record_presence(canonical_title, delta=1)
+        initial_count = telemetry_queue.get_presence(canonical_title)
+        yield f"data: {json.dumps({'type': 'PRESENCE_UPDATE', 'game': canonical_title, 'count': initial_count})}\n\n"
+
+        try:
+            while True:
+                try:
+                    event = q.get(timeout=15.0)
+                    yield f"data: {json.dumps(event)}\n\n"
+                except queue.Empty:
+                    yield f": heartbeat\n\n"
+        finally:
+            with telemetry_queue._lock:
+                if q in telemetry_queue._event_listeners[canonical_title]:
+                    telemetry_queue._event_listeners[canonical_title].remove(q)
+            telemetry_queue.record_presence(canonical_title, delta=-1)
+
+    return Response(event_stream(), mimetype='text/event-stream', headers={
+        'Cache-Control': 'no-cache',
+        'X-Accel-Buffering': 'no',
+        'Connection': 'keep-alive'
+    })
+
+
 
 
 @main_bp.route('/api/leaderboard/<path:game_name>')

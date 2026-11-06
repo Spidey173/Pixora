@@ -198,6 +198,7 @@ body::before {
 
     <audio id="flyingSound" src="flap.mp3" loop></audio>
     <audio id="deathSound" src="death.mp3"></audio>
+    <script src="/static/js/pixora-sdk.js"></script>
 
     <script>
         let board;
@@ -242,6 +243,10 @@ body::before {
 
         function startGame() {
             document.getElementById("playButtonContainer").style.display = "none";
+            if (window.Pixora) {
+                Pixora.init({ gameSlug: 'flappybird' });
+                Pixora.gameplayStart();
+            }
             
             board = document.getElementById("board");
             board.width = boardWidth;
@@ -324,6 +329,7 @@ pipeArray.push(bottomPipe);
 function moveBird(e) {
 if (e.code === "Space" || e.code === "ArrowUp" || e.code === "KeyX") {
 velocityY = -6;
+if (window.Pixora) Pixora.recordAction('flap');
 
 if (gameOver) restartGame();
 }
@@ -342,11 +348,10 @@ gameOver = true;
 document.getElementById("gameOverScreen").style.display = "block";
 document.getElementById("finalScore").innerText = score;
 
-fetch('/api/score/submit', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ game_name: 'Flappy Bird', score: Math.floor(score) })
-}).catch(err => console.log('Score submission error:', err));
+if (window.Pixora) {
+    Pixora.gameplayStop();
+    Pixora.submitScore(Math.floor(score));
+}
 
 setTimeout(() => {
 document.getElementById("restartButton").style.display = "block";

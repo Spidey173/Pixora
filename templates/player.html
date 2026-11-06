@@ -184,6 +184,34 @@
             transform: translateY(-2px);
         }
 
+        .presence-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 242, 254, 0.08);
+            border: 1px solid rgba(0, 242, 254, 0.3);
+            border-radius: 20px;
+            padding: 4px 12px;
+            font-size: 0.82rem;
+            color: var(--neon-cyan);
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .presence-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #00ffcc;
+            box-shadow: 0 0 8px #00ffcc;
+            animation: presence-pulse 2s infinite ease-in-out;
+        }
+
+        @keyframes presence-pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.85); }
+        }
+
         /* Sidebar Panels */
         .theater-sidebar {
             display: flex;
@@ -351,6 +379,10 @@
                 </div>
 
                 <div class="tool-buttons">
+                    <div class="presence-badge" id="presenceBadge" title="Live Concurrent Players">
+                        <span class="presence-dot"></span>
+                        <span id="presenceCount">1</span> in simulation
+                    </div>
                     <button class="tool-btn" id="reloadBtn" title="Restart Game"><i class="fa-solid fa-rotate-right"></i></button>
                     <button class="tool-btn" id="fullscreenBtn" title="Fullscreen Theater Mode"><i class="fa-solid fa-expand"></i></button>
                 </div>
@@ -832,13 +864,79 @@
             }
         }
         refreshLeaderboard();
-        // Periodic telemetry poll
-        setInterval(refreshLeaderboard, 12000);
+
+        // Phase 3: Real-Time SSE / WebSocket Stream (Live Presence & Overtake Broadcasts)
+        function initRealtimeStream() {
+            if (!window.EventSource) return;
+            try {
+                const evtSource = new EventSource(`/api/v2/events/${encodeURIComponent(GAME_TITLE)}`);
+                const presenceEl = document.getElementById('presenceCount');
+
+                evtSource.onmessage = function(e) {
+                    try {
+                        const event = JSON.parse(e.data);
+                        if (event.type === 'PRESENCE_UPDATE' && presenceEl) {
+                            presenceEl.innerText = event.count;
+                        } else if (event.type === 'LEADERBOARD_OVERTAKE') {
+                            showToast(`⚡ LIVE: ${event.player} claimed Rank #${event.rank} (${event.score.toLocaleString()} pts)!`);
+                            refreshLeaderboard();
+                        }
+                    } catch (err) {}
+                };
+
+                evtSource.onerror = function() {
+                    evtSource.close();
+                    setTimeout(initRealtimeStream, 6000);
+                };
+            } catch (err) {
+                console.warn('Real-time stream connection failed:', err);
+            }
+        }
+        initRealtimeStream();
+
+        // Safety fallback poll at relaxed interval
+        setInterval(refreshLeaderboard, 30000);
 
 
 
-        // Platform Shell Message Receiver (Pixora SDK Protocol)
+        // Platform Shell Message Receiver (Pixora SDK Protocol v2 with Strict Origin Validation)
+        const ALLOWED_ORIGINS = [
+            window.location.origin,
+            'https://pub-bbadfb1090074e17b2f5293b549ce094.r2.dev'
+        ];
+
+        let activeV2Session = null;
+
+        async function acquireV2Session() {
+            try {
+                const res = await fetch('/api/v2/session/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ game_slug: GAME_SLUG, game_name: GAME_TITLE })
+                });
+                if (res.ok) {
+                    activeV2Session = await res.json();
+                    return activeV2Session;
+                }
+            } catch (e) {
+                console.warn('Failed to initiate cryptographic session:', e);
+            }
+            return null;
+        }
+
+        // Pre-warm cryptographic session on load
+        acquireV2Session();
+
         window.addEventListener('message', async (event) => {
+            // Strict Origin Verification: Reject unauthorized cross-origin messaging
+            const isOriginAllowed = ALLOWED_ORIGINS.includes(event.origin) || 
+                                    (gameFrame && event.source === gameFrame.contentWindow) ||
+                                    event.source === window;
+            if (!isOriginAllowed) {
+                console.warn('[Pixora Shell Security] Dropped message from untrusted origin:', event.origin);
+                return;
+            }
+
             const data = event.data;
             if (!data || (data.source !== 'PIXORA_GAME_CLIENT' && data.source !== 'GLITCH4CE_GAME_CLIENT')) return;
 
@@ -846,12 +944,14 @@
                 case 'PIXORA_HANDSHAKE':
                 case 'GLITCH4CE_HANDSHAKE':
                     try {
+                        const session = activeV2Session || await acquireV2Session();
                         gameFrame.contentWindow.postMessage({
                             source: 'PIXORA_PLATFORM_SHELL',
                             type: 'PIXORA_HANDSHAKE_ACK',
                             payload: {
                                 player: { username: CURRENT_USER, id: CURRENT_USER_ID },
-                                sessionToken: 'pixora_live_token'
+                                sessionToken: session ? session.session_token : null,
+                                startTimeMs: session ? session.start_time_ms : Date.now()
                             }
                         }, '*');
                     } catch (e) {}
@@ -861,15 +961,39 @@
                 case 'GLITCH4CE_SUBMIT_SCORE':
                     const score = data.payload.score;
                     try {
-                        const response = await fetch('/api/scores', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                game_name: GAME_TITLE,
-                                score: score
-                            })
-                        });
-                        if (response.ok) {
+                        let response;
+                        const session = activeV2Session;
+                        const token = data.payload.session_token || (session ? session.session_token : null);
+                        const startMs = data.payload.start_time_ms || (session ? session.start_time_ms : null);
+
+                        if (token && startMs) {
+                            // High-integrity cryptographic v2 endpoint
+                            response = await fetch('/api/v2/session/end', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    game_slug: GAME_SLUG,
+                                    score: score,
+                                    session_token: token,
+                                    start_time_ms: startMs,
+                                    action_count: data.payload.action_count || 10
+                                })
+                            });
+                            // Refresh session token for subsequent plays
+                            acquireV2Session();
+                        } else {
+                            // Fallback to v1 endpoint
+                            response = await fetch('/api/scores', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    game_name: GAME_TITLE,
+                                    score: score
+                                })
+                            });
+                        }
+
+                        if (response && response.ok) {
                             if (currentWorldRecord !== null && score > currentWorldRecord) {
                                 showToast(`👑 NEW WORLD RECORD! Flight Distance: ${score.toLocaleString()} KM!`);
                             } else if (currentUserPb !== null && score > currentUserPb) {
@@ -878,6 +1002,11 @@
                                 showToast(`🏆 Flight Score ${score.toLocaleString()} recorded to Hall of Fame!`);
                             }
                             refreshLeaderboard();
+                        } else {
+                            const errData = await response.json();
+                            if (errData && errData.code === 'ANOMALOUS_VELOCITY') {
+                                showToast(`⚠️ Anti-Cheat Warning: Score rate exceeds physical limits!`);
+                            }
                         }
                     } catch (err) {
                         console.error('Score submission error:', err);

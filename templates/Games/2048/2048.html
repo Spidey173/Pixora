@@ -382,13 +382,16 @@
     </div>
     <audio id="backgroundMusic" src="2048.mp3" loop></audio>
     <button id="muteButton" onclick="toggleMute()">🔇</button>
-    
-    
+    <script src="/static/js/pixora-sdk.js"></script>
     <script>
     // Function to display the game and hide the start screen
     function startGame() {
         document.getElementById("startScreen").style.display = "none";
         document.getElementById("gameContent").style.display = "block";
+        if (window.Pixora) {
+            Pixora.init({ gameSlug: '2048' });
+            Pixora.gameplayStart();
+        }
         setGame(); // Initialize the game
     }
     const music = document.getElementById("backgroundMusic");
@@ -472,11 +475,10 @@
             music.pause();
             document.getElementById("gameOverModal").style.display = "flex";
             document.getElementById("finalScore").innerText = score;
-            fetch('/api/score/submit', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ game_name: '2048', score: score })
-            }).catch(err => console.log('Score error:', err));
+            if (window.Pixora) {
+                Pixora.gameplayStop();
+                Pixora.submitScore(score);
+            }
         }
 
     }
@@ -490,6 +492,9 @@
     }
     
     function handleKeyPress(e) {
+        if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.code) && window.Pixora) {
+            Pixora.recordAction('slide');
+        }
         if (e.code == "ArrowLeft") slideLeft();
         else if (e.code == "ArrowRight") slideRight();
         else if (e.code == "ArrowUp") slideUp();

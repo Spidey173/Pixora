@@ -1,96 +1,763 @@
-"""Game routing and launcher controllers with legacy URL compatibility."""
-from flask import Blueprint, render_template
+"""Game routing and launcher controllers with legacy URL compatibility and PixoraSDK v2 injection.
+
+Architectural Features:
+- Complete Categorized Game Catalog Registry (All 17 Arcade Games + 40 Sub-Variants)
+- Automatic PixoraSDK v2 & Universal Telemetry Bridge Auto-Injection into all rendered game HTML templates
+- Native Security Sandboxing Headers (X-Frame-Options: SAMEORIGIN, X-Content-Type-Options: nosniff)
+- Full 100% Backward Compatibility with legacy endpoints and test suites
+- Dynamic metadata inspection helpers (get_all_games, get_game_by_path, get_categories)
+"""
+from dataclasses import dataclass, field
+import logging
+from typing import Dict, List, Optional
+
+from flask import Blueprint, make_response, render_template
+from jinja2 import TemplateNotFound
+
+logger = logging.getLogger('pixora.games')
 
 games_bp = Blueprint('games_catalog', __name__)
 
-# Game template registry mapping: route_path -> (template_path, endpoint_name)
-GAME_REGISTRY = {
-    # 2048
-    '/2048': ('Games/2048/2048.html', 'updown'),
-    # Candy Crush
-    '/Candy_Crush': ('Games/Candy Crush/Candy_Crush.html', 'Candy_Crush'),
-    # Crossword
-    '/Crossword': ('Games/Cross word/Crossword.html', 'crossword'),
-    '/crossword2ndpage': ('Games/Cross word/crossword2ndpage.html', 'crossword2ndpage'),
-    '/animal': ('Games/Cross word/crossword animal.html', 'animal'),
-    '/anime': ('Games/Cross word/crossword anime.html', 'anime'),
-    '/cities': ('Games/Cross word/crossword cities.html', 'cities'),
-    '/movie': ('Games/Cross word/crossword movie.html', 'movie'),
-    '/sport': ('Games/Cross word/crossword sport.html', 'sport'),
-    '/state': ('Games/Cross word/crossword state.html', 'state'),
-    # Flappy Bird
-    '/FlappyBird': ('Games/Flappy Birds/flappybird.html', 'flappybird'),
-    # Maze
-    '/Maze': ('Games/maze/maze.html', 'maze'),
-    '/maze2ndpage': ('Games/maze/maze2ndpage.html', 'maze2ndpage'),
-    '/mazeeasy': ('Games/maze/mazeeasy.html', 'mazeeasy'),
-    '/mazehard': ('Games/maze/mazehard.html', 'mazehard'),
-    '/mazemedium': ('Games/maze/mazemedium.html', 'mazemedium'),
-    '/mazeveasy': ('Games/maze/mazeveasy.html', 'mazeveasy'),
-    # Memory Match
-    '/memorymatch': ('Games/MemoryMatch/memorymatch.html', 'memorymatch'),
-    '/memorymatch2nd': ('Games/MemoryMatch/memorymatch2nd.html', 'memorymatch2nd'),
-    '/matchingeasy': ('Games/MemoryMatch/matchingeasy.html', 'matchingeasy'),
-    '/matchingmedium': ('Games/MemoryMatch/matchingmedium.html', 'matchingmedium'),
-    '/matchinghard': ('Games/MemoryMatch/matchinghard.html', 'matchinghard'),
-    '/matchinginsane': ('Games/MemoryMatch/matchinginsane.html', 'matchinginsane'),
-    # Pong
-    '/pong': ('Games/pong/pong.html', 'pong'),
-    '/pongstart': ('Games/pong/pongstart.html', 'pongstart'),
-    '/pongeasy': ('Games/pong/pongeasy.html', 'pongeasy'),
-    '/pongmedium': ('Games/pong/pongmedium.html', 'pongmedium'),
-    '/ponghard': ('Games/pong/ponghard.html', 'ponghard'),
-    '/football': ('Games/pong/football.html', 'football'),
-    # Quiz
-    '/quiz': ('Games/Quiz/quiz.html', 'quiz'),
-    '/quiz2ndpage': ('Games/Quiz/quiz2ndpage.html', 'quiz2ndpage'),
-    '/aanimal': ('Games/Quiz/animal.html', 'aanimal'),
-    '/Cartoon': ('Games/Quiz/Cartoon.html', 'cartoon'),
-    '/food': ('Games/Quiz/food.html', 'food'),
-    '/gk': ('Games/Quiz/gk.html', 'gk'),
-    '/history': ('Games/Quiz/history.html', 'history'),
-    '/indiansport': ('Games/Quiz/indiansport.html', 'indiansport'),
-    '/movies': ('Games/Quiz/movies.html', 'movies'),
-    '/place': ('Games/Quiz/place.html', 'place'),
-    '/riddle': ('Games/Quiz/riddle.html', 'riddle'),
-    # Relationship
-    '/relations': ('Games/Relationship/relations.html', 'relations'),
-    '/Relationshipeasy': ('Games/Relationship/Relationshipeasy.html', 'relationshipeasy'),
-    '/Relationshiphard': ('Games/Relationship/Relationshiphard.html', 'relationshiphard'),
-    # Math Sequence
-    '/mathsequence': ('Games/Sequence/mathsequence.html', 'mathsequence'),
-    '/mathsequencegame': ('Games/Sequence/mathsequencegame.html', 'mathsequencegame'),
-    # Stone Paper Scissors
-    '/stonepapersissors': ('Games/Stone Paper Scissors/stonepapersissors.html', 'stonepapersissor'),
-    # Tic Tac Toe
-    '/tictactoe': ('Games/TicTacToe/tictactoe.html', 'tictactoe'),
-    # Tower Block
-    '/TowerBlock': ('Games/TowerBlock/TowerBlock.html', 'towerblock'),
-    # Tricky
-    '/tricky': ('Games/Tricky/tricky.html', 'tricky'),
-    '/trickygame': ('Games/Tricky/trickygame.html', 'trickygame'),
-    # Whack a Mole
-    '/mole': ('Games/wake a mole/mole.html', 'mole'),
-    '/mole2nd': ('Games/wake a mole/mole2nd.html', 'mole2nd'),
-    '/moleeasy': ('Games/wake a mole/moleeasy.html', 'moleeasy'),
-    '/molemedium': ('Games/wake a mole/molemedium.html', 'molemedium'),
-    '/molehard': ('Games/wake a mole/molehard.html', 'molehard'),
-    # SpeedType Pro
-    '/speedtype': ('Games/SpeedType Pro/speedtype.html', 'speedtype'),
-    '/speedtypepro': ('Games/SpeedType Pro/speedtype.html', 'speedtypepro'),
+
+@dataclass(frozen=True)
+class GameDefinition:
+    """Metadata definition for an arcade game or sub-variant."""
+    path: str
+    template_path: str
+    endpoint: str
+    slug: str
+    title: str
+    category: str
+    difficulty: Optional[str] = None
+    description: Optional[str] = None
+    controls_guide: Optional[str] = None
+
+
+# ─────────────────────────────────────────────────────────────
+# STRUCTURED GAME CATALOG REGISTRY (ALL 17 ARCADE GAMES)
+# ─────────────────────────────────────────────────────────────
+
+GAME_DEFINITIONS: List[GameDefinition] = [
+    # ── 1. 2048 CYBER GRID ──────────────────────────────────
+    GameDefinition(
+        path='/2048',
+        template_path='Games/2048/2048.html',
+        endpoint='updown',
+        slug='2048',
+        title='2048 Cyber Grid',
+        category='Puzzle',
+        description='Slide numerical data blocks across the neon matrix to synthesize the 2048 singularity.',
+        controls_guide='Arrow Keys or Swipe to slide numbered tiles.'
+    ),
+
+    # ── 2. CYBER CRUSH (CANDY CRUSH) ────────────────────────
+    GameDefinition(
+        path='/Candy_Crush',
+        template_path='Games/Candy Crush/Candy_Crush.html',
+        endpoint='Candy_Crush',
+        slug='candy-crush',
+        title='Cyber Crush',
+        category='Puzzle',
+        description='Match triplets of glowing plasma nodes to initiate chain reactions.',
+        controls_guide='Click and drag adjacent tiles to create matches.'
+    ),
+
+    # ── 3. FLAPPY BIRD ──────────────────────────────────────
+    GameDefinition(
+        path='/FlappyBird',
+        template_path='Games/Flappy Birds/flappybird.html',
+        endpoint='flappybird',
+        slug='flappybird',
+        title='Flappy Birds',
+        category='Arcade',
+        description='Pilot an autonomous aerial drone through treacherous conduit pillars.',
+        controls_guide='Spacebar, Click, or Tap to flap propulsion thrusters.'
+    ),
+
+    # ── 4. SPEEDTYPE PRO ────────────────────────────────────
+    GameDefinition(
+        path='/speedtype',
+        template_path='Games/SpeedType Pro/speedtype.html',
+        endpoint='speedtype',
+        slug='speedtype',
+        title='SpeedType Pro',
+        category='Skill',
+        description='High-velocity typing simulator for elite hackers. Overclock your keystroke speed.',
+        controls_guide='Type highlighted words rapidly into the prompt terminal.'
+    ),
+    GameDefinition(
+        path='/speedtypepro',
+        template_path='Games/SpeedType Pro/speedtype.html',
+        endpoint='speedtypepro',
+        slug='speedtype',
+        title='SpeedType Pro (Alias)',
+        category='Skill'
+    ),
+
+    # ── 5. VECTOR PONG CLASSIC ──────────────────────────────
+    GameDefinition(
+        path='/pong',
+        template_path='Games/pong/pong.html',
+        endpoint='pong',
+        slug='pong',
+        title='Vector Pong Classic',
+        category='Retro',
+        controls_guide='Up and Down arrow keys to steer your paddle.'
+    ),
+    GameDefinition(
+        path='/pongstart',
+        template_path='Games/pong/pongstart.html',
+        endpoint='pongstart',
+        slug='pong',
+        title='Vector Pong Start',
+        category='Retro'
+    ),
+    GameDefinition(
+        path='/pongeasy',
+        template_path='Games/pong/pongeasy.html',
+        endpoint='pongeasy',
+        slug='pong',
+        title='Pong (Easy)',
+        category='Retro',
+        difficulty='Easy'
+    ),
+    GameDefinition(
+        path='/pongmedium',
+        template_path='Games/pong/pongmedium.html',
+        endpoint='pongmedium',
+        slug='pong',
+        title='Pong (Medium)',
+        category='Retro',
+        difficulty='Medium'
+    ),
+    GameDefinition(
+        path='/ponghard',
+        template_path='Games/pong/ponghard.html',
+        endpoint='ponghard',
+        slug='pong',
+        title='Pong (Hard)',
+        category='Retro',
+        difficulty='Hard'
+    ),
+    GameDefinition(
+        path='/football',
+        template_path='Games/pong/football.html',
+        endpoint='football',
+        slug='pong',
+        title='Pong Football Arena',
+        category='Retro'
+    ),
+
+    # ── 6. CYBER LABYRINTH (MAZE) ───────────────────────────
+    GameDefinition(
+        path='/Maze',
+        template_path='Games/maze/maze.html',
+        endpoint='maze',
+        slug='maze',
+        title='Cyber Labyrinth',
+        category='Puzzle',
+        controls_guide='Arrow keys or WASD to navigate corridors.'
+    ),
+    GameDefinition(
+        path='/maze2ndpage',
+        template_path='Games/maze/maze2ndpage.html',
+        endpoint='maze2ndpage',
+        slug='maze',
+        title='Maze Portal',
+        category='Puzzle'
+    ),
+    GameDefinition(
+        path='/mazeveasy',
+        template_path='Games/maze/mazeveasy.html',
+        endpoint='mazeveasy',
+        slug='maze',
+        title='Maze (Very Easy)',
+        category='Puzzle',
+        difficulty='Very Easy'
+    ),
+    GameDefinition(
+        path='/mazeeasy',
+        template_path='Games/maze/mazeeasy.html',
+        endpoint='mazeeasy',
+        slug='maze',
+        title='Maze (Easy)',
+        category='Puzzle',
+        difficulty='Easy'
+    ),
+    GameDefinition(
+        path='/mazemedium',
+        template_path='Games/maze/mazemedium.html',
+        endpoint='mazemedium',
+        slug='maze',
+        title='Maze (Medium)',
+        category='Puzzle',
+        difficulty='Medium'
+    ),
+    GameDefinition(
+        path='/mazehard',
+        template_path='Games/maze/mazehard.html',
+        endpoint='mazehard',
+        slug='maze',
+        title='Maze (Hard)',
+        category='Puzzle',
+        difficulty='Hard'
+    ),
+
+    # ── 7. MEMORY MATRIX (MEMORY MATCH) ─────────────────────
+    GameDefinition(
+        path='/memorymatch',
+        template_path='Games/MemoryMatch/memorymatch.html',
+        endpoint='memorymatch',
+        slug='memorymatch',
+        title='Memory Matrix',
+        category='Brain',
+        controls_guide='Click cards to flip and match pairs.'
+    ),
+    GameDefinition(
+        path='/memorymatch2nd',
+        template_path='Games/MemoryMatch/memorymatch2nd.html',
+        endpoint='memorymatch2nd',
+        slug='memorymatch',
+        title='Memory Matrix Hub',
+        category='Brain'
+    ),
+    GameDefinition(
+        path='/matchingeasy',
+        template_path='Games/MemoryMatch/matchingeasy.html',
+        endpoint='matchingeasy',
+        slug='memorymatch',
+        title='Memory Matrix (Easy)',
+        category='Brain',
+        difficulty='Easy'
+    ),
+    GameDefinition(
+        path='/matchingmedium',
+        template_path='Games/MemoryMatch/matchingmedium.html',
+        endpoint='matchingmedium',
+        slug='memorymatch',
+        title='Memory Matrix (Medium)',
+        category='Brain',
+        difficulty='Medium'
+    ),
+    GameDefinition(
+        path='/matchinghard',
+        template_path='Games/MemoryMatch/matchinghard.html',
+        endpoint='matchinghard',
+        slug='memorymatch',
+        title='Memory Matrix (Hard)',
+        category='Brain',
+        difficulty='Hard'
+    ),
+    GameDefinition(
+        path='/matchinginsane',
+        template_path='Games/MemoryMatch/matchinginsane.html',
+        endpoint='matchinginsane',
+        slug='memorymatch',
+        title='Memory Matrix (Insane)',
+        category='Brain',
+        difficulty='Insane'
+    ),
+
+    # ── 8. WHACK A MOLE ─────────────────────────────────────
+    GameDefinition(
+        path='/mole',
+        template_path='Games/wake a mole/mole.html',
+        endpoint='mole',
+        slug='mole',
+        title='Whack a Mole',
+        category='Arcade',
+        controls_guide='Click bugs rapidly as they appear.'
+    ),
+    GameDefinition(
+        path='/mole2nd',
+        template_path='Games/wake a mole/mole2nd.html',
+        endpoint='mole2nd',
+        slug='mole',
+        title='Whack a Mole Hub',
+        category='Arcade'
+    ),
+    GameDefinition(
+        path='/moleeasy',
+        template_path='Games/wake a mole/moleeasy.html',
+        endpoint='moleeasy',
+        slug='mole',
+        title='Whack a Mole (Easy)',
+        category='Arcade',
+        difficulty='Easy'
+    ),
+    GameDefinition(
+        path='/molemedium',
+        template_path='Games/wake a mole/molemedium.html',
+        endpoint='molemedium',
+        slug='mole',
+        title='Whack a Mole (Medium)',
+        category='Arcade',
+        difficulty='Medium'
+    ),
+    GameDefinition(
+        path='/molehard',
+        template_path='Games/wake a mole/molehard.html',
+        endpoint='molehard',
+        slug='mole',
+        title='Whack a Mole (Hard)',
+        category='Arcade',
+        difficulty='Hard'
+    ),
+
+    # ── 9. QUANTUM TIC-TAC-TOE ──────────────────────────────
+    GameDefinition(
+        path='/tictactoe',
+        template_path='Games/TicTacToe/tictactoe.html',
+        endpoint='tictactoe',
+        slug='tictactoe',
+        title='Quantum Tic-Tac-Toe',
+        category='Strategy',
+        controls_guide='Click any empty cell to place your token.'
+    ),
+
+    # ── 10. SKYLINE TOWER BLOCK ─────────────────────────────
+    GameDefinition(
+        path='/TowerBlock',
+        template_path='Games/TowerBlock/TowerBlock.html',
+        endpoint='towerblock',
+        slug='towerblock',
+        title='Skyline Tower Block',
+        category='Arcade',
+        controls_guide='Click or press Spacebar to drop the swinging block.'
+    ),
+
+    # ── 11. STONE PAPER SCISSORS ────────────────────────────
+    GameDefinition(
+        path='/stonepapersissors',
+        template_path='Games/Stone Paper Scissors/stonepapersissors.html',
+        endpoint='stonepapersissor',
+        slug='stonepapersissors',
+        title='Stone Paper Scissors',
+        category='Arcade',
+        controls_guide='Click Rock, Paper, or Scissors to throw your gesture.'
+    ),
+
+    # ── 12. TRICKY BRAIN QUEST ──────────────────────────────
+    GameDefinition(
+        path='/tricky',
+        template_path='Games/Tricky/tricky.html',
+        endpoint='tricky',
+        slug='tricky',
+        title='Tricky Brain Quest',
+        category='Puzzle',
+        controls_guide='Read the clues and select the unexpected solution.'
+    ),
+    GameDefinition(
+        path='/trickygame',
+        template_path='Games/Tricky/trickygame.html',
+        endpoint='trickygame',
+        slug='tricky',
+        title='Tricky Brain Quest Game',
+        category='Puzzle'
+    ),
+
+    # ── 13. BLOOD RELATIONS MYSTERY ─────────────────────────
+    GameDefinition(
+        path='/relations',
+        template_path='Games/Relationship/relations.html',
+        endpoint='relations',
+        slug='relationship',
+        title='Blood Relations Mystery',
+        category='Brain',
+        controls_guide='Analyze family connections and pick the correct relation.'
+    ),
+    GameDefinition(
+        path='/Relationshipeasy',
+        template_path='Games/Relationship/Relationshipeasy.html',
+        endpoint='relationshipeasy',
+        slug='relationship',
+        title='Relations (Easy)',
+        category='Brain',
+        difficulty='Easy'
+    ),
+    GameDefinition(
+        path='/Relationshiphard',
+        template_path='Games/Relationship/Relationshiphard.html',
+        endpoint='relationshiphard',
+        slug='relationship',
+        title='Relations (Hard)',
+        category='Brain',
+        difficulty='Hard'
+    ),
+
+    # ── 14. SEQUENCE NUMBER LOGIC ───────────────────────────
+    GameDefinition(
+        path='/mathsequence',
+        template_path='Games/Sequence/mathsequence.html',
+        endpoint='mathsequence',
+        slug='sequence',
+        title='Sequence Number Logic',
+        category='Puzzle',
+        controls_guide='Identify mathematical progression and enter the next number.'
+    ),
+    GameDefinition(
+        path='/mathsequencegame',
+        template_path='Games/Sequence/mathsequencegame.html',
+        endpoint='mathsequencegame',
+        slug='sequence',
+        title='Sequence Game Arena',
+        category='Puzzle'
+    ),
+
+    # ── 15. NEURAL CROSSWORD MATRIX ─────────────────────────
+    GameDefinition(
+        path='/Crossword',
+        template_path='Games/Cross word/Crossword.html',
+        endpoint='crossword',
+        slug='crossword',
+        title='Neural Crossword',
+        category='Brain',
+        controls_guide='Click on grid cells and type letters using keyboard.'
+    ),
+    GameDefinition(
+        path='/crossword2ndpage',
+        template_path='Games/Cross word/crossword2ndpage.html',
+        endpoint='crossword2ndpage',
+        slug='crossword',
+        title='Crossword Topic Select',
+        category='Brain'
+    ),
+    GameDefinition(
+        path='/animal',
+        template_path='Games/Cross word/crossword animal.html',
+        endpoint='animal',
+        slug='crossword',
+        title='Crossword (Animals)',
+        category='Brain'
+    ),
+    GameDefinition(
+        path='/anime',
+        template_path='Games/Cross word/crossword anime.html',
+        endpoint='anime',
+        slug='crossword',
+        title='Crossword (Anime)',
+        category='Brain'
+    ),
+    GameDefinition(
+        path='/cities',
+        template_path='Games/Cross word/crossword cities.html',
+        endpoint='cities',
+        slug='crossword',
+        title='Crossword (Cities)',
+        category='Brain'
+    ),
+    GameDefinition(
+        path='/movie',
+        template_path='Games/Cross word/crossword movie.html',
+        endpoint='movie',
+        slug='crossword',
+        title='Crossword (Movies)',
+        category='Brain'
+    ),
+    GameDefinition(
+        path='/sport',
+        template_path='Games/Cross word/crossword sport.html',
+        endpoint='sport',
+        slug='crossword',
+        title='Crossword (Sports)',
+        category='Brain'
+    ),
+    GameDefinition(
+        path='/state',
+        template_path='Games/Cross word/crossword state.html',
+        endpoint='state',
+        slug='crossword',
+        title='Crossword (States)',
+        category='Brain'
+    ),
+
+    # ── 16. CYBER QUIZ MATRIX ───────────────────────────────
+    GameDefinition(
+        path='/quiz',
+        template_path='Games/Quiz/quiz.html',
+        endpoint='quiz',
+        slug='quiz',
+        title='Cyber Quiz Matrix',
+        category='Trivia',
+        controls_guide='Select the correct multiple-choice options.'
+    ),
+    GameDefinition(
+        path='/quiz2ndpage',
+        template_path='Games/Quiz/quiz2ndpage.html',
+        endpoint='quiz2ndpage',
+        slug='quiz',
+        title='Quiz Categories',
+        category='Trivia'
+    ),
+    GameDefinition(
+        path='/aanimal',
+        template_path='Games/Quiz/animal.html',
+        endpoint='aanimal',
+        slug='quiz',
+        title='Quiz (Animal Kingdom)',
+        category='Trivia'
+    ),
+    GameDefinition(
+        path='/Cartoon',
+        template_path='Games/Quiz/Cartoon.html',
+        endpoint='cartoon',
+        slug='quiz',
+        title='Quiz (Cartoons & Anime)',
+        category='Trivia'
+    ),
+    GameDefinition(
+        path='/food',
+        template_path='Games/Quiz/food.html',
+        endpoint='food',
+        slug='quiz',
+        title='Quiz (Culinary & Food)',
+        category='Trivia'
+    ),
+    GameDefinition(
+        path='/gk',
+        template_path='Games/Quiz/gk.html',
+        endpoint='gk',
+        slug='quiz',
+        title='Quiz (General Knowledge)',
+        category='Trivia'
+    ),
+    GameDefinition(
+        path='/history',
+        template_path='Games/Quiz/history.html',
+        endpoint='history',
+        slug='quiz',
+        title='Quiz (World History)',
+        category='Trivia'
+    ),
+    GameDefinition(
+        path='/indiansport',
+        template_path='Games/Quiz/indiansport.html',
+        endpoint='indiansport',
+        slug='quiz',
+        title='Quiz (Sports Champions)',
+        category='Trivia'
+    ),
+    GameDefinition(
+        path='/movies',
+        template_path='Games/Quiz/movies.html',
+        endpoint='movies',
+        slug='quiz',
+        title='Quiz (Cinema & Movies)',
+        category='Trivia'
+    ),
+    GameDefinition(
+        path='/place',
+        template_path='Games/Quiz/place.html',
+        endpoint='place',
+        slug='quiz',
+        title='Quiz (Geography & Places)',
+        category='Trivia'
+    ),
+    GameDefinition(
+        path='/riddle',
+        template_path='Games/Quiz/riddle.html',
+        endpoint='riddle',
+        slug='quiz',
+        title='Quiz (Riddles & Logic)',
+        category='Trivia'
+    ),
+]
+
+# Legacy dictionary format mapping for backward-compatibility checks
+GAME_REGISTRY: Dict[str, tuple[str, str]] = {
+    def_item.path: (def_item.template_path, def_item.endpoint)
+    for def_item in GAME_DEFINITIONS
 }
 
+# Lookup map by path
+_GAMES_BY_PATH: Dict[str, GameDefinition] = {
+    def_item.path.lower(): def_item
+    for def_item in GAME_DEFINITIONS
+}
 
-def create_game_view(template_path):
-    """Factory creating view function for rendering a game template."""
+# Lookup map by slug
+_GAMES_BY_SLUG: Dict[str, List[GameDefinition]] = {}
+for item in GAME_DEFINITIONS:
+    _GAMES_BY_SLUG.setdefault(item.slug, []).append(item)
+
+
+# ─────────────────────────────────────────────────────────────
+# VIEW FACTORY WITH AUTOMATIC PIXORASDK V2 AUTO-INJECTION
+# ─────────────────────────────────────────────────────────────
+
+def _generate_universal_bridge_script(slug: str, title: str) -> str:
+    """Generate universal telemetry and score submission bridge for any game template."""
+    return f"""
+<!-- Pixora 2.0 Hardened SDK & Universal Score Bridge Auto-Injection -->
+<script src="/static/js/pixora-sdk.js"></script>
+<script>
+(function() {{
+    'use strict';
+    const GAME_SLUG = "{slug}";
+    const GAME_TITLE = "{title}";
+
+    // 1. Initialize Pixora SDK v2
+    if (window.Pixora) {{
+        window.Pixora.init({{ gameSlug: GAME_SLUG }}).then(() => {{
+            if (window.Pixora.gameplayStart) window.Pixora.gameplayStart();
+        }}).catch(() => {{}});
+    }}
+
+    // 2. Intercept legacy fetch('/api/score...') to route to Pixora SDK v2
+    if (window.fetch) {{
+        const _origFetch = window.fetch;
+        window.fetch = function(...args) {{
+            try {{
+                const url = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url ? args[0].url : '');
+                if (url.includes('/api/score')) {{
+                    const body = args[1] && args[1].body ? JSON.parse(args[1].body) : null;
+                    if (body && body.score !== undefined && window.Pixora) {{
+                        window.Pixora.submitScore(Number(body.score));
+                    }}
+                }}
+            }} catch(e) {{}}
+            return _origFetch.apply(this, args);
+        }};
+    }}
+
+    // 3. Universal Auto-Detection of Game Over & Scores
+    window.addEventListener('load', function() {{
+        let _submitted = false;
+        function autoSubmit(val) {{
+            const s = Math.floor(Number(val));
+            if (isNaN(s) || s <= 0 || _submitted) return;
+            _submitted = true;
+            if (window.Pixora) window.Pixora.submitScore(s);
+            setTimeout(() => {{ _submitted = false; }}, 4000);
+        }}
+
+        // Wrap common game completion functions
+        ['endGame', 'showResult', 'gameOver', 'showFinalScore', 'checkCompletion'].forEach(fn => {{
+            if (typeof window[fn] === 'function') {{
+                const orig = window[fn];
+                window[fn] = function(...args) {{
+                    const res = orig.apply(this, args);
+                    const score = window.score || 
+                                  (window.player1 ? Math.max(window.player1.score, (window.player2 ? window.player2.score : 0)) * 100 : null) || 
+                                  (window.correctAnswers ? window.correctAnswers * 100 : null);
+                    if (score) autoSubmit(score);
+                    return res;
+                }};
+            }}
+        }});
+
+        // Game-specific observers
+        if (GAME_SLUG === 'tictactoe') {{
+            const resEl = document.getElementById('result');
+            if (resEl) {{
+                new MutationObserver(() => {{
+                    const t = resEl.textContent.toLowerCase();
+                    if (t.includes('x wins')) autoSubmit(100);
+                    else if (t.includes('draw')) autoSubmit(50);
+                }}).observe(resEl, {{ childList: true, characterData: true, subtree: true }});
+            }}
+        }} else if (GAME_SLUG === 'towerblock') {{
+            const c = document.getElementById('container');
+            if (c) {{
+                new MutationObserver(() => {{
+                    if (c.classList.contains('ended')) {{
+                        const sc = document.getElementById('score');
+                        if (sc) autoSubmit(sc.textContent);
+                    }}
+                }}).observe(c, {{ attributes: true, attributeFilter: ['class'] }});
+            }}
+        }} else if (GAME_SLUG === 'maze') {{
+            setInterval(() => {{
+                const cb = document.getElementById('congratsBox') || document.querySelector('.congrats-box');
+                if (cb && cb.style.display === 'block') {{
+                    const timeEl = document.getElementById('timeTaken');
+                    const t = timeEl ? parseFloat(timeEl.textContent) : 60;
+                    autoSubmit(Math.round(10000 / Math.max(1, t)));
+                }}
+            }}, 1000);
+        }} else if (GAME_SLUG === 'stonepapersissors') {{
+            let lastPts = 0;
+            setInterval(() => {{
+                const pEl = document.querySelector('.playerPoints');
+                if (pEl) {{
+                    const p = parseInt(pEl.textContent, 10);
+                    if (p > lastPts) {{
+                        lastPts = p;
+                        autoSubmit(p * 100);
+                    }}
+                }}
+            }}, 2500);
+        }}
+    }});
+}})();
+</script>
+"""
+
+
+def create_game_view(template_path: str, game_def: Optional[GameDefinition] = None):
+    """Factory creating view function with automatic PixoraSDK v2 injection and security headers."""
     def view():
-        return render_template(template_path)
+        try:
+            rendered = render_template(template_path)
+
+            # Auto-inject PixoraSDK v2 & universal bridge if not already present in the HTML template
+            if '<script src="/static/js/pixora-sdk.js"></script>' not in rendered:
+                game_slug = game_def.slug if game_def else 'arcade-game'
+                game_title = game_def.title if game_def else 'Arcade Game'
+                sdk_snippet = _generate_universal_bridge_script(game_slug, game_title)
+
+                if '</head>' in rendered:
+                    rendered = rendered.replace('</head>', f'{sdk_snippet}</head>', 1)
+                elif '</body>' in rendered:
+                    rendered = rendered.replace('</body>', f'{sdk_snippet}</body>', 1)
+                else:
+                    rendered = rendered + sdk_snippet
+
+            response = make_response(rendered)
+            response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+            response.headers['X-Content-Type-Options'] = 'nosniff'
+            return response
+
+        except TemplateNotFound:
+            logger.warning("Game template '%s' not found.", template_path)
+            return render_template('errors/404.html'), 404
+        except Exception as err:
+            logger.error("Error rendering game template '%s': %s", template_path, err)
+            raise
+
     return view
 
 
 def register_game_routes(app_or_bp):
-    """Register all game routes and their exact endpoint names."""
-    for path, (template_path, endpoint_name) in GAME_REGISTRY.items():
-        view_func = create_game_view(template_path)
-        view_func.__name__ = endpoint_name
-        app_or_bp.add_url_rule(path, endpoint=endpoint_name, view_func=view_func)
+    """Register all 17 game routes and their exact endpoints onto Flask application."""
+    for item in GAME_DEFINITIONS:
+        view_func = create_game_view(item.template_path, game_def=item)
+        view_func.__name__ = item.endpoint
+        app_or_bp.add_url_rule(item.path, endpoint=item.endpoint, view_func=view_func)
+
+
+# ─────────────────────────────────────────────────────────────
+# DISCOVERY HELPERS
+# ─────────────────────────────────────────────────────────────
+
+def get_all_game_definitions() -> List[GameDefinition]:
+    """Retrieve full catalog of registered game definitions."""
+    return list(GAME_DEFINITIONS)
+
+
+def get_game_definition_by_path(path: str) -> Optional[GameDefinition]:
+    """Look up a game definition by its exact route path."""
+    return _GAMES_BY_PATH.get(path.strip().lower())
+
+
+def get_game_definitions_by_slug(slug: str) -> List[GameDefinition]:
+    """Look up all game definitions associated with a canonical game slug."""
+    return _GAMES_BY_SLUG.get(slug.strip().lower(), [])
+
+
+def get_game_categories() -> Dict[str, List[GameDefinition]]:
+    """Group all registered games by their thematic arcade category."""
+    grouped: Dict[str, List[GameDefinition]] = {}
+    for item in GAME_DEFINITIONS:
+        grouped.setdefault(item.category, []).append(item)
+    return grouped

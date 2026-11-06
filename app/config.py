@@ -56,6 +56,10 @@ class Config:
     WTF_CSRF_ENABLED = True
     WTF_CSRF_TIME_LIMIT = 3600
 
+    # Anti-Cheat & Proof-of-Gameplay
+    ANTI_CHEAT_ENABLED = os.environ.get('ANTI_CHEAT_ENABLED', 'True').lower() in ('true', '1')
+    ANTI_CHEAT_TOKEN_TTL = int(os.environ.get('ANTI_CHEAT_TOKEN_TTL', '3600'))  # 1 hour validity
+
     # Cloudflare R2 Edge Storage
     CLOUDFLARE_R2_ENABLED = os.environ.get('CLOUDFLARE_R2_ENABLED', 'True').lower() in ('true', '1')
     CLOUDFLARE_R2_ACCOUNT_ID = os.environ.get('CLOUDFLARE_R2_ACCOUNT_ID', '')
@@ -105,4 +109,9 @@ config_by_name = {
     'production': ProductionConfig,
     'default': DevelopmentConfig,
 }
+
+# Settings alias for clean modular imports (e.g. from app.config import settings)
+env_mode = os.environ.get('FLASK_ENV', os.environ.get('ENV', 'development')).lower()
+settings = config_by_name.get(env_mode, DevelopmentConfig)
+
 
