@@ -84,6 +84,33 @@ class AntiCheatValidator:
         return SLUG_ALIASES.get(cleaned, cleaned)
 
     @classmethod
+    def create_player_token(cls, player_id: int, username: str) -> str:
+        """Create a cryptographically signed Bearer authentication token for a player."""
+        from itsdangerous import URLSafeTimedSerializer
+        s = URLSafeTimedSerializer(cls._get_secret_key(), salt="pixora-player-auth")
+        return s.dumps({"player_id": player_id, "username": username})
+
+    @classmethod
+    def verify_player_token(cls, token: str, max_age: int = 86400 * 30) -> Optional[dict]:
+        """Verify and decode a player authentication Bearer token."""
+        from itsdangerous import URLSafeTimedSerializer
+        s = URLSafeTimedSerializer(cls._get_secret_key(), salt="pixora-player-auth")
+        try:
+            return s.loads(token, max_age=max_age)
+        except Exception:
+            return None
+
+    @classmethod
+    def decode_flask_session(cls, cookie_val: str, max_age: int = 86400 * 31) -> Optional[dict]:
+        """Decode and verify a Flask signed session cookie."""
+        from itsdangerous import URLSafeTimedSerializer
+        s = URLSafeTimedSerializer(cls._get_secret_key(), salt="cookie-session")
+        try:
+            return s.loads(cookie_val, max_age=max_age)
+        except Exception:
+            return None
+
+    @classmethod
     def generate_session_token(cls, player_id: int, game_slug: str, timestamp_ms: int) -> str:
         """Generate a cryptographically signed session token for proof of gameplay."""
         norm_slug = cls.normalize_slug(game_slug)

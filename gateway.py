@@ -17,7 +17,10 @@ import time
 from typing import Dict, List, Optional
 
 try:
-    from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, status
+    from fastapi import (
+        FastAPI, WebSocket, WebSocketDisconnect, HTTPException, status,
+        Request, Depends, Header, Cookie
+    )
     from fastapi.middleware.cors import CORSMiddleware
     from pydantic import BaseModel
     FASTAPI_AVAILABLE = True
@@ -97,13 +100,53 @@ if FASTAPI_AVAILABLE:
     ws_manager = WebSocketManager()
 
     # ─────────────────────────────────────────────────────────────
-    # PYDANTIC DATA SCHEMAS
+    # PYDANTIC DATA SCHEMAS & CRYPTOGRAPHIC AUTH DEPENDENCIES
     # ─────────────────────────────────────────────────────────────
+
+    class AuthenticatedPlayer(BaseModel):
+        id: int
+        username: str
+
+    async def get_current_player(
+        request: Request,
+        authorization: Optional[str] = Header(None),
+        session: Optional[str] = Cookie(None)
+    ) -> AuthenticatedPlayer:
+        """Authenticate caller via Bearer token or signed session cookie.
+
+        Eliminates identity spoofing: player identity is established exclusively by
+        verified cryptographic credentials, never self-reported by untrusted clients.
+        """
+        # 1. Bearer Token Authentication
+        if authorization:
+            parts = authorization.strip().split(" ", 1)
+            if len(parts) == 2 and parts[0].lower() == "bearer":
+                token_data = AntiCheatValidator.verify_player_token(parts[1])
+                if token_data and "player_id" in token_data:
+                    return AuthenticatedPlayer(
+                        id=int(token_data["player_id"]),
+                        username=str(token_data.get("username", "Player"))
+                    )
+
+        # 2. Flask Signed Session Cookie Authentication
+        cookie_val = session or request.cookies.get("session")
+        if cookie_val:
+            sess_data = AntiCheatValidator.decode_flask_session(cookie_val)
+            if sess_data and "_user_id" in sess_data:
+                return AuthenticatedPlayer(
+                    id=int(sess_data["_user_id"]),
+                    username=str(sess_data.get("pilot_username", "Player"))
+                )
+
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"error": "unauthorized", "code": "UNAUTHORIZED"}
+        )
 
     class SessionStartRequest(BaseModel):
         game_slug: str
-        player_id: int = 1
-        username: str = "Player"
+        player_id: Optional[int] = None   # Validated against authenticated token to prevent spoofing
+        username: Optional[str] = None
 
     class SessionStartResponse(BaseModel):
         status: str = "success"
@@ -111,17 +154,18 @@ if FASTAPI_AVAILABLE:
         start_time_ms: int
         game_slug: str
         player_id: int
+        username: str
 
     class ScoreSubmissionRequest(BaseModel):
         game_slug: str
-        player_id: int = 1
-        username: str = "Player"
         score: int
         session_token: str
         start_time_ms: int
         duration_ms: Optional[int] = None
         action_count: Optional[int] = None
         input_entropy_hash: Optional[str] = None
+        player_id: Optional[int] = None   # Validated against authenticated token to prevent spoofing
+        username: Optional[str] = None
 
     class ScoreSubmissionResponse(BaseModel):
         status: str = "success"
@@ -202,10 +246,23 @@ if FASTAPI_AVAILABLE:
         }
 
     @app.post("/api/v2/session/start", response_model=SessionStartResponse)
-    async def session_start(req: SessionStartRequest):
+    async def session_start(
+        req: SessionStartRequest,
+        player: AuthenticatedPlayer = Depends(get_current_player)
+    ):
+        # Prevent identity spoofing: reject if client attempts to impersonate another player
+        if req.player_id is not None and req.player_id != player.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "error": f"Identity spoofing detected: token belongs to player {player.id}, cannot start session for player {req.player_id}",
+                    "code": "FORBIDDEN"
+                }
+            )
+
         start_time_ms = int(time.time() * 1000)
         token = AntiCheatValidator.generate_session_token(
-            player_id=req.player_id,
+            player_id=player.id,
             game_slug=req.game_slug,
             timestamp_ms=start_time_ms
         )
@@ -213,14 +270,28 @@ if FASTAPI_AVAILABLE:
             session_token=token,
             start_time_ms=start_time_ms,
             game_slug=req.game_slug,
-            player_id=req.player_id
+            player_id=player.id,
+            username=player.username
         )
 
     @app.post("/api/v2/session/end", response_model=ScoreSubmissionResponse)
-    async def session_end(req: ScoreSubmissionRequest):
-        # 1. Anti-Cheat Verification
+    async def session_end(
+        req: ScoreSubmissionRequest,
+        player: AuthenticatedPlayer = Depends(get_current_player)
+    ):
+        # Prevent identity spoofing: reject if client attempts to claim another player's score
+        if req.player_id is not None and req.player_id != player.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "error": f"Identity spoofing detected: token belongs to player {player.id}, cannot submit score for player {req.player_id}",
+                    "code": "FORBIDDEN"
+                }
+            )
+
+        # 1. Authoritative Anti-Cheat Verification using verified player identity
         is_valid, reason = AntiCheatValidator.validate_submission(
-            player_id=req.player_id,
+            player_id=player.id,
             game_slug=req.game_slug,
             score=req.score,
             start_time_ms=req.start_time_ms,
@@ -238,18 +309,18 @@ if FASTAPI_AVAILABLE:
         AntiCheatValidator.mark_token_used(req.session_token)
 
         rank = None
-        # 2. Redis Operations (Sorted Sets & Streams)
+        # 2. Redis Operations (Sorted Sets & Streams) strictly bound to verified player
         if redis_client:
             try:
                 # Update Redis ZSET
                 pipe = redis_client.pipeline()
-                pipe.zadd(f"{KEY_PREFIX}lb:bests:{req.game_slug}", {f"{req.player_id}:{req.username}": req.score}, gt=True)
-                pipe.zrevrank(f"{KEY_PREFIX}lb:bests:{req.game_slug}", f"{req.player_id}:{req.username}")
+                pipe.zadd(f"{KEY_PREFIX}lb:bests:{req.game_slug}", {f"{player.id}:{player.username}": req.score}, gt=True)
+                pipe.zrevrank(f"{KEY_PREFIX}lb:bests:{req.game_slug}", f"{player.id}:{player.username}")
                 # Push to Redis Streams
                 pipe.xadd(STREAM_KEY, {
                     "type": "score",
-                    "player_id": str(req.player_id),
-                    "username": req.username,
+                    "player_id": str(player.id),
+                    "username": player.username,
                     "game_name": req.game_slug,
                     "score": str(req.score),
                     "ts": str(time.time())
@@ -264,7 +335,7 @@ if FASTAPI_AVAILABLE:
                     overtake_event = {
                         "type": "LEADERBOARD_OVERTAKE",
                         "game": req.game_slug,
-                        "player": req.username,
+                        "player": player.username,
                         "rank": rank,
                         "score": req.score,
                         "timestamp": time.time()
@@ -280,6 +351,17 @@ if FASTAPI_AVAILABLE:
             rank=rank,
             message="Score cryptographically validated and queued for ingestion"
         )
+
+    @app.post("/api/v2/auth/token")
+    async def issue_auth_token(player: AuthenticatedPlayer = Depends(get_current_player)):
+        """Issue a Bearer authentication token for an authenticated player."""
+        token = AntiCheatValidator.create_player_token(player.id, player.username)
+        return {
+            "access_token": token,
+            "token_type": "bearer",
+            "player_id": player.id,
+            "username": player.username
+        }
 
     @app.get("/api/v2/leaderboard/{game_slug}")
     async def get_live_leaderboard(game_slug: str, limit: int = 10):
