@@ -1,10 +1,14 @@
 # 👾 Pixora 2.0 — High-Throughput Real-Time Gaming Engine with Cryptographic Anti-Cheat
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-pixora--17.vercel.app-00f3ff?style=for-the-badge&logo=vercel&logoColor=black)](https://pixora-17.vercel.app/)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-3776AB.svg?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688.svg?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Next.js 15](https://img.shields.io/badge/Next.js%2015-000000.svg?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![Redis Streams](https://img.shields.io/badge/Redis%20Streams-DC382D.svg?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-ff007f.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+
+> 🕹️ **Live Demo Host:** [**https://pixora-17.vercel.app/**](https://pixora-17.vercel.app/)  
+> Experience the full Pixora arcade platform and sandboxed games live in your browser.
 
 **Pixora 2.0** is an enterprise-grade, high-throughput gaming engine and arcade platform engineered for sub-5ms P99 telemetry ingestion, sub-millisecond Redis Sorted Set leaderboards, live WebSocket player presence, and authoritative cryptographic anti-cheat validation.
 
@@ -340,6 +344,15 @@ docker compose ps
 # 5. Follow live stream ingestion logs
 docker compose logs -f gateway worker
 ```
+
+---
+
+## 🌐 Live Demo Host
+
+The complete Pixora arcade platform and game catalog are deployed live:
+
+- **Official Web Host:** [https://pixora-17.vercel.app/](https://pixora-17.vercel.app/)
+- **Health & Telemetry Status:** [https://pixora-17.vercel.app/health](https://pixora-17.vercel.app/health)
 
 ---
 
