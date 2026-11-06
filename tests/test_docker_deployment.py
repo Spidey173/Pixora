@@ -44,7 +44,7 @@ def test_docker_compose_services():
         content = f.read()
 
     # Required services
-    required_services = ["postgres:", "redis:", "gateway:", "worker:", "web:"]
+    required_services = ["postgres:", "redis:", "gateway:", "worker:", "web:", "frontend:"]
     for srv in required_services:
         assert srv in content, f"docker-compose.yml must define service '{srv}'"
 

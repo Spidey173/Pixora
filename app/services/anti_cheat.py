@@ -5,6 +5,20 @@ Provides:
 - Authoritative session validation (signature, replay protection)
 - Physical game velocity and impossible duration anomaly detection
 - Entropy and action heuristics verification
+
+Security & Threat Model Boundaries:
+Pixora operates client-side HTML5 canvas games within sandboxed iframes.
+1. Mitigated Attacks:
+   - Replay attacks across multiple workers or restarts (via distributed Redis single-use sets).
+   - Session token forgery and tampering (via HMAC-SHA256 token verification with non-default secrets).
+   - Instant velocity jumps (via game-specific score/duration rate curves).
+   - Perfectly spaced robotic macros (via input entropy timestamp jitter and variance checks).
+2. Fundamental Client-Side Boundary:
+   - Because the browser executes JavaScript and canvas game loops, an adversary with full control of
+     the client memory space can execute a customized script that satisfies duration and entropy constraints.
+   - 100% cheat-proof architectures require authoritative server-side simulation (computing game state
+     tick-by-tick on the server). For casual web arcade platforms, Pixora delivers probabilistic,
+     heuristic, and cryptographic defense-in-depth.
 """
 import hashlib
 import hmac
@@ -209,6 +223,13 @@ class AntiCheatValidator:
         for ts in ts_values:
             if ts < min_allowed or ts > max_allowed:
                 return False, "ENTROPY_TIMESTAMP_OUT_OF_BOUNDS"
+
+        # Check statistical variance: detect robotic / synthetic interval scripts (macro bot detection)
+        if len(ts_values) >= 5:
+            diffs = [ts_values[j] - ts_values[j - 1] for j in range(1, len(ts_values))]
+            # If all intervals are perfectly identical, flag synthetic automation
+            if len(set(diffs)) == 1 and diffs[0] > 0:
+                return False, "SYNTHETIC_INTERVAL_ROBOTIC_ENTROPY"
 
         return True, "VERIFIED"
 

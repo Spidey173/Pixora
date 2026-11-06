@@ -67,7 +67,7 @@ def _check_browser_loopback(port):
 def browser_test_env():
     """Start a threaded Flask server with seeded games and test user."""
     if not PLAYWRIGHT_AVAILABLE:
-        pytest.skip("Playwright is not installed.")
+        pytest.skip("Playwright is not installed. Install via: pip install playwright && playwright install chromium")
 
     flask_app = create_app("testing")
     with flask_app.app_context():

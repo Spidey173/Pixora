@@ -72,12 +72,14 @@ if FASTAPI_AVAILABLE:
     )
 
     # ─────────────────────────────────────────────────────────────
-    # WEBSOCKET CONNECTION & PRESENCE MANAGER
+    # DISTRIBUTED WEBSOCKET & PRESENCE MANAGER (REDIS PUB/SUB)
     # ─────────────────────────────────────────────────────────────
 
     class WebSocketManager:
+        """Manages local WebSocket connections with Redis Pub/Sub multi-worker distribution."""
+
         def __init__(self):
-            # game_slug -> list of WebSockets
+            # game_slug -> list of WebSockets connected to this local worker process
             self.active_connections: Dict[str, List[WebSocket]] = {}
             self._lock = asyncio.Lock()
 
@@ -87,7 +89,7 @@ if FASTAPI_AVAILABLE:
                 if game_slug not in self.active_connections:
                     self.active_connections[game_slug] = []
                 self.active_connections[game_slug].append(websocket)
-            logger.info("WebSocket connected for '%s' (Total: %d)", game_slug, len(self.active_connections[game_slug]))
+            logger.info("Local WebSocket connected for '%s' (Worker local total: %d)", game_slug, len(self.active_connections[game_slug]))
 
         async def disconnect(self, game_slug: str, websocket: WebSocket):
             async with self._lock:
@@ -97,7 +99,8 @@ if FASTAPI_AVAILABLE:
                     if not self.active_connections[game_slug]:
                         del self.active_connections[game_slug]
 
-        async def broadcast_to_game(self, game_slug: str, message: dict):
+        async def broadcast_local(self, game_slug: str, message: dict):
+            """Fan out message to WebSockets connected to this specific worker process."""
             payload = json.dumps(message)
             async with self._lock:
                 connections = list(self.active_connections.get(game_slug, []))
@@ -107,8 +110,60 @@ if FASTAPI_AVAILABLE:
                 except Exception:
                     pass
 
-        def get_presence(self, game_slug: str) -> int:
+        async def broadcast_distributed(self, game_slug: str, message: dict, redis=None):
+            """Publish event to Redis so ALL Uvicorn worker processes broadcast to their clients."""
+            if redis:
+                try:
+                    await redis.publish(f"{KEY_PREFIX}events:{game_slug}", json.dumps(message))
+                    return
+                except Exception as err:
+                    logger.warning("Redis Pub/Sub broadcast error: %s; falling back to local fanout", err)
+            await self.broadcast_local(game_slug, message)
+
+        # Backward compatibility alias
+        async def broadcast_to_game(self, game_slug: str, message: dict):
+            await self.broadcast_local(game_slug, message)
+
+        def get_local_presence(self, game_slug: str) -> int:
             return len(self.active_connections.get(game_slug, []))
+
+        # Backward compatibility alias
+        def get_presence(self, game_slug: str) -> int:
+            return self.get_local_presence(game_slug)
+
+        async def update_presence_connect(self, game_slug: str, redis=None) -> int:
+            """Increment distributed presence in Redis across all workers."""
+            if redis:
+                try:
+                    count = await redis.hincrby(f"{KEY_PREFIX}presence", game_slug, 1)
+                    return max(1, int(count))
+                except Exception as err:
+                    logger.warning("Redis presence increment warning: %s", err)
+            return max(1, self.get_local_presence(game_slug))
+
+        async def update_presence_disconnect(self, game_slug: str, redis=None) -> int:
+            """Decrement distributed presence in Redis across all workers."""
+            if redis:
+                try:
+                    count = await redis.hincrby(f"{KEY_PREFIX}presence", game_slug, -1)
+                    if count < 0:
+                        await redis.hset(f"{KEY_PREFIX}presence", game_slug, 0)
+                        count = 0
+                    return count
+                except Exception as err:
+                    logger.warning("Redis presence decrement warning: %s", err)
+            return self.get_local_presence(game_slug)
+
+        async def get_global_presence(self, game_slug: str, redis=None) -> int:
+            """Fetch authoritative presence across all worker instances."""
+            if redis:
+                try:
+                    val = await redis.hget(f"{KEY_PREFIX}presence", game_slug)
+                    if val is not None:
+                        return max(1, int(val))
+                except Exception as err:
+                    logger.warning("Redis presence fetch warning: %s", err)
+            return max(1, self.get_local_presence(game_slug))
 
     ws_manager = WebSocketManager()
 
@@ -235,7 +290,7 @@ if FASTAPI_AVAILABLE:
                     game_slug = channel.split(":")[-1]
                     try:
                         event_data = json.loads(msg["data"])
-                        await ws_manager.broadcast_to_game(game_slug, event_data)
+                        await ws_manager.broadcast_local(game_slug, event_data)
                     except Exception as err:
                         logger.error("PubSub broadcast error: %s", err)
         except Exception as e:
@@ -402,11 +457,11 @@ if FASTAPI_AVAILABLE:
 
     @app.get("/api/v2/presence/{game_slug}")
     async def get_game_presence(game_slug: str):
-        count = ws_manager.get_presence(game_slug)
-        return {"game_slug": game_slug, "presence": max(1, count)}
+        count = await ws_manager.get_global_presence(game_slug, redis=redis_client)
+        return {"game_slug": game_slug, "presence": count}
 
     # ─────────────────────────────────────────────────────────────
-    # WEBSOCKET REAL-TIME ENDPOINT WITH CSWSH & HEARTBEAT REAPING
+    # WEBSOCKET REAL-TIME ENDPOINT WITH CSWSH & DISTRIBUTED PRESENCE
     # ─────────────────────────────────────────────────────────────
 
     @app.websocket("/ws/live/{game_slug}")
@@ -427,13 +482,13 @@ if FASTAPI_AVAILABLE:
                 return
 
         await ws_manager.connect(game_slug, websocket)
-        # Broadcast presence count
-        curr_presence = ws_manager.get_presence(game_slug)
-        await ws_manager.broadcast_to_game(game_slug, {
+        # Update and broadcast distributed presence to ALL worker instances
+        curr_presence = await ws_manager.update_presence_connect(game_slug, redis=redis_client)
+        await ws_manager.broadcast_distributed(game_slug, {
             "type": "PRESENCE_UPDATE",
             "game": game_slug,
             "count": curr_presence
-        })
+        }, redis=redis_client)
 
         # Heartbeat timeout: reap connection if no ping/data received within 45 seconds
         HEARTBEAT_TIMEOUT_SECONDS = 45.0
@@ -450,13 +505,13 @@ if FASTAPI_AVAILABLE:
             logger.debug("WebSocket terminated: %s", ws_err)
         finally:
             await ws_manager.disconnect(game_slug, websocket)
-            # Broadcast updated presence
-            updated_presence = ws_manager.get_presence(game_slug)
-            await ws_manager.broadcast_to_game(game_slug, {
+            # Decrement and broadcast updated distributed presence across all workers
+            updated_presence = await ws_manager.update_presence_disconnect(game_slug, redis=redis_client)
+            await ws_manager.broadcast_distributed(game_slug, {
                 "type": "PRESENCE_UPDATE",
                 "game": game_slug,
                 "count": updated_presence
-            })
+            }, redis=redis_client)
 
     # ─────────────────────────────────────────────────────────────
     # UNIFIED TIER S BACKEND: MOUNT FLASK AS ASGI MIDDLEWARE

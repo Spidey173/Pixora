@@ -44,7 +44,10 @@ services:
       dockerfile: Dockerfile
     container_name: pixora-gateway
     restart: unless-stopped
-    command: uvicorn gateway:app --host 0.0.0.0 --port 8000 --workers 2
+    command: >
+      sh -c "alembic upgrade head &&
+             python -m app.utils.seed_games &&
+             uvicorn gateway:app --host 0.0.0.0 --port 8000 --workers 2"
     ports:
       - "${GATEWAY_PORT:-8000}:8000"
     environment:
@@ -65,7 +68,25 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 15s
+    networks:
+      - pixora-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: pixora-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=production
+      - BACKEND_API_URL=http://gateway:8000/api
+      - WS_GATEWAY_URL=ws://gateway:8000/ws
+    depends_on:
+      gateway:
+        condition: service_healthy
     networks:
       - pixora-net
 
@@ -94,6 +115,7 @@ services:
       - pixora-net
 
   web:
+    profiles: ["legacy-wsgi"]
     build:
       context: .
       dockerfile: Dockerfile

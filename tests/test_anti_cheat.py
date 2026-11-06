@@ -263,6 +263,17 @@ def test_input_entropy_validation_heuristics(app):
         assert valid is False
         assert reason == "ENTROPY_TIMESTAMP_OUT_OF_BOUNDS"
 
+        # 6. Robotic / synthetic macro script (zero-variance intervals)
+        robotic_intervals = f"5:{start_ms + 500},{start_ms + 1000},{start_ms + 1500},{start_ms + 2000},{start_ms + 2500}"
+        valid, reason = AntiCheatValidator.verify_input_entropy(
+            input_entropy_hash=robotic_intervals,
+            action_count=5,
+            start_time_ms=start_ms,
+            current_time_ms=curr_ms
+        )
+        assert valid is False
+        assert reason == "SYNTHETIC_INTERVAL_ROBOTIC_ENTROPY"
+
 
 def test_production_secret_key_hardcoded_fallback_rejection(monkeypatch):
     """Verify that in production mode, missing or default SECRET_KEY raises a critical error."""

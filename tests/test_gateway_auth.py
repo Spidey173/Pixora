@@ -261,3 +261,23 @@ def test_replay_token_rejection_with_mock_redis(gateway_client, monkeypatch):
     assert second_res.json()["detail"]["error"] == "REPLAY_ATTACK_DETECTED"
 
 
+def test_distributed_presence_endpoint_with_redis(gateway_client, monkeypatch):
+    """Verify that /api/v2/presence/{game_slug} reads distributed presence across multi-worker Redis."""
+    class FakePresenceRedis:
+        def __init__(self):
+            self.presence_hash = {"flappybird": "7"}
+
+        async def hget(self, name, key):
+            return self.presence_hash.get(key)
+
+    import gateway
+    monkeypatch.setattr(gateway, "redis_client", FakePresenceRedis())
+
+    res = gateway_client.get("/api/v2/presence/flappybird")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["game_slug"] == "flappybird"
+    assert data["presence"] == 7
+
+
+

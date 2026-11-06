@@ -331,11 +331,12 @@ Pixora 2.0 provides two operational modes tailored to deployment environments:
 
 | Service | Technology | Port | Role |
 | :--- | :--- | :--- | :--- |
-| **`gateway`** | FastAPI + Uvicorn + `a2wsgi` | `8000` | **Unified Single Backend:** Sub-5ms async REST endpoints, persistent WebSockets, player presence, plus complete mounted platform hub (auth, leaderboards, catalog) |
+| **`gateway`** | FastAPI + Uvicorn + `a2wsgi` | `8000` | **Unified Single Backend:** Sub-5ms async REST endpoints, persistent WebSockets with Redis Pub/Sub multi-worker distribution, distributed presence, plus mounted platform hub (auth, leaderboards, catalog) |
+| **`frontend`** | Next.js 15 + React 19 | `3000` | Modern React 19 cyberpunk client with animated lobbies, leaderboard explorer, and direct WebSocket connectivity |
 | **`worker`** | Python Consumer | *Internal* | Continuous Redis Stream consumer (`XREADGROUP`), atomic micro-batch database commits, DLQ routing |
-| **`redis`** | Redis 7 Alpine | `6379` | Append-only (AOF) persistent stream buffer and live sorted-set leaderboards |
+| **`redis`** | Redis 7 Alpine | `6379` | Append-only (AOF) persistent stream buffer, multi-worker Pub/Sub event bus, and live sorted-set leaderboards |
 | **`postgres`** | PostgreSQL 16 | `5432` | Relational source-of-truth for players, game scores, sessions, and game registry |
-| **`web`** | Flask + Gunicorn | `5000` | Optional standalone WSGI runner for dedicated scale-out configurations |
+| **`web`** *(Optional)* | Flask + Gunicorn | `5000` | Optional standalone WSGI runner profile (`--profile legacy-wsgi`) |
 
 ### 🚀 Quick Start on VPS / Docker
 
