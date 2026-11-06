@@ -48,11 +48,16 @@ services:
     ports:
       - "${GATEWAY_PORT:-8000}:8000"
     environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-pixora}:${POSTGRES_PASSWORD:-pixora_secret_password}@postgres:5432/${POSTGRES_DB:-pixora}
       - REDIS_URL=redis://redis:6379/0
+      - RATELIMIT_STORAGE_URI=redis://redis:6379/0
       - TELEMETRY_STREAM_KEY=pixora:telemetry
       - SECRET_KEY=${SECRET_KEY:-pixora-production-gateway-secret-key-32chars}
+      - FLASK_ENV=production
       - PYTHONUNBUFFERED=1
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:

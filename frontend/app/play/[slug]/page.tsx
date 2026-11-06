@@ -8,12 +8,12 @@ import { CanvasLeaderboardChart } from '@/components/CanvasLeaderboardChart';
 const GAME_URLS: Record<string, { title: string; playUrl: string; category: string }> = {
   'neon-cyber-racer': {
     title: 'Neon Cyber Racer',
-    playUrl: 'https://cdn.pixora.com/games/neon-racer/index.html',
+    playUrl: '/public/games/neon-racer/index.html',
     category: 'Action',
   },
   'neon-racer': {
     title: 'Neon Cyber Racer',
-    playUrl: 'https://cdn.pixora.com/games/neon-racer/index.html',
+    playUrl: '/public/games/neon-racer/index.html',
     category: 'Action',
   },
   '2048': {
@@ -38,7 +38,7 @@ export default function GameTheaterPage() {
   const slug = (params?.slug as string) || 'neon-cyber-racer';
   const game = GAME_URLS[slug] || {
     title: slug.replace(/-/g, ' ').toUpperCase(),
-    playUrl: `https://cdn.pixora.com/games/${slug}/index.html`,
+    playUrl: `/public/games/${slug}/index.html`,
     category: 'Arcade',
   };
 

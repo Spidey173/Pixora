@@ -335,6 +335,18 @@ if FASTAPI_AVAILABLE:
                 "count": updated_presence
             })
 
+    # ─────────────────────────────────────────────────────────────
+    # UNIFIED TIER S BACKEND: MOUNT FLASK AS ASGI MIDDLEWARE
+    # ─────────────────────────────────────────────────────────────
+    try:
+        from a2wsgi import WSGIMiddleware
+        from app import create_app
+        flask_app = create_app(os.environ.get('FLASK_ENV', 'production'))
+        app.mount("/", WSGIMiddleware(flask_app))
+        logger.info("🚀 Unified Tier S Backend Active: Full platform & WebSockets on single ASGI engine")
+    except Exception as e:
+        logger.error("Could not mount Flask app into FastAPI: %s", e)
+
 else:
     logger.info("FastAPI not installed in current environment. Install via pip install fastapi uvicorn.")
 

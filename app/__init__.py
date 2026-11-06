@@ -82,13 +82,13 @@ def create_app(config_name=None):
         response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
         return response
 
-    # Auto-create tables and populate default catalog in development and serverless environments
+    # Auto-create tables and populate default catalog and leaderboard in development and serverless environments
     if config_name != 'testing':
         with app.app_context():
             try:
                 db.create_all()
-                from app.models import Game
-                if Game.query.count() == 0:
+                from app.models import Game, GameScore
+                if Game.query.count() == 0 or GameScore.query.count() == 0:
                     from app.utils.seed_games import seed_catalog
                     seed_catalog(app)
             except Exception:

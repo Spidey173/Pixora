@@ -278,64 +278,76 @@ flask db migrate -m "describe_migration"
 
 ---
 
-## 🐳 Docker / VPS Continuous Deployment (Not Vercel Serverless)
+## 🐳 Docker / VPS / Cloud Continuous Deployment
 
-WebSockets (`gateway.py`) and Redis Stream ingestion workers (`worker.py`) require **continuous, persistent processes** that serverless runtimes (such as Vercel) terminate after request lifecycles. Pixora 2.0 is packaged with a production-grade `docker-compose.yml` multi-container architecture for any VPS (AWS EC2, DigitalOcean, Hetzner, Linode) or bare metal server:
+### ⚡ Unified Async Architecture vs. Serverless Web Demo
+
+Pixora 2.0 provides two operational modes tailored to deployment environments:
+
+1. **Production Continuous Cloud (Docker Compose / Railway / Render / VPS - Tier S):**
+   - **Unified Single ASGI Engine (`gateway:app` on `:8000`):** Combines high-concurrency FastAPI async endpoints, native WebSockets (`/ws/live/{game_slug}`), and player presence with the full platform hub (Flask auth, catalog, leaderboards, static bundles) mounted as ASGI middleware via `a2wsgi`.
+   - **Continuous Background Streaming (`worker.py`):** Runs 24/7 dedicated Redis Stream consumer groups (`XREADGROUP`), atomic micro-batching, and HMAC anti-cheat verification into PostgreSQL 16.
+   - **Persistent Redis 7 AOF:** Sub-millisecond live sorted sets (`ZADD`, `ZREVRANGE`) and zero message loss.
+
+2. **Serverless Web Demo Host ([https://pixora-17.vercel.app/](https://pixora-17.vercel.app/)):**
+   - Designed for instant zero-config browser demonstration of the catalog, responsive UI, sandboxed game players, and championship leaderboards.
+   - Operates with synchronous telemetry flushing and dynamic bundle fallbacks (since serverless runtimes freeze background worker threads and do not support long-lived WebSocket connections).
 
 ```
                     ┌───────────────────────────────┐
-                    │       Reverse Proxy / DNS     │
-                    │      (Nginx / Caddy / Cloudflare)
+                    │      Reverse Proxy / Ingress  │
+                    │   (Cloudflare / Caddy / Nginx)│
+                    └───────────────┬───────────────┘
+                                    │ :8000 (Unified Single Port)
+                                    ▼
+                    ┌───────────────────────────────┐
+                    │        pixora-gateway         │
+                    │  Unified ASGI Engine (Uvicorn)│
+                    │  ├── FastAPI (WebSockets/REST)│
+                    │  └── Flask Hub (a2wsgi WSGI)  │
                     └───────┬───────────────┬───────┘
-                     :5000  │               │ :8000
+                            │               │
+                            │ (Telemetry)   │ (Relational Data)
+                            ▼               │
+                    ┌───────────────┐       │
+                    │  pixora-redis │       │
+                    │  Redis 7 AOF  │       │
+                    └───────┬───────┘       │
+                            │ (XREADGROUP)  │
+                            ▼               │
+                    ┌───────────────┐       │
+                    │ pixora-worker │       │
+                    │ (worker.py)   │       │
+                    └───────┬───────┘       │
+                            │ (Micro-Batch) │
                             ▼               ▼
-                   ┌────────────────┐  ┌────────────────┐
-                   │   pixora-web   │  │ pixora-gateway │
-                   │  (Flask / WSGI)│  │(FastAPI / ASGI)│
-                   │  Gunicorn 4x   │  │ Uvicorn + WS   │
-                   └───────┬────────┘  └───────┬────────┘
-                           │                   │
-                           │   ┌───────────────┘
-                           ▼   ▼
-                    ┌───────────────┐
-                    │  pixora-redis │ ◄──── Streams + ZSETs
-                    │  Redis 7 AOF  │
-                    └───────┬───────┘
-                            │ (XREADGROUP)
-                            ▼
-                    ┌───────────────┐
-                    │ pixora-worker │
-                    │ (worker.py)   │
-                    └───────┬───────┘
-                            │ (Micro-Batch Commit)
-                            ▼
-                    ┌────────────────┐
-                    │pixora-postgres │
-                    │ PostgreSQL 16  │
-                    └────────────────┘
+                    ┌───────────────────────────────┐
+                    │        pixora-postgres        │
+                    │         PostgreSQL 16         │
+                    └───────────────────────────────┘
 ```
 
 ### Services Overview
 
 | Service | Technology | Port | Role |
 | :--- | :--- | :--- | :--- |
-| **`gateway`** | FastAPI + Uvicorn | `8000` | Sub-5ms REST endpoints, persistent WebSockets, player presence, Redis ZSET live ranks |
+| **`gateway`** | FastAPI + Uvicorn + `a2wsgi` | `8000` | **Unified Single Backend:** Sub-5ms async REST endpoints, persistent WebSockets, player presence, plus complete mounted platform hub (auth, leaderboards, catalog) |
 | **`worker`** | Python Consumer | *Internal* | Continuous Redis Stream consumer (`XREADGROUP`), atomic micro-batch database commits, DLQ routing |
 | **`redis`** | Redis 7 Alpine | `6379` | Append-only (AOF) persistent stream buffer and live sorted-set leaderboards |
 | **`postgres`** | PostgreSQL 16 | `5432` | Relational source-of-truth for players, game scores, sessions, and game registry |
-| **`web`** | Flask + Gunicorn | `5000` | Platform hub, authentication, session security, auto-runs Alembic migrations on boot |
+| **`web`** | Flask + Gunicorn | `5000` | Optional standalone WSGI runner for dedicated scale-out configurations |
 
 ### 🚀 Quick Start on VPS / Docker
 
 ```bash
 # 1. Clone repository on VPS
-git clone https://github.com/your-org/Pixora.git
+git clone https://github.com/Spidey173/Pixora.git
 cd Pixora
 
 # 2. Copy production environment configuration
 cp .env.docker.example .env
 
-# 3. Build and launch all 5 services in detached mode
+# 3. Build and launch all services in detached mode
 docker compose up --build -d
 
 # 4. Verify running health status
@@ -345,14 +357,29 @@ docker compose ps
 docker compose logs -f gateway worker
 ```
 
+### ☁️ Continuous Cloud Deployment (Railway / Render / Fly.io)
+
+For managed container platforms that support 24/7 WebSockets and background workers:
+
+1. **Deploy Redis & PostgreSQL**: Provision managed Redis 7 and PostgreSQL 16 instances.
+2. **Deploy Gateway Service**:
+   - Build Command: `pip install -r requirements.txt`
+   - Start Command: `sh -c "alembic upgrade head && python -m app.utils.seed_games && uvicorn gateway:app --host 0.0.0.0 --port 8000 --workers 4"`
+   - Port: `8000`
+3. **Deploy Worker Service**:
+   - Start Command: `python worker.py --worker-name=cloud-worker-1`
+
 ---
 
-## 🌐 Live Demo Host
+## 🌐 Live Environments & Deployment Matrix
 
-The complete Pixora arcade platform and game catalog are deployed live:
+| Environment | URL | Architecture | Capabilities |
+| :--- | :--- | :--- | :--- |
+| **Hosted Web Demo** | [https://pixora-17.vercel.app/](https://pixora-17.vercel.app/) | Serverless ASGI (FastAPI + Flask) | Instant browser demo, 17 sandboxed games, local bundle fallback, seeded championship leaderboards, sync telemetry |
+| **Production VPS / Cloud** | `http://<your-vps-ip>:8000` | Unified ASGI + Docker Compose | 24/7 WebSockets, live player presence, Redis Stream ingestion worker, PostgreSQL 16, sub-millisecond ZSET leaderboards |
 
 - **Official Web Host:** [https://pixora-17.vercel.app/](https://pixora-17.vercel.app/)
-- **Health & Telemetry Status:** [https://pixora-17.vercel.app/health](https://pixora-17.vercel.app/health)
+- **Health & Telemetry Endpoint:** [https://pixora-17.vercel.app/health](https://pixora-17.vercel.app/health)
 
 ---
 

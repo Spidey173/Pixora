@@ -40,6 +40,27 @@ class GameDefinition:
 # ─────────────────────────────────────────────────────────────
 
 GAME_DEFINITIONS: List[GameDefinition] = [
+    # ── 0. NEON CYBER RACER ─────────────────────────────────
+    GameDefinition(
+        path='/neon-cyber-racer',
+        template_path='Games/neon-cyber-racer/index.html',
+        endpoint='neon_cyber_racer_canonical',
+        slug='neon-cyber-racer',
+        title='Neon Cyber Racer',
+        category='Action',
+        description='Flagship Phaser 3 arcade racer. Dodge obstacles, drift at relativistic speed.',
+        controls_guide='Arrow Keys or A/D to steer, Spacebar to boost.'
+    ),
+    GameDefinition(
+        path='/neon-racer',
+        template_path='Games/neon-cyber-racer/index.html',
+        endpoint='neon_racer_canonical',
+        slug='neon-cyber-racer',
+        title='Neon Cyber Racer',
+        category='Action',
+        controls_guide='Arrow Keys or A/D to steer, Spacebar to boost.'
+    ),
+
     # ── 1. 2048 CYBER GRID ──────────────────────────────────
     GameDefinition(
         path='/2048',
@@ -151,6 +172,15 @@ GAME_DEFINITIONS: List[GameDefinition] = [
     ),
 
     # ── 6. CYBER LABYRINTH (MAZE) ───────────────────────────
+    GameDefinition(
+        path='/maze',
+        template_path='Games/maze/maze.html',
+        endpoint='maze_canonical',
+        slug='maze',
+        title='Cyber Labyrinth',
+        category='Puzzle',
+        controls_guide='Arrow keys or WASD to navigate corridors.'
+    ),
     GameDefinition(
         path='/Maze',
         template_path='Games/maze/maze.html',
@@ -319,6 +349,15 @@ GAME_DEFINITIONS: List[GameDefinition] = [
 
     # ── 10. SKYLINE TOWER BLOCK ─────────────────────────────
     GameDefinition(
+        path='/towerblock',
+        template_path='Games/TowerBlock/TowerBlock.html',
+        endpoint='towerblock_canonical',
+        slug='towerblock',
+        title='Skyline Tower Block',
+        category='Arcade',
+        controls_guide='Click or press Spacebar to drop the swinging block.'
+    ),
+    GameDefinition(
         path='/TowerBlock',
         template_path='Games/TowerBlock/TowerBlock.html',
         endpoint='towerblock',
@@ -360,6 +399,15 @@ GAME_DEFINITIONS: List[GameDefinition] = [
 
     # ── 13. BLOOD RELATIONS MYSTERY ─────────────────────────
     GameDefinition(
+        path='/relationship',
+        template_path='Games/Relationship/relations.html',
+        endpoint='relationship_canonical',
+        slug='relationship',
+        title='Blood Relations Mystery',
+        category='Brain',
+        controls_guide='Analyze family connections and pick the correct relation.'
+    ),
+    GameDefinition(
         path='/relations',
         template_path='Games/Relationship/relations.html',
         endpoint='relations',
@@ -389,6 +437,15 @@ GAME_DEFINITIONS: List[GameDefinition] = [
 
     # ── 14. SEQUENCE NUMBER LOGIC ───────────────────────────
     GameDefinition(
+        path='/sequence',
+        template_path='Games/Sequence/mathsequence.html',
+        endpoint='sequence_canonical',
+        slug='sequence',
+        title='Sequence Number Logic',
+        category='Puzzle',
+        controls_guide='Identify mathematical progression and enter the next number.'
+    ),
+    GameDefinition(
         path='/mathsequence',
         template_path='Games/Sequence/mathsequence.html',
         endpoint='mathsequence',
@@ -407,6 +464,15 @@ GAME_DEFINITIONS: List[GameDefinition] = [
     ),
 
     # ── 15. NEURAL CROSSWORD MATRIX ─────────────────────────
+    GameDefinition(
+        path='/crossword',
+        template_path='Games/Cross word/Crossword.html',
+        endpoint='crossword_canonical',
+        slug='crossword',
+        title='Neural Crossword',
+        category='Brain',
+        controls_guide='Click on grid cells and type letters using keyboard.'
+    ),
     GameDefinition(
         path='/Crossword',
         template_path='Games/Cross word/Crossword.html',

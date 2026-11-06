@@ -192,6 +192,17 @@ class Game(db.Model):
     is_featured = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
+    @property
+    def resolved_play_url(self) -> str:
+        """Returns reachable playable URL, resolving placeholder CDN URLs to local /public/games/ bundles."""
+        if not self.play_url:
+            return f"/public/games/{self.slug}/index.html"
+        if "cdn.pixora.com" in self.play_url:
+            parts = self.play_url.split('/games/', 1)
+            if len(parts) > 1:
+                return f"/public/games/{parts[1]}"
+        return self.play_url
+
     def to_dict(self):
         """Serialize game to dictionary."""
         return {
@@ -201,7 +212,7 @@ class Game(db.Model):
             'description': self.description,
             'category': self.category,
             'thumbnail_url': self.thumbnail_url,
-            'play_url': self.play_url,
+            'play_url': self.resolved_play_url,
             'controls_guide': self.controls_guide,
             'play_count': self.play_count,
             'is_featured': self.is_featured,

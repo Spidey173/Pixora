@@ -20,3 +20,4 @@ websockets>=12.0
 psycopg2-binary>=2.9.9
 alembic>=1.13.0
 gunicorn>=21.2.0
+a2wsgi>=1.10.0

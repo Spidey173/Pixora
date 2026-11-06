@@ -1,11 +1,12 @@
 # Pixora 2.0 Production Container
-# Supports: Flask Platform Hub, FastAPI Real-Time Gateway, and Redis Stream Telemetry Worker
+# Unified Tier S Async Engine: FastAPI + WebSockets + Mounted Platform Hub + Redis Telemetry Worker
 FROM python:3.11-slim
 
 # Prevent Python from writing .pyc files and buffer stdout/stderr
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    PORT=8000
 
 # Install system runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -32,10 +33,9 @@ RUN useradd -m -u 1000 pixora && \
 USER pixora
 
 # Expose ports:
-# 5000: Flask Platform Hub
-# 8000: FastAPI Gateway / WebSockets
-EXPOSE 5000 8000
+# 8000: Unified Async Engine (FastAPI WebSockets + REST + Flask Platform Hub)
+# 5000: Backward-compatible legacy web port
+EXPOSE 8000 5000
 
-# Default command runs the Flask Platform Hub via Gunicorn
-CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:5000", "--workers", "4", "--threads", "2"]
-
+# Default command runs the Unified Async Platform Engine via Uvicorn ASGI
+CMD ["uvicorn", "gateway:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]

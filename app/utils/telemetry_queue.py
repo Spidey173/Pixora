@@ -14,6 +14,7 @@ Architectural highlights:
 import collections
 import json
 import logging
+import os
 import threading
 import time
 import uuid
@@ -194,8 +195,8 @@ class TelemetryQueueManager:
             with self._lock:
                 self._memory_score_queue.append(score_data)
 
-        # In testing or serverless mode (no worker thread), flush immediately
-        if self.is_testing or not self.running:
+        # In testing or serverless mode (no background worker thread), flush immediately
+        if self.is_testing or not self.running or os.environ.get('VERCEL') or os.environ.get('AWS_LAMBDA_FUNCTION_NAME'):
             self.flush()
 
         return score_data
@@ -358,7 +359,7 @@ class TelemetryQueueManager:
         with self._lock:
             self.sessions_ingested += 1
 
-        if self.is_testing or not self.running:
+        if self.is_testing or not self.running or os.environ.get('VERCEL') or os.environ.get('AWS_LAMBDA_FUNCTION_NAME'):
             self.flush()
 
         return False, 'logged', {'status': 'logged', 'game': clean_game, 'session_id': session_id}
@@ -415,7 +416,7 @@ class TelemetryQueueManager:
         with self._lock:
             self.sessions_ingested += 1
 
-        if self.is_testing or not self.running:
+        if self.is_testing or not self.running or os.environ.get('VERCEL') or os.environ.get('AWS_LAMBDA_FUNCTION_NAME'):
             self.flush()
 
         return {'status': 'ended', 'game': clean_game, 'duration_seconds': duration_seconds}

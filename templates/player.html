@@ -363,10 +363,11 @@
     <main class="theater-layout">
         <!-- Center Stage -->
         <section class="stage-container">
-            <div class="screen-wrapper" id="screenWrapper">
+            <div class="screen-wrapper" id="screenWrapper" data-cdn-url="{{ game.play_url }}">
                 <iframe 
                     id="gameFrame" 
-                    src="{{ game.play_url }}" 
+                    src="{{ game.resolved_play_url if game.resolved_play_url is defined else game.play_url }}" 
+                    data-cdn-src="{{ game.play_url }}"
                     allow="autoplay; fullscreen; keyboard; gamepad" 
                     sandbox="allow-scripts allow-same-origin allow-pointer-lock allow-forms">
                 </iframe>
@@ -793,14 +794,17 @@
             setTimeout(setupGameFrameBridge, 1500);
         });
 
-        // Offline / Local Development Fallback for CDN-hosted Games
-        const _origUrl = "{{ game.play_url }}";
+        // Poki Platform Architecture: Resilient Bundle Resolution
+        const _origUrl = "{{ game.resolved_play_url if game.resolved_play_url is defined else game.play_url }}";
         const _slug = "{{ game.slug }}";
         const _fallbackBundle = `/public/games/${_slug === 'neon-cyber-racer' ? 'neon-racer' : _slug}/index.html`;
-        if (_origUrl.startsWith('http') && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-            // In local environment, if CDN fails to respond, fallback to local bundle
+        if (_origUrl.includes('cdn.pixora.com')) {
+            // Immediate zero-wait redirect to fast local web bundle
+            gameFrame.src = _fallbackBundle;
+        } else if (_origUrl.startsWith('http')) {
+            // If external CDN fails to respond, fallback to fast local bundle
             fetch(_origUrl, { method: 'HEAD', mode: 'no-cors' }).catch(() => {
-                console.log(`[Pixora Poki Shell] CDN offline in local dev: switching to local web bundle ${_fallbackBundle}`);
+                console.log(`[Pixora Poki Shell] CDN offline: switching to local web bundle ${_fallbackBundle}`);
                 gameFrame.src = _fallbackBundle;
             });
             gameFrame.addEventListener('error', () => {
