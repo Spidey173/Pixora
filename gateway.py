@@ -272,6 +272,8 @@ if FASTAPI_AVAILABLE:
     @asynccontextmanager
     async def lifespan(app_instance: FastAPI):
         global redis_client
+        from app.config import settings, validate_secrets
+        validate_secrets(settings)
         pubsub_task = None
         if AIOREDIS_AVAILABLE and os.environ.get("FLASK_ENV") != "testing":
             max_attempts = 3

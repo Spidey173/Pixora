@@ -28,6 +28,9 @@ env/
 
 # Secrets & Environment variables
 .env
+.env.*
+!.env.example
+!.env.docker.example
 
 # SQLite & Databases (keep instance folder or db ignored)
 *.db

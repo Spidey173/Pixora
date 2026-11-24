@@ -1,7 +1,7 @@
 """Application configuration classes for Pixora."""
 import os
 from datetime import timedelta
-from typing import ClassVar
+from typing import ClassVar, Optional
 
 from dotenv import load_dotenv
 
@@ -10,11 +10,92 @@ basedir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 load_dotenv(os.path.join(basedir, '.env'))
 
 
+class ConfigurationError(ValueError):
+    """Raised when critical configuration or secrets are missing or invalid."""
+    pass
+
+
+PLACEHOLDER_MARKERS = (
+    "CHANGE_ME",
+    "CHANGE_THIS",
+    "REPLACE_ME",
+    "YOUR_SECRET",
+    "GENERATE_A_SECURE",
+    "PIXORA-FALLBACK-DEV-SECRET-KEY-REPLACE-IN-PROD",
+)
+
+
+def is_placeholder(val: Optional[str]) -> bool:
+    """Check if a secret value is empty or matches known placeholder patterns."""
+    if not val or not str(val).strip():
+        return True
+    val_upper = str(val).strip().upper()
+    return any(marker in val_upper for marker in PLACEHOLDER_MARKERS)
+
+
+def validate_secrets(config) -> None:
+    """Validate that required secrets are present and not left as placeholders.
+
+    Fails fast at startup with a clear ConfigurationError if required secrets
+    (SECRET_KEY, DB URL, R2 credentials if storage is enabled) are missing
+    or still set to placeholders.
+    """
+    if isinstance(config, dict):
+        is_testing = config.get("TESTING", False) or os.environ.get("FLASK_ENV") == "testing"
+    else:
+        is_testing = getattr(config, "TESTING", False) or os.environ.get("FLASK_ENV") == "testing"
+
+    def get_val(key: str) -> Optional[str]:
+        if isinstance(config, dict):
+            return config.get(key)
+        val = getattr(config, key, None)
+        return val if val is not None else os.environ.get(key)
+
+    errors = []
+
+    # 1. SECRET_KEY
+    secret_key = get_val("SECRET_KEY")
+    if is_testing:
+        if not secret_key:
+            errors.append("SECRET_KEY is missing.")
+    else:
+        if is_placeholder(secret_key):
+            errors.append("SECRET_KEY is missing or set to a placeholder.")
+
+    # 2. Database URL
+    db_uri = get_val("SQLALCHEMY_DATABASE_URI") or get_val("DATABASE_URL")
+    if is_placeholder(db_uri):
+        errors.append("Database URL (DATABASE_URL / SQLALCHEMY_DATABASE_URI) is missing or set to a placeholder.")
+
+    # 3. R2 Credentials (if storage is enabled)
+    r2_enabled = get_val("CLOUDFLARE_R2_ENABLED")
+    if isinstance(r2_enabled, str):
+        r2_enabled = r2_enabled.lower() in ("true", "1")
+    elif not isinstance(r2_enabled, bool):
+        r2_enabled = bool(r2_enabled)
+
+    if r2_enabled and not is_testing:
+        r2_key_id = get_val("CLOUDFLARE_R2_ACCESS_KEY_ID")
+        r2_secret = get_val("CLOUDFLARE_R2_SECRET_ACCESS_KEY")
+        r2_endpoint = get_val("CLOUDFLARE_R2_ENDPOINT_URL")
+
+        if is_placeholder(r2_key_id):
+            errors.append("CLOUDFLARE_R2_ACCESS_KEY_ID is missing or set to a placeholder while storage is enabled.")
+        if is_placeholder(r2_secret):
+            errors.append("CLOUDFLARE_R2_SECRET_ACCESS_KEY is missing or set to a placeholder while storage is enabled.")
+        if is_placeholder(r2_endpoint):
+            errors.append("CLOUDFLARE_R2_ENDPOINT_URL is missing or set to a placeholder while storage is enabled.")
+
+    if errors:
+        error_msg = "Startup configuration validation failed:\n  - " + "\n  - ".join(errors)
+        raise ConfigurationError(error_msg)
+
+
 class Config:
     """Base configuration."""
     APP_NAME = 'Pixora'
     APP_VERSION = '2.0.0'
-    SECRET_KEY = os.environ.get('SECRET_KEY', 'pixora-fallback-dev-secret-key-replace-in-prod')
+    SECRET_KEY = os.environ.get('SECRET_KEY', '')
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB max payload size
     
     # Database

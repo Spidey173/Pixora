@@ -1,0 +1,13 @@
+title = "Pixora Gitleaks Secret Scanner Configuration"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Global allowlist for documentation examples and test fixtures"
+paths = [
+    '''^\.env\.example$''',
+    '''^\.env\.docker\.example$''',
+    '''^tests/.*''',
+]
+

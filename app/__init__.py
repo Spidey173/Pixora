@@ -1,7 +1,7 @@
 """Application factory for Pixora."""
 import os
 
-from app.config import config_by_name
+from app.config import config_by_name, validate_secrets
 from app.database import db, rebind_engine
 from app.utils.storage import r2_storage
 from app.utils.telemetry_queue import telemetry_queue
@@ -23,9 +23,10 @@ def create_app(config_name=None):
     if config_name is None:
         config_name = os.environ.get('FLASK_ENV', 'development')
 
-    from gateway import app
-
     config_class = config_by_name.get(config_name, config_by_name['default'])
+    validate_secrets(config_class)
+
+    from gateway import app
     db_uri = getattr(config_class, 'SQLALCHEMY_DATABASE_URI', None)
     if db_uri:
         rebind_engine(db_uri)
