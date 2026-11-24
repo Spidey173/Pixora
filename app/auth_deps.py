@@ -34,9 +34,12 @@ def decode_session_cookie(cookie_str: str, max_age: int = 86400 * 30) -> Optiona
 
 def set_flash(response: Response, message: str, category: str = "info"):
     """Set flash message cookie for the next request with lax CSRF protection."""
+    import urllib.parse
     flashes = [(category, message)]
-    response.set_cookie("_flashes", json.dumps(flashes), max_age=60, path="/", httponly=True, samesite="lax")
-    response.set_cookie("pixora_flash", message, max_age=60, path="/", httponly=True, samesite="lax")
+    safe_flashes = urllib.parse.quote(json.dumps(flashes))
+    safe_message = urllib.parse.quote(message)
+    response.set_cookie("_flashes", safe_flashes, max_age=60, path="/", httponly=True, samesite="lax")
+    response.set_cookie("pixora_flash", safe_message, max_age=60, path="/", httponly=True, samesite="lax")
 
 
 def set_session(response: Response, data: dict, max_age: int = 86400 * 30):
@@ -51,13 +54,20 @@ def clear_session(response: Response):
 
 
 async def parse_form_or_json(request: Request) -> dict:
-    """Parse request body as JSON or urlencoded form using pure Python stdlib."""
+    """Parse request body as JSON, multipart form, or urlencoded form."""
     content_type = request.headers.get("content-type", "")
     if "application/json" in content_type:
         try:
             data = await request.json()
             if isinstance(data, dict):
                 return data
+        except Exception:
+            pass
+
+    if "multipart/form-data" in content_type:
+        try:
+            form = await request.form()
+            return dict(form)
         except Exception:
             pass
 

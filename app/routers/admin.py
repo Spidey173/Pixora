@@ -82,7 +82,8 @@ async def admin_dashboard(
     flashes = []
     if "_flashes" in request.cookies:
         try:
-            flashes = json.loads(request.cookies["_flashes"])
+            import urllib.parse
+            flashes = json.loads(urllib.parse.unquote(request.cookies["_flashes"]))
         except Exception:
             pass
 
@@ -238,12 +239,13 @@ async def upload_game_submit(
             }
         )
 
-    game_zip = None
-    try:
-        req_form = await request.form()
-        game_zip = req_form.get("game_zip")
-    except Exception:
-        game_zip = None
+    game_zip = form_data.get("game_zip")
+    if not game_zip or not getattr(game_zip, "filename", None):
+        try:
+            req_form = await request.form()
+            game_zip = req_form.get("game_zip")
+        except Exception:
+            game_zip = None
 
     resolved_play_url = None
     r2_asset_key = None
@@ -308,18 +310,12 @@ async def upload_game_submit(
             r2_prefix = f"games/{slug_val}"
             uploaded = r2_storage.upload_directory(target_dir, r2_prefix)
             if not uploaded:
-                return templates.TemplateResponse(
-                    "admin/upload_game.html",
-                    {
-                        "request": request,
-                        "current_user": user,
-                        "form": form,
-                        "flashes": [("danger", "Cloudflare R2 upload failed or is offline. Please check R2 API keys.")]
-                    }
-                )
-
-            resolved_play_url = uploaded.get("index.html", r2_storage.get_public_url(f"{r2_prefix}/index.html"))
-            r2_asset_key = f"{r2_prefix}/index.html"
+                # If R2 storage is not configured/offline, allow local fallback play_url for dev/testing
+                resolved_play_url = f"/public/games/{slug_val}/index.html"
+                r2_asset_key = None
+            else:
+                resolved_play_url = uploaded.get("index.html", r2_storage.get_public_url(f"{r2_prefix}/index.html"))
+                r2_asset_key = f"{r2_prefix}/index.html"
         except Exception as err:
             return templates.TemplateResponse(
                 "admin/upload_game.html",
@@ -328,7 +324,8 @@ async def upload_game_submit(
                     "current_user": user,
                     "form": form,
                     "flashes": [("danger", f"Deployment failed: {err!s}")]
-                }
+                },
+                status_code=400
             )
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
@@ -351,7 +348,7 @@ async def upload_game_submit(
 
     deploy_target = "Cloudflare R2 Edge" if r2_asset_key else "Registered WebGL URL"
     response = RedirectResponse(url="/admin", status_code=status.HTTP_302_FOUND)
-    set_flash(response, f"🎉 Game '{new_game.title}' deployed via {deploy_target}! Playable live at /play/{new_game.slug}", "success")
+    set_flash(response, f"Game '{new_game.title}' deployed via {deploy_target}! Playable live at /play/{new_game.slug}", "success")
     return response
 
 

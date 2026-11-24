@@ -110,7 +110,7 @@ GAME_NAME_ALIASES = {
 
 def resolve_game(game_name: str) -> Optional[Game]:
     """Resolve any game title, slug, or alias to its canonical Game model instance."""
-    if not game_name:
+    if not game_name or not game_name.strip():
         return None
     clean = game_name.strip()
     norm = clean.lower()

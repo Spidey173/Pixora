@@ -116,8 +116,13 @@ def template_get_flashed_messages(context, with_categories: bool = False):
             raw_flashes = request.cookies.get('_flashes') or request.cookies.get('pixora_flash')
             if raw_flashes:
                 import json
+                import urllib.parse
                 try:
-                    parsed = json.loads(raw_flashes)
+                    unquoted = urllib.parse.unquote(raw_flashes)
+                    try:
+                        parsed = json.loads(unquoted)
+                    except Exception:
+                        parsed = unquoted
                     if isinstance(parsed, list):
                         flashes = parsed
                     elif isinstance(parsed, str):

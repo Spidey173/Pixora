@@ -33,7 +33,8 @@ async def login_page(
     flashes = []
     if "_flashes" in request.cookies:
         try:
-            flashes = json.loads(request.cookies["_flashes"])
+            import urllib.parse
+            flashes = json.loads(urllib.parse.unquote(request.cookies["_flashes"]))
         except Exception:
             pass
 
@@ -253,7 +254,8 @@ async def admin_login_page(
     flashes = []
     if "_flashes" in request.cookies:
         try:
-            flashes = json.loads(request.cookies["_flashes"])
+            import urllib.parse
+            flashes = json.loads(urllib.parse.unquote(request.cookies["_flashes"]))
         except Exception:
             pass
 
