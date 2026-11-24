@@ -46,15 +46,19 @@ def test_anti_cheat_session_token_and_replay_detection():
     assert AntiCheatValidator.is_token_replayed(tok) is True
 
 
-@pytest.mark.asyncio
-async def test_anti_cheat_async_token_replay():
+def test_anti_cheat_async_token_replay():
     """Test async token replay check and mark consumed."""
-    now_ms = int(time.time() * 1000)
-    tok = AntiCheatValidator.generate_session_token(player_id=99, game_slug="flappybird", timestamp_ms=now_ms)
+    import asyncio
 
-    assert await AntiCheatValidator.async_is_token_replayed(tok) is False
-    await AntiCheatValidator.async_mark_token_used(tok, ttl=300)
-    assert await AntiCheatValidator.async_is_token_replayed(tok) is True
+    async def _run():
+        now_ms = int(time.time() * 1000)
+        tok = AntiCheatValidator.generate_session_token(player_id=99, game_slug="flappybird", timestamp_ms=now_ms)
+
+        assert await AntiCheatValidator.async_is_token_replayed(tok) is False
+        await AntiCheatValidator.async_mark_token_used(tok, ttl=300)
+        assert await AntiCheatValidator.async_is_token_replayed(tok) is True
+
+    asyncio.run(_run())
 
 
 def test_anti_cheat_input_entropy_verification():
@@ -352,55 +356,58 @@ def test_anti_cheat_validate_submission_all_branches():
     assert reason == "VERIFIED"
 
 
-@pytest.mark.asyncio
-async def test_auth_deps_require_user_and_require_admin():
+def test_auth_deps_require_user_and_require_admin():
     """Test require_user and require_admin authorization enforcement."""
+    import asyncio
     from fastapi import HTTPException
     from unittest.mock import MagicMock
     from app.auth_deps import MockField, MockForm, require_admin, require_user
     from app.models import AnonymousUser, User
 
-    # 1. require_user with JSON request
-    req_json = MagicMock()
-    req_json.headers = {"accept": "application/json"}
-    with pytest.raises(HTTPException) as exc_info:
-        await require_user(req_json, user=AnonymousUser())
-    assert exc_info.value.status_code == 401
+    async def _run():
+        # 1. require_user with JSON request
+        req_json = MagicMock()
+        req_json.headers = {"accept": "application/json"}
+        with pytest.raises(HTTPException) as exc_info:
+            await require_user(req_json, user=AnonymousUser())
+        assert exc_info.value.status_code == 401
 
-    # 2. require_user with HTML browser request
-    req_html = MagicMock()
-    req_html.headers = {"accept": "text/html"}
-    req_html.url.path = "/protected-portal"
-    with pytest.raises(HTTPException) as exc_info:
-        await require_user(req_html, user=AnonymousUser())
-    assert exc_info.value.status_code == 303
-    assert "/login?next=/protected-portal" in exc_info.value.headers["Location"]
+        # 2. require_user with HTML browser request
+        req_html = MagicMock()
+        req_html.headers = {"accept": "text/html"}
+        req_html.url.path = "/protected-portal"
+        with pytest.raises(HTTPException) as exc_info:
+            await require_user(req_html, user=AnonymousUser())
+        assert exc_info.value.status_code == 303
+        assert "/login?next=/protected-portal" in exc_info.value.headers["Location"]
 
-    # 3. require_user with authenticated user
-    real_user = User(username="ValidPilot", is_guest=False)
-    resolved = await require_user(req_html, user=real_user)
-    assert resolved == real_user
+        # 3. require_user with authenticated user
+        real_user = User(username="ValidPilot", is_guest=False)
+        resolved = await require_user(req_html, user=real_user)
+        assert resolved == real_user
 
-    # 4. require_admin with valid session cookie
-    from app.auth_deps import create_session_cookie
-    admin_cookie = create_session_cookie({"is_admin_authenticated": True})
-    req_admin = MagicMock()
-    req_admin.cookies = {"session": admin_cookie}
-    assert await require_admin(req_admin, session=admin_cookie, user=AnonymousUser()) is True
+        # 4. require_admin with valid session cookie
+        from app.auth_deps import create_session_cookie
+        admin_cookie = create_session_cookie({"is_admin_authenticated": True})
+        req_admin = MagicMock()
+        req_admin.cookies = {"session": admin_cookie}
+        assert await require_admin(req_admin, session=admin_cookie, user=AnonymousUser()) is True
 
-    # 5. require_admin with admin User object
-    admin_user = User(username="AdminPilot", is_guest=False)
-    admin_user.is_admin = True
-    assert await require_admin(req_admin, session=None, user=admin_user) is True
+        # 5. require_admin with admin User object
+        admin_user = User(username="AdminPilot", is_guest=False)
+        admin_user.is_admin = True
+        assert await require_admin(req_admin, session=None, user=admin_user) is True
 
-    # 6. require_admin unauthenticated -> 303 redirect
-    req_unauth = MagicMock()
-    req_unauth.cookies = {}
-    req_unauth.url.path = "/admin/secret"
-    with pytest.raises(HTTPException) as exc_info:
-        await require_admin(req_unauth, session=None, user=AnonymousUser())
-    assert exc_info.value.status_code == 303
-    assert "/admin/login?next=/admin/secret" in exc_info.value.headers["Location"]
+        # 6. require_admin unauthenticated -> 303 redirect
+        req_unauth = MagicMock()
+        req_unauth.cookies = {}
+        req_unauth.url.path = "/admin/secret"
+        with pytest.raises(HTTPException) as exc_info:
+            await require_admin(req_unauth, session=None, user=AnonymousUser())
+        assert exc_info.value.status_code == 303
+        assert "/admin/login?next=/admin/secret" in exc_info.value.headers["Location"]
+
+    asyncio.run(_run())
 
     # 7. MockField and MockForm coverage
     f_check = MockField("remember", True, "checkbox")
