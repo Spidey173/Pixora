@@ -55,6 +55,12 @@ class DatabaseProxy:
         target_engine = bind or engine
         Base.metadata.drop_all(bind=target_engine)
 
+    def rollback(self):
+        _scoped_session.rollback()
+
+    def remove(self):
+        _scoped_session.remove()
+
     def init_app(self, app=None, *args, **kwargs):
         if app is not None and hasattr(app, 'config'):
             uri = app.config.get('SQLALCHEMY_DATABASE_URI')

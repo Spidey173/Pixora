@@ -114,3 +114,20 @@ def test_validate_secrets_testing_mode_allows_test_secrets():
     }
     validate_secrets(cfg)
 
+
+def test_serverless_sqlite_tmp_fallback(monkeypatch):
+    """Test that serverless execution on Vercel falls back to /tmp/game_data.db."""
+    monkeypatch.setenv("VERCEL", "1")
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    from app.config import get_default_database_uri
+    assert "/tmp/game_data.db" in get_default_database_uri()
+
+
+def test_database_proxy_rollback_and_remove():
+    """Test DatabaseProxy rollback and remove helper methods."""
+    from app.extensions import db
+    # Should execute without error
+    db.rollback()
+    db.remove()
+
+

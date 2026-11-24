@@ -550,6 +550,25 @@ if FASTAPI_AVAILABLE:
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         return response
 
+    # Scoped database session cleanup middleware
+    @app.middleware("http")
+    async def db_session_lifecycle(request: Request, call_next):
+        try:
+            return await call_next(request)
+        except Exception:
+            try:
+                from app.extensions import db
+                db.session.rollback()
+            except Exception:
+                pass
+            raise
+        finally:
+            try:
+                from app.extensions import db
+                db.session.remove()
+            except Exception:
+                pass
+
     # Include routers
     from app.routers.auth import auth_router
     from app.routers.hub import hub_router

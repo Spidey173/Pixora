@@ -43,6 +43,12 @@ def register_error_handlers(fastapi_app):
     @fastapi_app.exception_handler(Exception)
     async def custom_500_handler(request: Request, exc: Exception):
         logger.error("Unhandled internal server error: %s", exc, exc_info=True)
+        try:
+            from app.extensions import db
+            db.session.rollback()
+            db.session.remove()
+        except Exception:
+            pass
         if is_api_request(request):
             return JSONResponse(
                 {"error": "internal_server_error", "message": "A server error occurred."},

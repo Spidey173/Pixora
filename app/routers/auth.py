@@ -112,7 +112,11 @@ async def login_submit(
                 )
 
         user.last_seen = datetime.now(timezone.utc)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
     else:
         # Auto-register new guest or player
         user = User(
@@ -124,7 +128,11 @@ async def login_submit(
         if pass_val:
             user.set_password(pass_val)
         db.session.add(user)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
 
     # Determine redirect destination
     target = next_page if next_page and next_page.startswith("/") else "/games"
@@ -191,7 +199,11 @@ async def register_submit(
         user.set_password(pass_val)
         user.is_guest = False
         user.last_seen = datetime.now(timezone.utc)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
     elif user:
         form = MockForm(username=raw_username)
         return templates.TemplateResponse(
@@ -213,7 +225,11 @@ async def register_submit(
         )
         user.set_password(pass_val)
         db.session.add(user)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
 
     response = RedirectResponse(url="/games", status_code=status.HTTP_302_FOUND)
     sess_data = decode_session_cookie(session) or {}

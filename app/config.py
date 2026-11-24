@@ -91,6 +91,29 @@ def validate_secrets(config) -> None:
         raise ConfigurationError(error_msg)
 
 
+def get_default_database_uri() -> str:
+    """Determine database URI based on environment (Vercel serverless /tmp vs local)."""
+    env_db = os.environ.get('DATABASE_URL')
+    if env_db:
+        if env_db.startswith('postgres://'):
+            return env_db.replace('postgres://', 'postgresql://', 1)
+        return env_db
+
+    is_serverless = bool(os.environ.get('VERCEL') or os.environ.get('AWS_LAMBDA_FUNCTION_NAME'))
+    if is_serverless:
+        _tmp_db = '/tmp/game_data.db'
+        _bundled_db = os.path.join(basedir, 'game_data.db')
+        if os.path.exists(_bundled_db) and not os.path.exists(_tmp_db):
+            import shutil
+            try:
+                shutil.copy2(_bundled_db, _tmp_db)
+            except Exception:
+                pass
+        return f"sqlite:///{_tmp_db}"
+
+    return f"sqlite:///{os.path.join(basedir, 'game_data.db')}"
+
+
 class Config:
     """Base configuration."""
     APP_NAME = 'Pixora'
@@ -99,14 +122,7 @@ class Config:
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB max payload size
     
     # Database
-    _default_db_dir = basedir
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
-        'DATABASE_URL',
-        f"sqlite:///{os.path.join(_default_db_dir, 'game_data.db')}"
-    )
-    # Fix Render/VPS postgres:// prefix to postgresql:// if needed
-    if SQLALCHEMY_DATABASE_URI.startswith('postgres://'):
-        SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace('postgres://', 'postgresql://', 1)
+    SQLALCHEMY_DATABASE_URI = get_default_database_uri()
         
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS: ClassVar[dict] = {
