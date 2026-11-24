@@ -35,7 +35,7 @@ class CloudflareR2Storage:
         """Initialize R2 client directly from app.config settings without Flask dependency."""
         from app.config import settings
         self.enabled = getattr(settings, 'CLOUDFLARE_R2_ENABLED', False)
-        self.bucket_name = getattr(settings, 'CLOUDFLARE_R2_BUCKET_NAME', 'glitch4ce-games')
+        self.bucket_name = getattr(settings, 'CLOUDFLARE_R2_BUCKET_NAME', 'pixora-games')
         self.public_url = (getattr(settings, 'CLOUDFLARE_R2_PUBLIC_URL', '') or 'https://pub-bbadfb1090074e17b2f5293b549ce094.r2.dev').rstrip('/')
         endpoint_url = getattr(settings, 'CLOUDFLARE_R2_ENDPOINT_URL', '')
         access_key = getattr(settings, 'CLOUDFLARE_R2_ACCESS_KEY_ID', '')

@@ -163,7 +163,7 @@ button:active {
     const GAME_SLUG = "crossword";
     const GAME_TITLE = "Neural Crossword";
 
-    // 1. Universal Pixora / Glitch4ce SDK Client
+    // 1. Universal Pixora SDK Client
     const PixoraBridge = {
         init: function() {
             if (window.parent && window.parent !== window) {
@@ -209,7 +209,7 @@ button:active {
     };
 
     window.Pixora = window.Pixora || PixoraBridge;
-    window.Glitch4ce = window.Glitch4ce || PixoraBridge;
+    window.Pixora = window.Pixora || PixoraBridge;
 
     // Auto-initiate handshake with parent theater shell
     PixoraBridge.init();

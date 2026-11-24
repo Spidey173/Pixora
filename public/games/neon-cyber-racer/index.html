@@ -32,30 +32,30 @@
 
 <script>
     // ─── EMBEDDED PIXORA PLATFORM SDK (ZERO 404 FAILURE RISK) ───
-    const Glitch4ce = {
+    const Pixora = {
         init: function() {
             window.parent.postMessage({
-                source: 'GLITCH4CE_GAME_CLIENT',
-                type: 'GLITCH4CE_HANDSHAKE',
+                source: 'PIXORA_GAME_CLIENT',
+                type: 'PIXORA_HANDSHAKE',
                 payload: { gameId: 'neon-cyber-racer', version: '2.0.0' }
             }, '*');
         },
         gameplayStart: function() {
             window.parent.postMessage({
-                source: 'GLITCH4CE_GAME_CLIENT',
-                type: 'GLITCH4CE_GAMEPLAY_START',
+                source: 'PIXORA_GAME_CLIENT',
+                type: 'PIXORA_GAMEPLAY_START',
                 payload: { game: 'Neon Cyber Racer', timestamp: Date.now() }
             }, '*');
         },
         submitScore: function(scoreVal) {
             window.parent.postMessage({
-                source: 'GLITCH4CE_GAME_CLIENT',
-                type: 'GLITCH4CE_SUBMIT_SCORE',
+                source: 'PIXORA_GAME_CLIENT',
+                type: 'PIXORA_SUBMIT_SCORE',
                 payload: { game: 'Neon Cyber Racer', score: Math.floor(scoreVal), timestamp: Date.now() }
             }, '*');
         }
     };
-    window.Glitch4ce = Glitch4ce;
+    window.Pixora = Pixora;
 
     // ─── GAME STATE & VARIABLES ───
     let score = 0;
@@ -91,7 +91,7 @@
     const game = new Phaser.Game(config);
 
     function preload() {
-        Glitch4ce.init();
+        Pixora.init();
     }
 
     function create() {
@@ -201,7 +201,7 @@
         this.physics.add.overlap(player, obstacles, hitObstacle, null, this);
 
         // Inform Pixora Platform that gameplay has initiated
-        Glitch4ce.gameplayStart();
+        Pixora.gameplayStart();
     }
 
     function spawnObstacle() {
@@ -331,7 +331,7 @@
         }).setOrigin(0.5).setDepth(101);
 
         // ─── TRANSMIT SCORE TO PIXORA PLATFORM & LEADERBOARD ───
-        Glitch4ce.submitScore(finalScore);
+        Pixora.submitScore(finalScore);
 
         // Click to restart
         this.input.once('pointerdown', () => {

@@ -2,6 +2,7 @@
 import collections
 import json
 import logging
+import os
 import threading
 import time
 import uuid
@@ -55,7 +56,8 @@ class TelemetryQueueManager:
     @property
     def key_prefix(self) -> str:
         """Namespace key prefix to isolate testing from runtime data."""
-        return 'pixora:test:' if self.is_testing else 'pixora:'
+        base = os.environ.get('REDIS_KEY_PREFIX', 'pixora:').rstrip(':')
+        return f'{base}:test:' if self.is_testing else f'{base}:'
 
     def init_app(self, app):
         """Initialize telemetry queue extension with Flask application."""

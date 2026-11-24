@@ -54,7 +54,7 @@
                             return;
                         }
 
-                        if (e.data && (e.data.type === 'PIXORA_HANDSHAKE_ACK' || e.data.type === 'GLITCH4CE_HANDSHAKE_ACK')) {
+                        if (e.data && (e.data.type === 'PIXORA_HANDSHAKE_ACK' || e.data.type === 'PIXORA_HANDSHAKE_ACK')) {
                             this.initialized = true;
                             this.player = e.data.payload ? e.data.payload.player : null;
                             if (e.data.payload && e.data.payload.sessionToken) {
@@ -289,6 +289,6 @@
     // Expose global constructors and singletons
     window.PixoraSDK = PixoraSDK;
     window.Pixora = window.Pixora || new PixoraSDK();
-    window.Glitch4ce = window.Pixora;
+    window.Pixora = PixoraBridge;
 
 })(typeof window !== 'undefined' ? window : this);

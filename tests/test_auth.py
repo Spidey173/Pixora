@@ -7,7 +7,7 @@ def test_login_page_renders(client):
     response = client.get('/login')
     assert response.status_code == 200
     assert b'PLAYER ACCESS' in response.data
-    assert b'PIXORA' in response.data or b'GLITCH4CE' in response.data
+    assert b'PIXORA' in response.data
 
 
 def test_guest_login_auto_registers(client, app):

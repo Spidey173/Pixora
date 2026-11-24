@@ -32,7 +32,7 @@ logger = logging.getLogger("pixora.gateway")
 
 REDIS_URL = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/0")
 STREAM_KEY = os.environ.get("TELEMETRY_STREAM_KEY", "pixora:telemetry")
-KEY_PREFIX = "pixora:"
+KEY_PREFIX = os.environ.get("REDIS_KEY_PREFIX", "pixora:")
 
 if FASTAPI_AVAILABLE:
     app = FastAPI(

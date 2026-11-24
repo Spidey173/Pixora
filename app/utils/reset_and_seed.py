@@ -311,8 +311,9 @@ def reset_and_seed_everything():
                 r = redis.Redis.from_url(redis_url, decode_responses=True)
                 if r.ping():
                     print("⚡ Redis connected. Flushing old cache keys...")
-                    # Delete any glitch4ce:* keys
-                    for k in r.scan_iter("glitch4ce:*"):
+                    redis_prefix = os.environ.get('REDIS_KEY_PREFIX', 'pixora:').rstrip(':') + ':'
+                    # Delete any prefix:* keys
+                    for k in r.scan_iter(f"{redis_prefix}*"):
                         r.delete(k)
 
                     print("🚀 Warming Redis Sorted Sets with fresh seed scores...")
@@ -327,8 +328,8 @@ def reset_and_seed_everything():
                             'score': s.score,
                             'achieved_at': s.achieved_at.isoformat() if s.achieved_at else None
                         }
-                        pipe.zadd(f'glitch4ce:lb:entries:{s.game_name}', {json.dumps(entry): s.score})
-                        pipe.zadd(f'glitch4ce:lb:bests:{s.game_name}', {f'{s.player_id}:{s.player.username}': s.score}, gt=True)
+                        pipe.zadd(f'{redis_prefix}lb:entries:{s.game_name}', {json.dumps(entry): s.score})
+                        pipe.zadd(f'{redis_prefix}lb:bests:{s.game_name}', {f'{s.player_id}:{s.player.username}': s.score}, gt=True)
                     pipe.execute()
                     print("✅ Redis live leaderboards warmed successfully!")
             except Exception as e:

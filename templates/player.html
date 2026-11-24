@@ -507,7 +507,7 @@
                 const win = gameFrame.contentWindow;
                 if (!win || !doc) return;
 
-                // 1. Expose Pixora and Glitch4ce SDK in the iframe window
+                // 1. Expose Pixora SDK in the iframe window
                 const bridgeSDK = {
                     init: function() {
                         win.parent.postMessage({
@@ -536,7 +536,6 @@
                 };
 
                 win.Pixora = win.Pixora || bridgeSDK;
-                win.Glitch4ce = win.Glitch4ce || bridgeSDK;
 
                 // 2. Intercept any direct fetch('/api/score...') inside the iframe
                 // For games that already have their own fetch submission (2048, Flappy, Pong Easy, MemoryMatch Easy),
@@ -959,11 +958,10 @@
             }
 
             const data = event.data;
-            if (!data || (data.source !== 'PIXORA_GAME_CLIENT' && data.source !== 'GLITCH4CE_GAME_CLIENT')) return;
+            if (!data || data.source !== 'PIXORA_GAME_CLIENT') return;
 
             switch(data.type) {
                 case 'PIXORA_HANDSHAKE':
-                case 'GLITCH4CE_HANDSHAKE':
                     try {
                         const session = activeV2Session || await acquireV2Session();
                         gameFrame.contentWindow.postMessage({
@@ -979,7 +977,6 @@
                     break;
 
                 case 'PIXORA_SUBMIT_SCORE':
-                case 'GLITCH4CE_SUBMIT_SCORE':
                     const score = data.payload.score;
                     try {
                         let response;
@@ -1035,12 +1032,10 @@
                     break;
 
                 case 'PIXORA_GAMEPLAY_START':
-                case 'GLITCH4CE_GAMEPLAY_START':
                     fetch(`/start_game/${encodeURIComponent(GAME_TITLE)}`, { method: 'POST' }).catch(() => {});
                     break;
 
                 case 'PIXORA_GAMEPLAY_STOP':
-                case 'GLITCH4CE_GAMEPLAY_STOP':
                     fetch(`/end_game/${encodeURIComponent(GAME_TITLE)}`, { method: 'POST' }).catch(() => {});
                     break;
             }

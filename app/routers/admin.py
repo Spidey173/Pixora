@@ -72,7 +72,7 @@ async def admin_dashboard(
 
     games_list = Game.query.order_by(Game.created_at.desc()).all()
     r2_status = r2_storage.is_configured
-    r2_bucket = getattr(settings, 'CLOUDFLARE_R2_BUCKET_NAME', 'glitch4ce-games')
+    r2_bucket = getattr(settings, 'CLOUDFLARE_R2_BUCKET_NAME', 'pixora-games')
     r2_public_url = getattr(settings, 'CLOUDFLARE_R2_PUBLIC_URL', 'https://pub-bbadfb1090074e17b2f5293b549ce094.r2.dev')
     total_plays = sum(g.play_count for g in games_list)
     r2_games_count = sum(1 for g in games_list if g.r2_asset_key or (g.play_url and 'r2.dev' in g.play_url))

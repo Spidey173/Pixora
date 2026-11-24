@@ -19,7 +19,7 @@ from app.utils.storage import r2_storage  # noqa: E402
 def migrate_all_media_assets(dry_run=False):
     """Scan and migrate .mp3 and .png assets to Cloudflare R2 edge storage."""
     cdn_base = getattr(settings, 'CLOUDFLARE_R2_PUBLIC_URL', 'https://pub-bbadfb1090074e17b2f5293b549ce094.r2.dev').rstrip('/')
-    bucket = getattr(settings, 'CLOUDFLARE_R2_BUCKET_NAME', 'glitch4ce-games')
+    bucket = getattr(settings, 'CLOUDFLARE_R2_BUCKET_NAME', 'pixora-games')
 
     search_roots = [
         os.path.join(basedir, 'static', 'Games'),

@@ -119,7 +119,7 @@ body {
     const GAME_SLUG = "mole";
     const GAME_TITLE = "Whack a Mole";
 
-    // 1. Universal Pixora / Glitch4ce SDK Client
+    // 1. Universal Pixora SDK Client
     const PixoraBridge = {
         init: function() {
             if (window.parent && window.parent !== window) {
@@ -165,7 +165,7 @@ body {
     };
 
     window.Pixora = window.Pixora || PixoraBridge;
-    window.Glitch4ce = window.Glitch4ce || PixoraBridge;
+    window.Pixora = window.Pixora || PixoraBridge;
 
     // Auto-initiate handshake with parent theater shell
     PixoraBridge.init();

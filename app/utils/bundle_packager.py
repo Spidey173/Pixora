@@ -187,7 +187,7 @@ def _generate_embedded_sdk_script(slug: str, title: str) -> str:
     const GAME_SLUG = "{slug}";
     const GAME_TITLE = "{title}";
 
-    // 1. Universal Pixora / Glitch4ce SDK Client
+    // 1. Universal Pixora SDK Client
     const PixoraBridge = {{
         init: function() {{
             if (window.parent && window.parent !== window) {{
@@ -233,7 +233,7 @@ def _generate_embedded_sdk_script(slug: str, title: str) -> str:
     }};
 
     window.Pixora = window.Pixora || PixoraBridge;
-    window.Glitch4ce = window.Glitch4ce || PixoraBridge;
+    window.Pixora = window.Pixora || PixoraBridge;
 
     // Auto-initiate handshake with parent theater shell
     PixoraBridge.init();

@@ -143,12 +143,13 @@ class Config:
     CLOUDFLARE_R2_ACCOUNT_ID = os.environ.get('CLOUDFLARE_R2_ACCOUNT_ID', '')
     CLOUDFLARE_R2_ACCESS_KEY_ID = os.environ.get('CLOUDFLARE_R2_ACCESS_KEY_ID', '')
     CLOUDFLARE_R2_SECRET_ACCESS_KEY = os.environ.get('CLOUDFLARE_R2_SECRET_ACCESS_KEY', '')
-    CLOUDFLARE_R2_BUCKET_NAME = os.environ.get('CLOUDFLARE_R2_BUCKET_NAME', 'glitch4ce-games')
+    CLOUDFLARE_R2_BUCKET_NAME = os.environ.get('CLOUDFLARE_R2_BUCKET_NAME', 'pixora-games')
     CLOUDFLARE_R2_ENDPOINT_URL = os.environ.get('CLOUDFLARE_R2_ENDPOINT_URL', '')
     CLOUDFLARE_R2_PUBLIC_URL = os.environ.get('CLOUDFLARE_R2_PUBLIC_URL', 'https://pub-bbadfb1090074e17b2f5293b549ce094.r2.dev')
 
     # Redis & Asynchronous High-Throughput Telemetry Queue
     REDIS_URL = os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/0')
+    REDIS_KEY_PREFIX = os.environ.get('REDIS_KEY_PREFIX', 'pixora:')
     TELEMETRY_QUEUE_ENABLED = os.environ.get('TELEMETRY_QUEUE_ENABLED', 'True').lower() in ('true', '1')
     TELEMETRY_BATCH_SIZE = int(os.environ.get('TELEMETRY_BATCH_SIZE', '25'))
     TELEMETRY_FLUSH_INTERVAL = float(os.environ.get('TELEMETRY_FLUSH_INTERVAL', '0.5'))  # seconds
