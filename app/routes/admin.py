@@ -41,11 +41,17 @@ def login():
         user_input = form.username.data.strip()
         pass_input = form.password.data.strip()
 
-        # Check against database User with is_admin=True, or default admin credentials
+        # Check against database User with is_admin=True
         admin_user = User.query.filter_by(username=user_input, is_admin=True).first()
 
         is_valid = False
-        if admin_user and admin_user.check_password(pass_input) or user_input == 'admin' and pass_input in ('admin123', 'admin', 'pixora_admin', 'glitch4ce_admin'):
+        if (
+            admin_user
+            and pass_input
+            and admin_user.password_hash
+            and admin_user.password_hash.startswith(('$2a$', '$2b$', '$2y$'))
+            and admin_user.check_password(pass_input)
+        ):
             is_valid = True
 
         if is_valid:
@@ -56,6 +62,7 @@ def login():
             return redirect(next_url)
         else:
             flash('Invalid administrator credentials. Access restricted.', 'danger')
+            return render_template('admin/login.html', form=form), 401
 
     return render_template('admin/login.html', form=form)
 

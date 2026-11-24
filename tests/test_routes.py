@@ -137,7 +137,7 @@ def test_admin_dashboard_authorized(admin_client):
     assert b'POPULARITY TELEMETRY' in response.data
 
 
-def test_admin_separate_login_flow(client):
+def test_admin_separate_login_flow(client, app):
     """Test separate login flow for admin only."""
     # GET dedicated admin login page
     get_resp = client.get('/admin/login')
@@ -149,13 +149,18 @@ def test_admin_separate_login_flow(client):
         'username': 'fake_admin',
         'password': 'wrongpassword'
     }, follow_redirects=True)
-    assert fail_resp.status_code == 200
+    assert fail_resp.status_code == 401
     assert b'Invalid administrator credentials' in fail_resp.data
+
+    # Seed admin user in database securely
+    with app.app_context():
+        from app.utils.seed_admin import seed_admin
+        seed_admin(username='admin', password='ValidMasterPass2026!')
 
     # POST valid master credentials
     login_resp = client.post('/admin/login', data={
         'username': 'admin',
-        'password': 'admin123'
+        'password': 'ValidMasterPass2026!'
     }, follow_redirects=False)
     assert login_resp.status_code == 302
     assert '/admin' in login_resp.headers['Location']

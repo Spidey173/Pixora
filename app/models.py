@@ -2,7 +2,8 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from werkzeug.security import check_password_hash, generate_password_hash
+import bcrypt
+from werkzeug.security import check_password_hash
 
 from app.database import db
 
@@ -67,17 +68,31 @@ class User(UserMixin, db.Model):
     )
 
     def set_password(self, password: str):
-        """Hash and set the user's password."""
+        """Hash and set the user's password using bcrypt."""
         if password:
-            self.password_hash = generate_password_hash(password)
+            self.password_hash = bcrypt.hashpw(
+                password.encode('utf-8'),
+                bcrypt.gensalt()
+            ).decode('utf-8')
         else:
             self.password_hash = None
 
     def check_password(self, password: str) -> bool:
         """Verify the user's password."""
-        if not self.password_hash:
+        if not self.password_hash or not password:
             return False
-        return check_password_hash(self.password_hash, password)
+        if self.password_hash.startswith(('$2a$', '$2b$', '$2y$')):
+            try:
+                return bcrypt.checkpw(
+                    password.encode('utf-8'),
+                    self.password_hash.encode('utf-8')
+                )
+            except Exception:
+                return False
+        try:
+            return check_password_hash(self.password_hash, password)
+        except Exception:
+            return False
 
     @property
     def total_plays(self) -> int:

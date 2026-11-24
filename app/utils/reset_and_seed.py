@@ -1,4 +1,5 @@
 """Comprehensive database reset, catalog population, and authentic arcade telemetry seeding."""
+import os
 import random
 from datetime import datetime, timedelta, timezone
 
@@ -216,10 +217,17 @@ def reset_and_seed_everything():
 
         # 2. Seed Admin and Pilots
         print("👥 Seeding administrator and authentic arcade pilots...")
-        # Admin account
-        admin = User(username='admin', is_admin=True, is_guest=False)
-        admin.set_password('admin123')
-        db.session.add(admin)
+        # Admin account seeded only if ADMIN_PASSWORD is provided and secure
+        admin_pass = os.environ.get('ADMIN_PASSWORD')
+        admin_user = os.environ.get('ADMIN_USERNAME', 'admin')
+        if admin_pass and len(admin_pass) >= 12:
+            admin = User.query.filter_by(username=admin_user).first()
+            if not admin:
+                admin = User(username=admin_user, is_admin=True, is_guest=False)
+                db.session.add(admin)
+            admin.set_password(admin_pass)
+            admin.is_admin = True
+            admin.is_guest = False
 
         user_map = {}
         now = datetime.now(timezone.utc)

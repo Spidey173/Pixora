@@ -284,9 +284,13 @@ async def admin_login_submit(
 
     admin_user = User.query.filter_by(username=user_input, is_admin=True).first()
     is_valid = False
-    if admin_user and admin_user.check_password(pass_input):
-        is_valid = True
-    elif user_input == "admin" and pass_input in ("admin123", "admin", "pixora_admin", "glitch4ce_admin"):
+    if (
+        admin_user
+        and pass_input
+        and admin_user.password_hash
+        and admin_user.password_hash.startswith(("$2a$", "$2b$", "$2y$"))
+        and admin_user.check_password(pass_input)
+    ):
         is_valid = True
 
     if is_valid:
@@ -308,7 +312,8 @@ async def admin_login_submit(
             "form": form,
             "flashes": [("danger", "Invalid administrator credentials. Access restricted.")],
             "next": next_url
-        }
+        },
+        status_code=status.HTTP_401_UNAUTHORIZED
     )
 
 

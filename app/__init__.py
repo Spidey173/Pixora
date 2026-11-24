@@ -48,6 +48,10 @@ def create_app(config_name=None):
         except Exception:
             pass
 
+        if 'ADMIN_PASSWORD' in os.environ:
+            from app.utils.seed_admin import seed_admin
+            seed_admin()
+
     return app
 
 
