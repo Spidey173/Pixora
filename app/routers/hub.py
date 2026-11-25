@@ -397,8 +397,7 @@ async def infrastructure_page(
     return render_hub_view(request, user, active_tab="infrastructure")
 
 
-@hub_router.get("/health")
-@hub_router.get("/api/health")
+@hub_router.get("/health/live")
 async def health_check():
     """Lightweight liveness health check (zero DB/Redis calls)."""
     return JSONResponse({
@@ -408,6 +407,8 @@ async def health_check():
     })
 
 
+@hub_router.get("/health")
+@hub_router.get("/api/health")
 @hub_router.get("/health/deep")
 async def deep_health_check():
     """Deep health check verifying database and Redis telemetry queue."""
