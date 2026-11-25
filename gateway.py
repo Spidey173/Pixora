@@ -341,8 +341,8 @@ if FASTAPI_AVAILABLE:
     # REST API endpoints
     @app.get("/health")
     async def gateway_health_check():
-        from app.routers.hub import health_check
-        return await health_check()
+        from app.routers.hub import deep_health_check
+        return await deep_health_check()
 
     @app.post("/api/v2/session/start", response_model=SessionStartResponse)
     async def session_start(
