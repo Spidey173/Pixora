@@ -253,7 +253,8 @@ def test_replay_token_rejection_with_mock_redis(gateway_client, monkeypatch):
         headers={"Authorization": f"Bearer {auth_token}"}
     )
     assert first_res.status_code == 200
-    assert f"pixora:used_token:{session_token}" in fake_redis.store
+    from app.utils.redis_keys import redis_key
+    assert redis_key(f"used_token:{session_token}") in fake_redis.store
 
     # Second submission with the exact same token (even from another worker): rejected by Redis
     second_res = gateway_client.post(
