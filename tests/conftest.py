@@ -8,6 +8,23 @@ from app.extensions import db
 from app.models import User
 
 
+@pytest.fixture(autouse=True)
+def _isolate_env_from_dotenv(request, monkeypatch):
+    """Prevent tests from reading real .env credentials unless explicitly opted in."""
+    if request.node.get_closest_marker("use_real_env"):
+        return
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
+    monkeypatch.setenv("CLOUDFLARE_R2_ENABLED", "False")
+    for var in (
+        "CLOUDFLARE_R2_ACCOUNT_ID",
+        "CLOUDFLARE_R2_ACCESS_KEY_ID",
+        "CLOUDFLARE_R2_SECRET_ACCESS_KEY",
+        "CLOUDFLARE_R2_ENDPOINT_URL",
+        "REDIS_URL",
+    ):
+        monkeypatch.delenv(var, raising=False)
+
+
 class ResponseWrapper:
     """Wrapper around httpx.Response for Flask test client API compatibility."""
     def __init__(self, raw):

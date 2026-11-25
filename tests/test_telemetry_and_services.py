@@ -220,15 +220,32 @@ def test_auth_deps_session_cookie_helpers():
     assert decode_session_cookie("") is None
 
 
-def test_r2_storage_unconfigured_fallback():
+def test_r2_storage_unconfigured_fallback(monkeypatch):
     """Test R2 storage fallback behavior when credentials or boto3 are absent."""
-    # When not ready, upload returns None or {}
-    assert r2_storage.upload_file("nonexistent.txt", "games/test.txt") is None
-    assert r2_storage.upload_directory("/tmp/does_not_exist", "games/dir") == {}
+    for var in (
+        "CLOUDFLARE_R2_ENABLED",
+        "CLOUDFLARE_R2_ACCOUNT_ID",
+        "CLOUDFLARE_R2_ACCESS_KEY_ID",
+        "CLOUDFLARE_R2_SECRET_ACCESS_KEY",
+        "CLOUDFLARE_R2_ENDPOINT_URL",
+    ):
+        monkeypatch.delenv(var, raising=False)
 
-    # Public URL formatting
-    url = r2_storage.get_public_url("games/2048/index.html")
-    assert url.endswith("games/2048/index.html")
+    orig_client = r2_storage.s3_client
+    orig_enabled = r2_storage.enabled
+    r2_storage.s3_client = None
+    r2_storage.enabled = False
+    try:
+        # When not ready, upload returns None or {}
+        assert r2_storage.upload_file("nonexistent.txt", "games/test.txt") is None
+        assert r2_storage.upload_directory("/tmp/does_not_exist", "games/dir") == {}
+
+        # Public URL formatting
+        url = r2_storage.get_public_url("games/2048/index.html")
+        assert url.endswith("games/2048/index.html")
+    finally:
+        r2_storage.s3_client = orig_client
+        r2_storage.enabled = orig_enabled
 
 
 def test_zip_slip_rejection_in_admin_upload(admin_client, tmp_path):
