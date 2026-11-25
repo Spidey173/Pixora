@@ -2,8 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams } from 'next/navigation';
-import { PixoraAPI, LeaderboardData } from '@/lib/api';
-import { CanvasLeaderboardChart } from '@/components/CanvasLeaderboardChart';
+import { PixoraAPI } from '@/lib/api';
 
 const GAME_URLS: Record<string, { title: string; playUrl: string; category: string }> = {
   'neon-cyber-racer': {
@@ -44,7 +43,6 @@ export default function GameTheaterPage() {
 
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [presence, setPresence] = useState<number>(1);
-  const [leaderboard, setLeaderboard] = useState<LeaderboardData | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -52,11 +50,9 @@ export default function GameTheaterPage() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // 1. Fetch Leaderboard and Initial Presence
+  // 1. Fetch Initial Presence
   const loadData = async () => {
     try {
-      const lb = await PixoraAPI.getLeaderboard(game.title);
-      setLeaderboard(lb);
       const pres = await PixoraAPI.getPresence(game.title);
       setPresence(pres);
     } catch (e) {
@@ -182,68 +178,6 @@ export default function GameTheaterPage() {
           </div>
         </div>
       </section>
-
-      {/* Telemetry & Leaderboard Sidebar */}
-      <aside className="flex flex-col gap-6">
-        {/* World Record & Personal Best */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-[rgba(18,22,36,0.85)] border border-[rgba(0,242,254,0.2)] rounded-xl p-4">
-            <div className="text-[10px] font-mono text-[#7f8fa6] tracking-wider mb-1">// PERSONAL BEST</div>
-            <div className="font-orbitron text-xl font-bold text-[#00f2fe]">
-              {leaderboard?.user_best ? leaderboard.user_best.toLocaleString() : '--'}
-            </div>
-          </div>
-
-          <div className="bg-[rgba(18,22,36,0.85)] border border-[rgba(255,0,127,0.2)] rounded-xl p-4">
-            <div className="text-[10px] font-mono text-[#7f8fa6] tracking-wider mb-1">// WORLD RECORD</div>
-            <div className="font-orbitron text-xl font-bold text-[#ff007f]">
-              {leaderboard?.world_record ? leaderboard.world_record.score.toLocaleString() : '--'}
-            </div>
-            <div className="text-[10px] text-[#7f8fa6] truncate">
-              {leaderboard?.world_record ? `By: ${leaderboard.world_record.username}` : ''}
-            </div>
-          </div>
-        </div>
-
-        {/* Canvas Visual Leaderboard Spectrum */}
-        <CanvasLeaderboardChart
-          entries={leaderboard?.leaderboard || []}
-          userBest={leaderboard?.user_best}
-          worldRecord={leaderboard?.world_record?.score}
-        />
-
-        {/* Live Leaderboard List */}
-        <div className="bg-[rgba(18,22,36,0.85)] border border-[rgba(0,242,254,0.25)] rounded-xl p-5 flex-1">
-          <h3 className="font-orbitron text-sm font-bold tracking-wider text-[#7f8fa6] uppercase mb-4">
-            Top Pilots Leaderboard
-          </h3>
-
-          <ul className="space-y-2">
-            {!leaderboard?.leaderboard || leaderboard.leaderboard.length === 0 ? (
-              <li className="text-xs text-[#7f8fa6] py-3 text-center">No scores recorded yet. Be the first!</li>
-            ) : (
-              leaderboard.leaderboard.map((item, idx) => (
-                <li
-                  key={idx}
-                  className={`flex items-center justify-between p-2.5 rounded-lg text-sm border ${
-                    idx === 0
-                      ? 'border-[#ffe600] bg-[rgba(255,230,0,0.06)] font-bold text-[#ffe600]'
-                      : 'border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)]'
-                  }`}
-                >
-                  <span className="flex items-center gap-2">
-                    <span className="font-mono text-xs w-5 text-[#7f8fa6]">
-                      {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
-                    </span>
-                    <span>{item.username}</span>
-                  </span>
-                  <span className="font-mono font-bold">{item.score.toLocaleString()}</span>
-                </li>
-              ))
-            )}
-          </ul>
-        </div>
-      </aside>
 
       {/* Real-Time Toast Notification */}
       {toastMessage && (

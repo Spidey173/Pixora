@@ -399,32 +399,6 @@
                     {{ game.controls_guide or 'Use Arrow Keys / WASD for movement. Spacebar to trigger primary action.' }}
                 </p>
             </div>
-
-            <!-- Live High Scores & Player Telemetry Matrix -->
-            <div class="panel-card">
-                <div class="panel-title"><i class="fa-solid fa-trophy"></i> Hall of Fame</div>
-
-                <!-- High Score Records Matrix Strip -->
-                <div class="records-matrix-strip">
-                    <div class="record-stat-box personal-box">
-                        <div class="rec-label">// PERSONAL BEST</div>
-                        <div class="rec-value" id="userPbScore">--</div>
-                        <div class="rec-rank" id="userRankBadge">Unranked</div>
-                    </div>
-                    <div class="record-stat-box world-box">
-                        <div class="rec-label">// WORLD RECORD</div>
-                        <div class="rec-value" id="worldRecordScore">--</div>
-                        <div class="rec-pilot" id="worldRecordPilot">By: --</div>
-                    </div>
-                </div>
-
-                <div style="font-family: 'Orbitron', monospace; font-size: 0.72rem; color: var(--text-dim); letter-spacing: 1px; margin: 16px 0 8px; text-transform: uppercase;">
-                    Top Pilots Leaderboard
-                </div>
-                <ul class="leaderboard-items" id="leaderboardList">
-                    <li class="leaderboard-row"><span style="color: var(--text-dim);">Connecting telemetry...</span></li>
-                </ul>
-            </div>
         </aside>
     </main>
 
@@ -839,7 +813,7 @@
             } catch (e) {}
         });
 
-        // Fetch Hall of Fame / Leaderboard
+        // Fetch Game Stats
         async function refreshLeaderboard() {
             try {
                 const res = await fetch(`/api/leaderboard/${encodeURIComponent(GAME_TITLE)}`, {
@@ -1003,7 +977,7 @@
             return null;
         }
 
-        // Pre-warm auth token & cryptographic session on load, then refresh leaderboard with verified identity
+        // Pre-warm auth token & cryptographic session on load
         acquireV2Session().then(() => {
             if (CURRENT_USER_ID !== null) {
                 refreshLeaderboard();
@@ -1016,7 +990,7 @@
             } else if (currentUserPb !== null && score > currentUserPb) {
                 showToast(`🔥 NEW PERSONAL BEST! Score: ${score.toLocaleString()}!`);
             } else {
-                showToast(`🏆 Score ${score.toLocaleString()} recorded to Hall of Fame!`);
+                showToast(`Score ${score.toLocaleString()} recorded!`);
             }
         }
 

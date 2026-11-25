@@ -307,13 +307,6 @@ def test_hub_api_scores_form_data_submission(auth_client):
     assert data['status'] == 'success'
 
 
-def test_hub_view_unknown_game_filter(auth_client):
-    """Test hub view with non-catalog game filter uses custom title."""
-    resp = auth_client.get('/games?game=CustomUnknownGame')
-    assert resp.status_code == 200
-    assert b'CustomUnknownGame' in resp.data
-
-
 def test_hub_start_and_end_game_authenticated(auth_client):
     """Test /start_game and /end_game endpoints when authenticated."""
     resp = auth_client.post('/start_game/2048')
@@ -321,15 +314,6 @@ def test_hub_start_and_end_game_authenticated(auth_client):
 
     resp = auth_client.post('/end_game/2048')
     assert resp.status_code == 200
-
-
-def test_hub_get_leaderboard_endpoint(client):
-    """Test /api/leaderboard/<game> returns leaderboard structure."""
-    resp = client.get('/api/leaderboard/2048')
-    assert resp.status_code == 200
-    data = resp.get_json()
-    assert 'leaderboard' in data
-    assert 'game_name' in data
 
 
 def test_hub_presence_endpoint(client):
@@ -387,11 +371,8 @@ def test_profile_endpoint_authenticated(auth_client):
     assert b'CyberTester' in resp_auth.data
 
 
-def test_leaderboard_and_infrastructure_pages(client):
-    """Test /leaderboard and /infrastructure pages render successfully."""
-    resp_lb = client.get('/leaderboard')
-    assert resp_lb.status_code == 200
-
+def test_infrastructure_page(client):
+    """Test /infrastructure page renders successfully."""
     resp_infra = client.get('/infrastructure')
     assert resp_infra.status_code == 200
 

@@ -70,13 +70,6 @@ def test_api_v2_session_end_valid(auth_client):
     assert data['verified'] is True
     assert data['score']['score'] == 20
 
-    # Verify score is reflected in leaderboard
-    lb_res = auth_client.get('/api/leaderboard/flappybird')
-    assert lb_res.status_code == 200
-    lb_data = lb_res.get_json()
-    assert len(lb_data['leaderboard']) >= 1
-    assert lb_data['leaderboard'][0]['score'] == 20
-
 
 def test_impossible_score_anomalous_velocity(auth_client):
     """Test that submitting an impossible score (10,000 score in 2 seconds) returns HTTP 422 with ANOMALOUS_VELOCITY."""

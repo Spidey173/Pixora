@@ -471,7 +471,7 @@ if FASTAPI_AVAILABLE:
                 # If reached Top 10, publish real-time overtake event
                 if rank is not None and rank <= 10:
                     overtake_event = {
-                        "type": "LEADERBOARD_OVERTAKE",
+                        "type": "SCORE_UPDATE",
                         "game": clean_game_name,
                         "game_slug": req.game_slug,
                         "player": player.username,
@@ -521,45 +521,6 @@ if FASTAPI_AVAILABLE:
             "token_type": "bearer",
             "player_id": player.id,
             "username": player.username
-        }
-
-    @app.get("/api/v2/leaderboard/{game_slug}")
-    async def get_live_leaderboard(game_slug: str, limit: int = 10):
-        canonical_title = canonical_game_title(game_slug) or game_slug
-        top_list = []
-        if redis_client:
-            try:
-                bests_key = redis_key(f"lb:bests:{canonical_title}")
-                warmed = True
-                try:
-                    warmed = bool(await redis_client.exists(redis_key(f"lb:warmed:{canonical_title}")))
-                except Exception:
-                    warmed = True
-
-                bests = await redis_client.zrevrange(bests_key, 0, limit - 1, withscores=True)
-                if bests and warmed:
-                    for member, score in bests:
-                        parts = member.split(":", 1)
-                        pid = int(parts[0]) if parts[0].isdigit() else 0
-                        uname = parts[1] if len(parts) > 1 else "Champion"
-                        top_list.append({"player_id": pid, "username": uname, "score": int(score)})
-                    return {"game_slug": game_slug, "canonical_title": canonical_title, "leaderboard": top_list, "source": "redis_zset"}
-            except Exception as e:
-                logger.warning("Leaderboard fetch error: %s", e)
-
-        from app.utils.telemetry_queue import telemetry_queue
-        matched = resolve_game(game_slug)
-        names = list({canonical_title, game_slug, matched.slug}) if matched else [canonical_title, game_slug]
-        lb_data = telemetry_queue.get_live_leaderboard(
-            game_name=canonical_title,
-            limit=limit,
-            names_to_match=names,
-        )
-        return {
-            "game_slug": game_slug,
-            "canonical_title": canonical_title,
-            "leaderboard": lb_data["leaderboard"],
-            "source": lb_data.get("source", "database_warmed"),
         }
 
     @app.get("/api/v2/presence/{game_slug}")
@@ -614,14 +575,25 @@ if FASTAPI_AVAILABLE:
     # Static files and application routers
     from fastapi.staticfiles import StaticFiles
 
+    class CachedStaticFiles(StaticFiles):
+        """Serve static assets with long-lived immutable cache headers."""
+
+        async def get_response(self, path: str, scope):
+            response = await super().get_response(path, scope)
+            if response.status_code == 200 and path.lower().endswith(
+                (".webp", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".woff2", ".css", ".js")
+            ):
+                response.headers.setdefault("Cache-Control", "public, max-age=31536000, immutable")
+            return response
+
     base_dir = os.path.abspath(os.path.dirname(__file__))
     static_dir = os.path.join(base_dir, "static")
     public_dir = os.path.join(base_dir, "public")
 
     if os.path.exists(static_dir):
-        app.mount("/static", StaticFiles(directory=static_dir), name="static")
+        app.mount("/static", CachedStaticFiles(directory=static_dir), name="static")
     if os.path.exists(public_dir):
-        app.mount("/public", StaticFiles(directory=public_dir), name="public")
+        app.mount("/public", CachedStaticFiles(directory=public_dir), name="public")
 
     # Security & timing headers middleware
     @app.middleware("http")

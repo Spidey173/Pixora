@@ -67,8 +67,8 @@ def test_submit_score_unauthorized(client):
     assert response.status_code == 401
 
 
-def test_submit_score_valid_and_leaderboard(auth_client):
-    """Test posting valid scores and getting sorted leaderboard."""
+def test_submit_score_valid(auth_client):
+    """Test posting valid scores."""
     # Submit score 1500 for 2048
     resp1 = auth_client.post('/api/score/submit', json={'game_name': '2048', 'score': 1500})
     assert resp1.status_code == 201
@@ -79,14 +79,6 @@ def test_submit_score_valid_and_leaderboard(auth_client):
     # Submit score 3200 for 2048
     resp2 = auth_client.post('/api/score/submit', json={'game_name': '2048', 'score': 3200})
     assert resp2.status_code == 201
-
-    # Check leaderboard — same player appears ONCE with their best score
-    lb_resp = auth_client.get('/api/leaderboard/2048')
-    assert lb_resp.status_code == 200
-    lb_data = lb_resp.get_json()
-    assert lb_data['game_name'] == '2048'
-    assert len(lb_data['leaderboard']) == 1  # One unique player
-    assert lb_data['leaderboard'][0]['score'] == 3200  # Best score kept
 
 
 def test_submit_score_invalid_payload(auth_client):

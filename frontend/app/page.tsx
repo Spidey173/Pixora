@@ -54,7 +54,7 @@ export default function HomePage() {
           HIGH-THROUGHPUT <span className="neon-text-gradient">GAMING ENGINE</span>
         </h1>
         <p className="text-[#7f8fa6] text-lg max-w-2xl mx-auto leading-relaxed">
-          Sub-5ms telemetry ingestion, HMAC-SHA256 session signatures, and sub-millisecond Redis Sorted Set leaderboards.
+          Sub-5ms telemetry ingestion and HMAC-SHA256 session signatures.
         </p>
       </section>
 

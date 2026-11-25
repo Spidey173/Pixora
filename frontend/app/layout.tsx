@@ -38,10 +38,10 @@ export default function RootLayout({
               GAMES
             </a>
             <a
-              href="/#leaderboard"
+              href="/games"
               className="text-[#7f8fa6] hover:text-[#ff007f] transition-colors"
             >
-              HALL OF FAME
+              ARCADE
             </a>
           </div>
         </header>

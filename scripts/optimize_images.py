@@ -47,3 +47,4 @@ def optimize_directory(target_dir: Path = IMAGES_DIR, quality: int = 75) -> None
 
 if __name__ == "__main__":
     optimize_directory()
+

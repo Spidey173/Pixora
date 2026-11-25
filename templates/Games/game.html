@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pixora | Arcade Hub // 2.0</title>
     <link rel="icon" type="image/webp" href="{{ url_for('static', filename='Pixora.webp') }}">
+    <link rel="preload" as="image" href="/static/Games/Images/neon-cyber-racer.webp" fetchpriority="high">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -868,10 +869,6 @@
                 <i class="fa-solid fa-shapes"></i>
                 <span>GAMES ({{ games_list|length }})</span>
             </button>
-            <button class="seg-btn {% if active_tab == 'leaderboard' %}active{% endif %}" onclick="switchViewTab('leaderboard', this)">
-                <i class="fa-solid fa-trophy"></i>
-                <span>LEADERBOARDS</span>
-            </button>
             <button class="seg-btn {% if active_tab == 'infrastructure' %}active{% endif %}" onclick="switchViewTab('infrastructure', this)">
                 <i class="fa-solid fa-network-wired"></i>
                 <span>ARCHITECTURE</span>
@@ -958,10 +955,6 @@
                             <i class="fa-solid fa-play"></i>
                             <span>PLAY NOW</span>
                         </a>
-                        <button onclick="switchViewTab('leaderboard', document.querySelectorAll('.seg-btn')[1])" class="btn-hero-ghost">
-                            <i class="fa-solid fa-trophy"></i>
-                            <span>View Rankings</span>
-                        </button>
                     </div>
                 </div>
 
@@ -994,7 +987,7 @@
                 {% for g in games_list %}
                 <a href="/play/{{ g.slug }}" class="artwork-game-card" data-category="{{ g.category|lower }}" data-title="{{ g.title|lower }}">
                     <div class="game-media-viewport">
-                        <img src="{{ g.thumbnail_url }}" alt="{{ g.title }}" width="320" height="180" loading="lazy" decoding="async" onerror="this.src='/static/Pixora.webp'">
+                        <img src="{{ g.thumbnail_url }}"{% if g.thumbnail_url and g.thumbnail_url.endswith('.webp') %} srcset="{{ g.thumbnail_url[:-5] }}-320w.webp 320w, {{ g.thumbnail_url }} 640w" sizes="(max-width: 640px) 100vw, 320px"{% endif %} alt="{{ g.title }}" width="320" height="180" loading="{% if loop.index <= 4 %}eager{% else %}lazy{% endif %}" decoding="async" onerror="this.src='/static/Pixora.webp'">
                         <span class="card-genre-badge">{{ g.category }}</span>
                         {% if 'r2.dev' in g.play_url or g.r2_asset_key %}
                             <span class="card-edge-badge"><i class="fa-solid fa-bolt"></i> EDGE</span>
@@ -1008,7 +1001,7 @@
                     <div class="game-dossier-body">
                         <div>
                             <h3 class="game-headline">{{ g.title }}</h3>
-                            <p class="game-summary-text">{{ g.description or 'Engage in custom game engine challenges and compete on global leaderboards.' }}</p>
+                            <p class="game-summary-text">{{ g.description or 'Engage in custom game engine challenges.' }}</p>
                         </div>
                         <div class="game-dossier-footer">
                             <span class="plays-counter"><i class="fa-solid fa-fire"></i> {{ g.play_count }} Plays</span>
@@ -1020,152 +1013,6 @@
             </div>
         </section>
 
-        <!-- ============================================== -->
-        <!-- TAB 2: CONNECTED ARENA LEADERBOARDS            -->
-        <!-- ============================================== -->
-        <section id="view-leaderboard" class="tab-section {% if active_tab == 'leaderboard' %}active{% endif %}">
-            <div class="leaderboard-arena-card">
-                <div class="arena-head">
-                    <div>
-                        <div style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent-cyan); letter-spacing: 0.12em; text-transform: uppercase;">// LIVE TELEMETRY MATRIX</div>
-                        <h2 class="arena-title">CHAMPIONSHIP LEADERBOARDS</h2>
-                        <div style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent-cyan); margin-top: 4px;">
-                            CATEGORY: <strong style="color: var(--text-pure);">{{ active_game_title }}</strong>
-                            {% if is_all_titles %}
-                            <span style="color: var(--text-dim); font-size: 0.75rem; margin-left: 8px;">(RANKED BY NORMALIZED % OF WORLD RECORD)</span>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent-emerald);">
-                        ● REAL-TIME SYNCHRONIZED
-                    </div>
-                </div>
-
-                <!-- Live Game Filter Selector -->
-                <div class="leaderboard-filter-wrap" style="display: flex; align-items: center; gap: 8px; margin: 16px 0 24px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: thin;">
-                    <a href="{{ url_for('main.leaderboard_page') }}" 
-                       class="filter-tab-pill {% if not selected_game or selected_game == 'all' %}active{% endif %}"
-                       style="text-decoration: none; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;">
-                        <span>🏆</span> ALL TITLES (HALL OF FAME)
-                    </a>
-                    {% for g in games_list %}
-                    <a href="{{ url_for('main.leaderboard_page', game=g.title) }}" 
-                       class="filter-tab-pill {% if selected_game == g.title or selected_game == g.slug %}active{% endif %}"
-                       style="text-decoration: none; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;">
-                        {{ g.title }}
-                    </a>
-                    {% endfor %}
-                </div>
-
-                <!-- Championship Podiums for Top 3 Distinct Pilots -->
-                {% if top_scores and top_scores|length >= 3 %}
-                <div class="championship-podium">
-                    <div class="podium-box silver">
-                        <div class="podium-rank-icon">🥈</div>
-                        <div class="podium-pilot">
-                            {{ top_scores[1].player.username if top_scores[1].player else 'Guest' }}
-                            {% if top_scores[1].player and top_scores[1].player.username == username %}
-                            <span style="color: #cbd5e1; font-family: var(--font-mono); font-size: 0.75rem; display: block; font-weight: 700;">(YOU)</span>
-                            {% endif %}
-                        </div>
-                        <div class="podium-pts">
-                            {% if is_all_titles %}{{ "%.1f"|format(top_scores[1].normalized_pct) }}% WR{% else %}{{ "{:,}".format(top_scores[1].score) }}{% endif %}
-                        </div>
-                        <div class="podium-title-tag">
-                            {{ top_scores[1].game_name }}{% if is_all_titles %} · {{ "{:,}".format(top_scores[1].score) }} PTS{% endif %}
-                        </div>
-                    </div>
-                    <div class="podium-box gold">
-                        <div class="podium-rank-icon">🥇</div>
-                        <div class="podium-pilot">
-                            {{ top_scores[0].player.username if top_scores[0].player else 'Guest' }}
-                            {% if top_scores[0].player and top_scores[0].player.username == username %}
-                            <span style="color: var(--accent-gold); font-family: var(--font-mono); font-size: 0.75rem; display: block; font-weight: 700;">(YOU)</span>
-                            {% endif %}
-                        </div>
-                        <div class="podium-pts" style="color: var(--accent-gold);">
-                            {% if is_all_titles %}{{ "%.1f"|format(top_scores[0].normalized_pct) }}% WR{% else %}{{ "{:,}".format(top_scores[0].score) }}{% endif %}
-                        </div>
-                        <div class="podium-title-tag">
-                            {{ top_scores[0].game_name }}{% if is_all_titles %} · {{ "{:,}".format(top_scores[0].score) }} PTS{% endif %}
-                        </div>
-                    </div>
-                    <div class="podium-box bronze">
-                        <div class="podium-rank-icon">🥉</div>
-                        <div class="podium-pilot">
-                            {{ top_scores[2].player.username if top_scores[2].player else 'Guest' }}
-                            {% if top_scores[2].player and top_scores[2].player.username == username %}
-                            <span style="color: #cd7f32; font-family: var(--font-mono); font-size: 0.75rem; display: block; font-weight: 700;">(YOU)</span>
-                            {% endif %}
-                        </div>
-                        <div class="podium-pts">
-                            {% if is_all_titles %}{{ "%.1f"|format(top_scores[2].normalized_pct) }}% WR{% else %}{{ "{:,}".format(top_scores[2].score) }}{% endif %}
-                        </div>
-                        <div class="podium-title-tag">
-                            {{ top_scores[2].game_name }}{% if is_all_titles %} · {{ "{:,}".format(top_scores[2].score) }} PTS{% endif %}
-                        </div>
-                    </div>
-                </div>
-                {% endif %}
-
-                <!-- Full High Scores Table -->
-                <div style="overflow-x: auto;">
-                    <table class="arena-table">
-                        <thead>
-                            <tr>
-                                <th style="width: 80px;">RANK</th>
-                                <th>PILOT CODENAME</th>
-                                <th>GAME TITLE</th>
-                                <th>{% if is_all_titles %}NORMALIZED (% WR){% else %}HIGH SCORE{% endif %}</th>
-                                <th>ACHIEVED (UTC)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for score in top_scores %}
-                            {% set is_me = (score.player and score.player.username == username) %}
-                            <tr {% if is_me %}style="background: rgba(0, 240, 255, 0.08); border-left: 3px solid var(--accent-cyan);"{% endif %}>
-                                <td style="font-family: var(--font-mono); font-weight: 700;">
-                                    {% if loop.index == 1 %}<span style="color: var(--accent-gold);">🥇 #1</span>
-                                    {% elif loop.index == 2 %}<span style="color: #cbd5e1;">🥈 #2</span>
-                                    {% elif loop.index == 3 %}<span style="color: #cd7f32;">🥉 #3</span>
-                                    {% else %}#{{ loop.index }}
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <strong style="color: var(--text-pure);">{{ score.player.username if score.player else 'Guest' }}</strong>
-                                    {% if is_me %}
-                                        <span style="color: var(--accent-cyan); font-family: var(--font-mono); font-size: 0.72rem; margin-left: 6px; font-weight: 700;">(YOU)</span>
-                                    {% endif %}
-                                </td>
-                                <td><span style="font-family: var(--font-mono); color: var(--text-dim);">{{ score.game_name }}</span></td>
-                                <td style="font-family: var(--font-mono); font-weight: 800; color: var(--accent-cyan); font-size: 1.05rem;">
-                                    {% if is_all_titles %}
-                                        {{ "%.1f"|format(score.normalized_pct) }}% WR
-                                        <span style="display: block; font-size: 0.74rem; color: var(--text-dim); font-weight: 500;">
-                                            {{ "{:,}".format(score.score) }} / {{ "{:,}".format(score.world_record) }} pts
-                                        </span>
-                                    {% else %}
-                                        {{ "{:,}".format(score.score) }}
-                                    {% endif %}
-                                </td>
-                                <td style="font-family: var(--font-mono); color: var(--text-muted); font-size: 0.8rem;">
-                                    {{ score.achieved_at.strftime('%Y-%m-%d %H:%M') if score.achieved_at else 'Verified' }}
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 36px;">
-                                    No high scores logged yet. Launch any game and record your first score!
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <!-- ============================================== -->
         <!-- TAB 3: CONNECTED CLOUD ARCHITECTURE            -->
         <!-- ============================================== -->
         <section id="view-infrastructure" class="tab-section {% if active_tab == 'infrastructure' %}active{% endif %}">

@@ -1,4 +1,4 @@
-"""Main arcade hub, gameplay, and leaderboard routes."""
+"""Main arcade hub and gameplay routes."""
 import asyncio
 from datetime import datetime, timezone
 import json
@@ -7,23 +7,19 @@ import queue
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import joinedload
 
 from app.auth_deps import get_current_user
 from app.extensions import db
 from app.models import AnonymousUser, Game, GameplaySession, GameScore, User
 from app.templates import templates
-from app.utils.game_resolver import (
-    build_normalized_all_titles_leaderboard,
-    resolve_game,
-)
+from app.utils.game_resolver import resolve_game
 from app.utils.telemetry_queue import telemetry_queue
 
 hub_router = APIRouter(tags=["hub"])
 
 
 def render_hub_view(request: Request, user: User | AnonymousUser, active_tab: str = 'games'):
-    """Render unified gaming platform home with games catalog, leaderboard, and infrastructure."""
+    """Render unified gaming platform home with games catalog and infrastructure."""
     user_sessions = []
     username = None
     if user.is_authenticated:
@@ -57,35 +53,6 @@ def render_hub_view(request: Request, user: User | AnonymousUser, active_tab: st
         except Exception:
             pass
 
-    selected_game = request.query_params.get('game', '').strip()
-    active_game_title = 'ALL TITLES (HALL OF FAME)'
-    is_all_titles = not selected_game or selected_game.lower() == 'all'
-
-    score_query = GameScore.query.options(joinedload(GameScore.player))
-    if not is_all_titles:
-        matched_game = resolve_game(selected_game)
-        names_to_match = [selected_game]
-        if matched_game:
-            names_to_match = list(set([matched_game.title, matched_game.slug, selected_game]))
-            active_game_title = matched_game.title
-        else:
-            active_game_title = selected_game
-        score_query = score_query.filter(GameScore.game_name.in_(names_to_match))
-
-    all_scores = score_query.order_by(GameScore.score.desc(), GameScore.achieved_at.asc()).all()
-
-    if is_all_titles:
-        top_scores = build_normalized_all_titles_leaderboard(all_scores, limit=30)
-    else:
-        # Keep highest score per player on single-game leaderboard
-        unique_pilot_scores = []
-        seen_players = set()
-        for s in all_scores:
-            if s.player_id not in seen_players:
-                seen_players.add(s.player_id)
-                unique_pilot_scores.append(s)
-        top_scores = unique_pilot_scores[:30]
-
     return templates.TemplateResponse(
         'Games/game.html',
         {
@@ -95,11 +62,7 @@ def render_hub_view(request: Request, user: User | AnonymousUser, active_tab: st
             'game_count': game_count,
             'game_history': game_history,
             'games_list': games_list,
-            'top_scores': top_scores,
             'active_tab': active_tab,
-            'selected_game': selected_game,
-            'active_game_title': active_game_title,
-            'is_all_titles': is_all_titles,
         }
     )
 
@@ -261,41 +224,6 @@ async def submit_score(
     }, status_code=201)
 
 
-@hub_router.get("/api/leaderboard/{game_name:path}")
-async def get_leaderboard(
-    game_name: str,
-    user: User | AnonymousUser = Depends(get_current_user)
-):
-    """Retrieve top 10 scores, personal best, and world record."""
-    clean_game_name = game_name.strip()
-    matched_game = resolve_game(clean_game_name)
-    canonical_title = matched_game.title if matched_game else clean_game_name
-    names_to_match = [clean_game_name]
-    if matched_game:
-        names_to_match = list(set([matched_game.title, matched_game.slug, clean_game_name]))
-
-    curr_player_id = user.id if user.is_authenticated else None
-
-    lb_data = telemetry_queue.get_live_leaderboard(
-        game_name=canonical_title,
-        limit=10,
-        current_player_id=curr_player_id,
-        names_to_match=names_to_match
-    )
-
-    return JSONResponse({
-        "game_name": clean_game_name,
-        "canonical_title": canonical_title,
-        "leaderboard": lb_data["leaderboard"],
-        "user_best": lb_data["user_best"],
-        "world_record": lb_data["world_record"],
-        "user_rank": lb_data["user_rank"],
-        "total_scores_logged": lb_data["total_scores_logged"],
-        "queue_mode": telemetry_queue.get_metrics()["mode"],
-        "source": lb_data.get("source", "event_queue")
-    })
-
-
 @hub_router.get("/api/v2/presence/{game_name:path}")
 async def get_game_presence(game_name: str):
     """Retrieve live concurrent player presence."""
@@ -377,15 +305,6 @@ async def profile(
             "sessions": user_sessions
         }
     )
-
-
-@hub_router.get("/leaderboard", response_class=HTMLResponse)
-async def leaderboard_page(
-    request: Request,
-    user: User | AnonymousUser = Depends(get_current_user)
-):
-    """Render connected Leaderboard on the unified platform hub."""
-    return render_hub_view(request, user, active_tab="leaderboard")
 
 
 @hub_router.get("/infrastructure", response_class=HTMLResponse)

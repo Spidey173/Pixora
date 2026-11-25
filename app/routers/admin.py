@@ -35,7 +35,7 @@ async def admin_dashboard(
     session: Optional[str] = Cookie(None),
     user: User | AnonymousUser = Depends(get_current_user)
 ):
-    """Admin dashboard overview of registered players, catalog, analytics, and leaderboards."""
+    """Admin dashboard overview of registered players, catalog, and analytics."""
     sess_data = decode_session_cookie(session) if session else {}
     if not sess_data.get("is_admin_authenticated") and not getattr(user, "is_admin", False):
         return RedirectResponse(url=f"/admin/login?next={request.url.path}", status_code=status.HTTP_302_FOUND)
@@ -384,7 +384,7 @@ async def delete_score(
     session: Optional[str] = Cookie(None),
     user: User | AnonymousUser = Depends(get_current_user)
 ):
-    """Remove specific score entry from global leaderboards."""
+    """Remove specific score entry."""
     sess_data = decode_session_cookie(session) if session else {}
     if not sess_data.get("is_admin_authenticated") and not getattr(user, "is_admin", False):
         return RedirectResponse(url=f"/admin/login?next={request.url.path}", status_code=status.HTTP_302_FOUND)

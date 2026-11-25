@@ -59,6 +59,6 @@ def test_empty_database_routes_render_cleanly(client, app):
         GameplaySession.query.delete()
         db.session.commit()
 
-    for path in ("/leaderboard", "/api/leaderboard/2048", "/play/2048"):
+    for path in ("/games", "/play/2048"):
         resp = client.get(path, follow_redirects=True)
         assert resp.status_code == 200

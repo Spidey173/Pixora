@@ -38,3 +38,4 @@ Measured via `httpx` (3 runs each, cold -> warm) and Playwright Chromium:
 | `/api/leaderboard/2048` | 7 queries / 3.8 ms | 7 queries / 5.3 ms |
 | `/play/2048` | 3 queries / 11.5 ms | 3 queries / 11.4 ms |
 | `/health` | 1 query / 2.2 ms | 0 queries / 1.7 ms |
+

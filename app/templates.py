@@ -53,8 +53,6 @@ ROUTE_MAP = {
     'register': '/register',
     'main.profile': '/profile',
     'profile': '/profile',
-    'main.leaderboard_page': '/leaderboard',
-    'leaderboard_page': '/leaderboard',
     'main.infrastructure_page': '/infrastructure',
     'infrastructure_page': '/infrastructure',
     'admin.dashboard': '/admin',

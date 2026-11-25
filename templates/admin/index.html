@@ -867,12 +867,6 @@
                     <span>Telemetry</span>
                 </button>
 
-                <button class="tab-btn" onclick="switchAdminTab('leaderboards', this)">
-                    <i class="fa-solid fa-trophy"></i>
-                    <span>Leaderboard</span>
-                    <span class="tab-badge">{{ total_scores }}</span>
-                </button>
-
                 <button class="tab-btn" onclick="switchAdminTab('pilots', this)">
                     <i class="fa-solid fa-user-astronaut"></i>
                     <span>Pilots</span>
@@ -1437,80 +1431,6 @@
         <!-- ============================================== -->
         <!-- TAB 4: LEADERBOARD ARENA & MODERATION          -->
         <!-- ============================================== -->
-        <section id="panel-leaderboards" class="workspace-panel">
-            <div class="deck-card">
-                <div class="deck-header">
-                    <div class="deck-title-group">
-                        <h2 class="deck-title">VERIFIED HIGH SCORES LEADERBOARD</h2>
-                        <span class="deck-tag" style="background: rgba(0, 255, 102, 0.15); color: var(--accent-emerald);">VERIFIED HIGH SCORES</span>
-                    </div>
-
-                    <a href="{{ url_for('main.leaderboard_page') }}" target="_blank" class="btn-action-test" style="padding: 8px 14px;">
-                        <i class="fa-solid fa-arrow-up-right-from-square"></i> VIEW PUBLIC ARENA
-                    </a>
-                </div>
-
-                <div class="table-wrap">
-                    <table class="mission-table">
-                        <thead>
-                            <tr>
-                                <th style="width: 70px;">RANK</th>
-                                <th>PILOT CODENAME</th>
-                                <th>GAME TITLE</th>
-                                <th>AUTHENTICATED SCORE</th>
-                                <th>ACHIEVED (UTC)</th>
-                                <th>MODERATION</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for score in top_scores %}
-                            <tr>
-                                <td>
-                                    {% if loop.index == 1 %}
-                                        <span style="color: var(--accent-gold); font-weight: 800; font-family: var(--font-mono);">🥇 #1</span>
-                                    {% elif loop.index == 2 %}
-                                        <span style="color: #D1D5DB; font-weight: 800; font-family: var(--font-mono);">🥈 #2</span>
-                                    {% elif loop.index == 3 %}
-                                        <span style="color: #CD7F32; font-weight: 800; font-family: var(--font-mono);">🥉 #3</span>
-                                    {% else %}
-                                        <span style="color: var(--text-dim); font-family: var(--font-mono);">#{{ loop.index }}</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <strong style="color: var(--text-pure);">{{ score.player.username if score.player else 'Guest' }}</strong>
-                                </td>
-                                <td><span class="code-tag">{{ score.game_name }}</span></td>
-                                <td>
-                                    <span style="font-family: var(--font-mono); font-weight: 800; font-size: 1.05rem; color: var(--accent-cyan);">
-                                        {{ "{:,}".format(score.score) }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <span style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-dim);">
-                                        {{ score.achieved_at.strftime('%Y-%m-%d %H:%M') if score.achieved_at else 'Unknown' }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <form action="{{ url_for('admin.delete_score', score_id=score.id) }}" method="POST" style="margin:0;" onsubmit="return confirm('Delete score record #{{ score.id }}?');">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="btn-action-remove" title="Purge high score">
-                                            <i class="fa-solid fa-trash-can"></i> PURGE
-                                        </button>
-                                    </form>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="6" style="text-align: center; color: var(--text-dim); padding: 36px;">
-                                    No verified high scores submitted yet. Scores stream live when players finish games!
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
 
         <!-- ============================================== -->
         <!-- TAB 5: PILOTS REGISTRY                         -->

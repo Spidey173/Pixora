@@ -133,7 +133,6 @@ def test_admin_dashboard_authorized(admin_client):
     assert response.status_code == 200
     assert b'ADMIN CORE' in response.data
     assert b'CATALOG & CLOUDFLARE R2 EDGE ASSETS' in response.data
-    assert b'VERIFIED HIGH SCORES LEADERBOARD' in response.data
     assert b'POPULARITY TELEMETRY' in response.data
 
 
@@ -173,11 +172,6 @@ def test_user_screens_have_logout_action(auth_client):
     assert resp_games.status_code == 200
     assert b'href="/logout"' in resp_games.data
     assert b'Logout' in resp_games.data
-
-    # Leaderboard screen
-    resp_lb = auth_client.get('/leaderboard')
-    assert resp_lb.status_code == 200
-    assert b'href="/logout"' in resp_lb.data
 
     # Infrastructure screen
     resp_infra = auth_client.get('/infrastructure')
