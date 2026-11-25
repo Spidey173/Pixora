@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from app import create_app
 from app.extensions import db
 from app.models import Game, GameScore, GameplaySession, User
+from app.utils.redis_keys import get_redis_key_prefix, redis_key
 from app.utils.seed_games import CATALOG_GAMES
 
 try:
@@ -311,7 +312,7 @@ def reset_and_seed_everything():
                 r = redis.Redis.from_url(redis_url, decode_responses=True)
                 if r.ping():
                     print("⚡ Redis connected. Flushing old cache keys...")
-                    redis_prefix = os.environ.get('REDIS_KEY_PREFIX', 'pixora:').rstrip(':') + ':'
+                    redis_prefix = get_redis_key_prefix(testing=False)
                     # Delete any prefix:* keys
                     for k in r.scan_iter(f"{redis_prefix}*"):
                         r.delete(k)
@@ -319,6 +320,7 @@ def reset_and_seed_everything():
                     print("🚀 Warming Redis Sorted Sets with fresh seed scores...")
                     all_scores = GameScore.query.order_by(GameScore.score.desc()).all()
                     pipe = r.pipeline()
+                    games_seen = set()
                     for s in all_scores:
                         entry = {
                             'id': s.id,
@@ -328,8 +330,11 @@ def reset_and_seed_everything():
                             'score': s.score,
                             'achieved_at': s.achieved_at.isoformat() if s.achieved_at else None
                         }
-                        pipe.zadd(f'{redis_prefix}lb:entries:{s.game_name}', {json.dumps(entry): s.score})
-                        pipe.zadd(f'{redis_prefix}lb:bests:{s.game_name}', {f'{s.player_id}:{s.player.username}': s.score}, gt=True)
+                        pipe.zadd(redis_key(f'lb:entries:{s.game_name}', testing=False), {json.dumps(entry): s.score})
+                        pipe.zadd(redis_key(f'lb:bests:{s.game_name}', testing=False), {f'{s.player_id}:{s.player.username}': s.score}, gt=True)
+                        games_seen.add(s.game_name)
+                    for g_name in games_seen:
+                        pipe.set(redis_key(f'lb:warmed:{g_name}', testing=False), '1', ex=3600)
                     pipe.execute()
                     print("✅ Redis live leaderboards warmed successfully!")
             except Exception as e:

@@ -9,6 +9,7 @@ import time
 from typing import Dict, Optional, Tuple
 
 from app.config import settings
+from app.utils.redis_keys import redis_key
 
 logger = logging.getLogger('pixora.anti_cheat')
 
@@ -234,7 +235,7 @@ class AntiCheatValidator:
 
         if redis_client:
             try:
-                key = f"pixora:used_token:{session_token}"
+                key = redis_key(f"used_token:{session_token}")
                 res = redis_client.exists(key)
                 # In case a sync call was made with an object returning int/bool
                 return bool(res)
@@ -259,7 +260,7 @@ class AntiCheatValidator:
 
         if redis_client:
             try:
-                key = f"pixora:used_token:{session_token}"
+                key = redis_key(f"used_token:{session_token}")
                 res = redis_client.exists(key)
                 if inspect.isawaitable(res):
                     res = await res
@@ -284,7 +285,7 @@ class AntiCheatValidator:
 
         if redis_client:
             try:
-                key = f"pixora:used_token:{session_token}"
+                key = redis_key(f"used_token:{session_token}")
                 redis_client.set(key, "1", ex=ttl)
                 return
             except Exception as e:
@@ -301,7 +302,7 @@ class AntiCheatValidator:
 
         if redis_client:
             try:
-                key = f"pixora:used_token:{session_token}"
+                key = redis_key(f"used_token:{session_token}")
                 res = redis_client.set(key, "1", ex=ttl)
                 if inspect.isawaitable(res):
                     await res

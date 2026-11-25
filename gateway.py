@@ -1,9 +1,11 @@
 """Pixora FastAPI server and WebSocket gateway."""
 import asyncio
+from datetime import datetime, timezone
 import json
 import logging
 import os
 import time
+import uuid
 from contextlib import asynccontextmanager
 from typing import Dict, List, Optional
 
@@ -26,13 +28,13 @@ except ImportError:
     AIOREDIS_AVAILABLE = False
 
 from app.services.anti_cheat import AntiCheatValidator
+from app.utils.game_resolver import canonical_game_title, resolve_game
+from app.utils.redis_keys import get_stream_key, redis_key
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 logger = logging.getLogger("pixora.gateway")
 
 REDIS_URL = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/0")
-STREAM_KEY = os.environ.get("TELEMETRY_STREAM_KEY", "pixora:telemetry")
-KEY_PREFIX = os.environ.get("REDIS_KEY_PREFIX", "pixora:")
 
 if FASTAPI_AVAILABLE:
     app = FastAPI(
@@ -107,8 +109,8 @@ if FASTAPI_AVAILABLE:
             if redis:
                 try:
                     payload_json = json.dumps(payload)
-                    await redis.publish("pixora:ws:broadcast", payload_json)
-                    await redis.publish(f"{KEY_PREFIX}events:{game_slug}", payload_json)
+                    await redis.publish(redis_key("ws:broadcast"), payload_json)
+                    await redis.publish(redis_key(f"events:{game_slug}"), payload_json)
                     return
                 except Exception as err:
                     logger.warning("Redis Pub/Sub broadcast error: %s; falling back to local fanout", err)
@@ -132,7 +134,7 @@ if FASTAPI_AVAILABLE:
             """Increment distributed presence in Redis across all workers."""
             if redis:
                 try:
-                    count = await redis.hincrby(f"{KEY_PREFIX}presence", game_slug, 1)
+                    count = await redis.hincrby(redis_key("presence"), game_slug, 1)
                     return max(1, int(count))
                 except Exception as err:
                     logger.warning("Redis presence increment warning: %s", err)
@@ -142,9 +144,10 @@ if FASTAPI_AVAILABLE:
             """Decrement distributed presence in Redis across all workers."""
             if redis:
                 try:
-                    count = await redis.hincrby(f"{KEY_PREFIX}presence", game_slug, -1)
+                    presence_key = redis_key("presence")
+                    count = await redis.hincrby(presence_key, game_slug, -1)
                     if count < 0:
-                        await redis.hset(f"{KEY_PREFIX}presence", game_slug, 0)
+                        await redis.hset(presence_key, game_slug, 0)
                         count = 0
                     return count
                 except Exception as err:
@@ -155,7 +158,7 @@ if FASTAPI_AVAILABLE:
             """Fetch authoritative presence across all worker instances."""
             if redis:
                 try:
-                    val = await redis.hget(f"{KEY_PREFIX}presence", game_slug)
+                    val = await redis.hget(redis_key("presence"), game_slug)
                     if val is not None:
                         return max(1, int(val))
                 except Exception as err:
@@ -181,10 +184,17 @@ if FASTAPI_AVAILABLE:
             if len(parts) == 2 and parts[0].lower() == "bearer":
                 token_data = AntiCheatValidator.verify_player_token(parts[1])
                 if token_data and "player_id" in token_data:
-                    return AuthenticatedPlayer(
-                        id=int(token_data["player_id"]),
-                        username=str(token_data.get("username", "Player"))
-                    )
+                    pid = int(token_data["player_id"])
+                    uname = str(token_data.get("username", "Player"))
+                    try:
+                        from app.extensions import db
+                        from app.models import User
+                        db_user = db.session.get(User, pid)
+                        if db_user and db_user.username:
+                            uname = db_user.username
+                    except Exception:
+                        pass
+                    return AuthenticatedPlayer(id=pid, username=uname)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail={"error": "Invalid or expired authorization token", "code": "UNAUTHORIZED"}
@@ -195,10 +205,17 @@ if FASTAPI_AVAILABLE:
         if cookie_val:
             sess_data = AntiCheatValidator.decode_flask_session(cookie_val)
             if sess_data and "_user_id" in sess_data:
-                return AuthenticatedPlayer(
-                    id=int(sess_data["_user_id"]),
-                    username=str(sess_data.get("pilot_username", "Player"))
-                )
+                pid = int(sess_data["_user_id"])
+                uname = str(sess_data.get("pilot_username", "Player"))
+                try:
+                    from app.extensions import db
+                    from app.models import User
+                    db_user = db.session.get(User, pid)
+                    if db_user and db_user.username:
+                        uname = db_user.username
+                except Exception:
+                    pass
+                return AuthenticatedPlayer(id=pid, username=uname)
 
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -245,9 +262,11 @@ if FASTAPI_AVAILABLE:
             return
         try:
             pubsub = redis_client.pubsub()
-            await pubsub.subscribe("pixora:ws:broadcast")
-            await pubsub.psubscribe(f"{KEY_PREFIX}events:*")
-            logger.info("Subscribed to Redis Pub/Sub channels 'pixora:ws:broadcast' and '%sevents:*'", KEY_PREFIX)
+            ws_channel = redis_key("ws:broadcast")
+            events_pattern = redis_key("events:*")
+            await pubsub.subscribe(ws_channel)
+            await pubsub.psubscribe(events_pattern)
+            logger.info("Subscribed to Redis Pub/Sub channels '%s' and '%s'", ws_channel, events_pattern)
             async for msg in pubsub.listen():
                 if not msg:
                     continue
@@ -273,7 +292,20 @@ if FASTAPI_AVAILABLE:
     async def lifespan(app_instance: FastAPI):
         global redis_client
         from app.config import settings, validate_secrets
+        from app.utils.telemetry_queue import telemetry_queue
+
         validate_secrets(settings)
+        is_pytest = "PYTEST_CURRENT_TEST" in os.environ or os.environ.get("FLASK_ENV") == "testing"
+        if not hasattr(app_instance, "config"):
+            app_instance.config = {
+                k: getattr(settings, k)
+                for k in dir(settings)
+                if not k.startswith("_")
+            }
+        if is_pytest:
+            app_instance.config["TESTING"] = True
+        telemetry_queue.init_app(app_instance)
+
         pubsub_task = None
         if AIOREDIS_AVAILABLE and os.environ.get("FLASK_ENV") != "testing":
             max_attempts = 3
@@ -389,23 +421,45 @@ if FASTAPI_AVAILABLE:
         if not is_bearer:
             response.status_code = status.HTTP_201_CREATED
 
+        clean_game_name = canonical_game_title(req.game_slug) or req.game_slug
+        now_iso = datetime.now(timezone.utc).isoformat()
+        worker_active = False
+        if redis_client:
+            try:
+                worker_active = bool(await redis_client.exists(redis_key("worker:active")))
+            except Exception:
+                worker_active = False
+
         rank = None
         # 2. Redis Operations (Sorted Sets & Streams) strictly bound to verified player
         if redis_client:
             try:
+                bests_key = redis_key(f"lb:bests:{clean_game_name}")
+                entries_key = redis_key(f"lb:entries:{clean_game_name}")
+                score_entry = {
+                    "id": uuid.uuid4().hex[:10],
+                    "player_id": player.id,
+                    "username": player.username,
+                    "game_name": clean_game_name,
+                    "score": int(req.score),
+                    "achieved_at": now_iso,
+                }
                 # Update Redis ZSET
                 pipe = redis_client.pipeline()
-                pipe.zadd(f"{KEY_PREFIX}lb:bests:{req.game_slug}", {f"{player.id}:{player.username}": req.score}, gt=True)
-                pipe.zrevrank(f"{KEY_PREFIX}lb:bests:{req.game_slug}", f"{player.id}:{player.username}")
+                pipe.zadd(bests_key, {f"{player.id}:{player.username}": req.score}, gt=True)
+                pipe.zrevrank(bests_key, f"{player.id}:{player.username}")
                 # Push to Redis Streams
-                pipe.xadd(STREAM_KEY, {
+                pipe.xadd(get_stream_key(), {
                     "type": "score",
                     "player_id": str(player.id),
                     "username": player.username,
-                    "game_name": req.game_slug,
+                    "game_name": clean_game_name,
                     "score": str(req.score),
-                    "ts": str(time.time())
+                    "achieved_at": now_iso,
+                    "ts": str(time.time()),
+                    "db_persisted": "0" if worker_active else "1",
                 })
+                pipe.zadd(entries_key, {json.dumps(score_entry): int(req.score)})
                 res = await pipe.execute()
                 rank_idx = res[1]
                 if rank_idx is not None:
@@ -415,7 +469,8 @@ if FASTAPI_AVAILABLE:
                 if rank is not None and rank <= 10:
                     overtake_event = {
                         "type": "LEADERBOARD_OVERTAKE",
-                        "game": req.game_slug,
+                        "game": clean_game_name,
+                        "game_slug": req.game_slug,
                         "player": player.username,
                         "rank": rank,
                         "score": req.score,
@@ -423,25 +478,29 @@ if FASTAPI_AVAILABLE:
                     }
                     # Broadcast to all workers via Redis Pub/Sub (and local fallback)
                     await ws_manager.broadcast_distributed(req.game_slug, overtake_event, redis=redis_client)
+                    from app.utils.telemetry_queue import telemetry_queue
+                    telemetry_queue.publish_event(clean_game_name, overtake_event)
             except Exception as e:
                 logger.warning("Redis operation warning: %s", e)
 
-        clean_game_name = req.game_slug
-        try:
-            from app.models import Game
-            game_record = Game.query.filter_by(slug=req.game_slug).first()
-            if game_record and game_record.title:
-                clean_game_name = game_record.title
-        except Exception:
-            clean_game_name = req.game_slug
-
         from app.utils.telemetry_queue import telemetry_queue
-        score_dict = telemetry_queue.enqueue_score(
-            player_id=player.id,
-            username=player.username,
-            game_name=clean_game_name,
-            score=req.score
-        )
+        if worker_active:
+            score_dict = {
+                "id": uuid.uuid4().hex[:10],
+                "player_id": player.id,
+                "username": player.username,
+                "game_name": clean_game_name,
+                "score": int(req.score),
+                "achieved_at": now_iso,
+            }
+        else:
+            score_dict = telemetry_queue.enqueue_score(
+                player_id=player.id,
+                username=player.username,
+                game_name=clean_game_name,
+                score=req.score,
+                push_stream=False,
+            )
 
         return ScoreSubmissionResponse(
             verified=True,
@@ -463,21 +522,42 @@ if FASTAPI_AVAILABLE:
 
     @app.get("/api/v2/leaderboard/{game_slug}")
     async def get_live_leaderboard(game_slug: str, limit: int = 10):
+        canonical_title = canonical_game_title(game_slug) or game_slug
         top_list = []
         if redis_client:
             try:
-                bests = await redis_client.zrevrange(
-                    f"{KEY_PREFIX}lb:bests:{game_slug}", 0, limit - 1, withscores=True
-                )
-                for member, score in bests:
-                    parts = member.split(":", 1)
-                    pid = int(parts[0]) if parts[0].isdigit() else 0
-                    uname = parts[1] if len(parts) > 1 else "Champion"
-                    top_list.append({"player_id": pid, "username": uname, "score": int(score)})
+                bests_key = redis_key(f"lb:bests:{canonical_title}")
+                warmed = True
+                try:
+                    warmed = bool(await redis_client.exists(redis_key(f"lb:warmed:{canonical_title}")))
+                except Exception:
+                    warmed = True
+
+                bests = await redis_client.zrevrange(bests_key, 0, limit - 1, withscores=True)
+                if bests and warmed:
+                    for member, score in bests:
+                        parts = member.split(":", 1)
+                        pid = int(parts[0]) if parts[0].isdigit() else 0
+                        uname = parts[1] if len(parts) > 1 else "Champion"
+                        top_list.append({"player_id": pid, "username": uname, "score": int(score)})
+                    return {"game_slug": game_slug, "canonical_title": canonical_title, "leaderboard": top_list, "source": "redis_zset"}
             except Exception as e:
                 logger.warning("Leaderboard fetch error: %s", e)
 
-        return {"game_slug": game_slug, "leaderboard": top_list, "source": "redis_zset"}
+        from app.utils.telemetry_queue import telemetry_queue
+        matched = resolve_game(game_slug)
+        names = list({canonical_title, game_slug, matched.slug}) if matched else [canonical_title, game_slug]
+        lb_data = telemetry_queue.get_live_leaderboard(
+            game_name=canonical_title,
+            limit=limit,
+            names_to_match=names,
+        )
+        return {
+            "game_slug": game_slug,
+            "canonical_title": canonical_title,
+            "leaderboard": lb_data["leaderboard"],
+            "source": lb_data.get("source", "database_warmed"),
+        }
 
     @app.get("/api/v2/presence/{game_slug}")
     async def get_game_presence(game_slug: str):

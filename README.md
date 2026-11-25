@@ -106,6 +106,14 @@ Or:
 
 Now open [http://localhost:8000](http://localhost:8000) in your browser.
 
+### 6. Rebuilding Redis Leaderboards (If Needed)
+If you change `REDIS_KEY_PREFIX`, flush Redis, or migrate from legacy keys (`glitch4ce:*`), rebuild the Redis leaderboard ZSETs idempotently from the database:
+```bash
+python -m app.utils.rebuild_leaderboards
+# Optional: also purge orphaned legacy glitch4ce:* keys
+python -m app.utils.rebuild_leaderboards --purge-legacy
+```
+
 ---
 
 ## Optional: Running with Docker

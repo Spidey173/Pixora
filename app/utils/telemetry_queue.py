@@ -2,11 +2,12 @@
 import collections
 import json
 import logging
-import os
 import threading
 import time
 import uuid
 from datetime import datetime, timezone
+
+from app.utils.redis_keys import get_redis_key_prefix, get_stream_key, redis_key
 
 logger = logging.getLogger('pixora.telemetry_queue')
 
@@ -56,8 +57,11 @@ class TelemetryQueueManager:
     @property
     def key_prefix(self) -> str:
         """Namespace key prefix to isolate testing from runtime data."""
-        base = os.environ.get('REDIS_KEY_PREFIX', 'pixora:').rstrip(':')
-        return f'{base}:test:' if self.is_testing else f'{base}:'
+        return get_redis_key_prefix(testing=self.is_testing)
+
+    def key(self, name: str) -> str:
+        """Build a prefixed Redis key using the centralized prefix helper."""
+        return redis_key(name, testing=self.is_testing)
 
     def init_app(self, app):
         """Initialize telemetry queue extension with Flask application."""
@@ -127,7 +131,14 @@ class TelemetryQueueManager:
                 logger.warning("Redis reset keys error: %s", err)
 
     # Score queue methods
-    def enqueue_score(self, player_id: int, username: str, game_name: str, score: int) -> dict:
+    def enqueue_score(
+        self,
+        player_id: int,
+        username: str,
+        game_name: str,
+        score: int,
+        push_stream: bool = True,
+    ) -> dict:
         """Enqueue high score submission into event queue and live sorted set."""
         now_utc = datetime.now(timezone.utc)
         clean_game = game_name.strip()
@@ -171,8 +182,9 @@ class TelemetryQueueManager:
                     'score': str(score),
                     'achieved_at': score_data['achieved_at']
                 }
-                self.redis_client.xadd(f'{self.key_prefix}telemetry', stream_payload)
-                self.redis_client.lpush(f'{self.key_prefix}queue:scores', json.dumps(score_data))
+                if push_stream:
+                    self.redis_client.xadd(get_stream_key(testing=self.is_testing), stream_payload)
+                self.redis_client.lpush(self.key('queue:scores'), json.dumps(score_data))
             except Exception as err:
                 logger.error("Redis queue push failed: %s; falling back to memory queue", err)
                 with self._lock:
@@ -192,9 +204,9 @@ class TelemetryQueueManager:
         if self.redis_enabled and self.redis_client:
             try:
                 pipe = self.redis_client.pipeline()
-                pipe.zadd(f'{self.key_prefix}lb:entries:{game_name}', {json.dumps(entry_dict): score})
-                pipe.zadd(f'{self.key_prefix}lb:bests:{game_name}', {f'{player_id}:{username}': score}, gt=True)
-                pipe.zrevrank(f'{self.key_prefix}lb:bests:{game_name}', f'{player_id}:{username}')
+                pipe.zadd(self.key(f'lb:entries:{game_name}'), {json.dumps(entry_dict): score})
+                pipe.zadd(self.key(f'lb:bests:{game_name}'), {f'{player_id}:{username}': score}, gt=True)
+                pipe.zrevrank(self.key(f'lb:bests:{game_name}'), f'{player_id}:{username}')
                 res = pipe.execute()
                 rank_idx = res[2] if len(res) > 2 else None
                 return (rank_idx + 1) if rank_idx is not None else None
@@ -231,8 +243,8 @@ class TelemetryQueueManager:
         payload_str = json.dumps(event_data)
         if self.redis_enabled and self.redis_client:
             try:
-                self.redis_client.publish(f'{self.key_prefix}events:{game_name}', payload_str)
-                self.redis_client.publish(f'{self.key_prefix}events:global', payload_str)
+                self.redis_client.publish(self.key(f'events:{game_name}'), payload_str)
+                self.redis_client.publish(self.key('events:global'), payload_str)
             except Exception as err:
                 logger.warning("Redis Pub/Sub publish error: %s", err)
 
@@ -249,7 +261,7 @@ class TelemetryQueueManager:
         clean_game = game_name.strip()
         if self.redis_enabled and self.redis_client:
             try:
-                key = f'{self.key_prefix}presence:{clean_game}'
+                key = self.key(f'presence:{clean_game}')
                 val = self.redis_client.incrby(key, delta)
                 val = max(0, int(val))
                 if delta < 0 and val <= 0:
@@ -282,7 +294,7 @@ class TelemetryQueueManager:
         clean_game = game_name.strip()
         if self.redis_enabled and self.redis_client:
             try:
-                key = f'{self.key_prefix}presence:{clean_game}'
+                key = self.key(f'presence:{clean_game}')
                 val = self.redis_client.get(key)
                 return max(0, int(val)) if val else 0
             except Exception:
@@ -301,7 +313,7 @@ class TelemetryQueueManager:
         # Check deduplication (within 2.0s)
         if self.redis_enabled and self.redis_client:
             try:
-                dedup_key = f'{self.key_prefix}dedup:start:{player_id}:{clean_game}'
+                dedup_key = self.key(f'dedup:start:{player_id}:{clean_game}')
                 is_fresh = self.redis_client.set(dedup_key, '1', nx=True, ex=2)
                 if not is_fresh:
                     return True, 'deduped', {'status': 'deduped', 'game': clean_game}
@@ -326,9 +338,9 @@ class TelemetryQueueManager:
         # Track active session
         if self.redis_enabled and self.redis_client:
             try:
-                active_key = f'{self.key_prefix}session:active:{player_id}:{clean_game}'
+                active_key = self.key(f'session:active:{player_id}:{clean_game}')
                 self.redis_client.set(active_key, json.dumps(session_event), ex=86400)
-                self.redis_client.lpush(f'{self.key_prefix}queue:sessions', json.dumps(session_event))
+                self.redis_client.lpush(self.key('queue:sessions'), json.dumps(session_event))
             except Exception as err:
                 logger.error("Redis session start push failed: %s", err)
                 with self._lock:
@@ -357,7 +369,7 @@ class TelemetryQueueManager:
         # Retrieve active session
         if self.redis_enabled and self.redis_client:
             try:
-                active_key = f'{self.key_prefix}session:active:{player_id}:{clean_game}'
+                active_key = self.key(f'session:active:{player_id}:{clean_game}')
                 raw_active = self.redis_client.get(active_key)
                 if raw_active:
                     active_data = json.loads(raw_active)
@@ -388,7 +400,7 @@ class TelemetryQueueManager:
 
         if self.redis_enabled and self.redis_client:
             try:
-                self.redis_client.lpush(f'{self.key_prefix}queue:sessions', json.dumps(session_event))
+                self.redis_client.lpush(self.key('queue:sessions'), json.dumps(session_event))
             except Exception:
                 with self._lock:
                     self._memory_session_queue.append(session_event)
@@ -419,11 +431,19 @@ class TelemetryQueueManager:
         # 1. Try Redis Sorted Sets — use lb:bests (one entry per player) for leaderboard
         if self.redis_enabled and self.redis_client:
             try:
-                # lb:bests stores "player_id:username" → best_score (unique per player)
+                bests_key = self.key(f'lb:bests:{clean_game}')
+                entries_key = self.key(f'lb:entries:{clean_game}')
+                warmed_key = self.key(f'lb:warmed:{clean_game}')
+                is_warmed = True
+                try:
+                    is_warmed = bool(self.redis_client.exists(warmed_key))
+                except Exception:
+                    is_warmed = True
+
                 bests_raw = self.redis_client.zrevrange(
-                    f'{self.key_prefix}lb:bests:{clean_game}', 0, limit - 1, withscores=True
+                    bests_key, 0, limit - 1, withscores=True
                 )
-                if bests_raw:
+                if bests_raw and is_warmed:
                     top_list = []
                     for member_key, best_score in bests_raw:
                         parts = member_key.split(':', 1)
@@ -447,7 +467,7 @@ class TelemetryQueueManager:
                     if current_player_id:
                         # Walk the full bests list to find current player's rank
                         all_bests = self.redis_client.zrevrange(
-                            f'{self.key_prefix}lb:bests:{clean_game}', 0, -1, withscores=True
+                            bests_key, 0, -1, withscores=True
                         )
                         for r_idx, (m_key, m_score) in enumerate(all_bests):
                             if m_key.startswith(f"{current_player_id}:"):
@@ -455,7 +475,7 @@ class TelemetryQueueManager:
                                 user_rank = r_idx + 1
                                 break
 
-                    total_scores = self.redis_client.zcard(f'{self.key_prefix}lb:entries:{clean_game}')
+                    total_scores = self.redis_client.zcard(entries_key)
 
                     return {
                         'game_name': clean_game,
@@ -469,50 +489,79 @@ class TelemetryQueueManager:
             except Exception as err:
                 logger.warning("Redis get_live_leaderboard error: %s; falling back to DB", err)
 
-        # 2. Check in-memory live leaderboard if active
+        # 2. Merge in-memory live entries with relational DB so neither hides the other
         with self._lock:
-            mem_entries = self._memory_leaderboards.get(clean_game, [])
-            if mem_entries:
-                seen = set()
-                unique_top = []
-                for entry in mem_entries:
-                    if entry['player_id'] not in seen:
-                        seen.add(entry['player_id'])
-                        unique_top.append(entry)
-                    if len(unique_top) >= limit:
-                        break
+            mem_entries = list(self._memory_leaderboards.get(clean_game, []))
 
-                top_list = [
-                    {'username': e['username'], 'score': e['score'], 'player_id': e['player_id']}
-                    for e in unique_top
-                ]
-                world_record = {
-                    'score': top_list[0]['score'],
-                    'username': top_list[0]['username'],
-                    'achieved_at': unique_top[0].get('achieved_at')
-                } if top_list else None
+        db_result = self._fetch_and_warm_db_leaderboard(clean_game, names, limit, current_player_id)
+        if not mem_entries:
+            return db_result
 
-                user_best = None
-                user_rank = None
-                if current_player_id:
-                    for r_idx, e in enumerate(unique_top):
-                        if e['player_id'] == current_player_id:
-                            user_best = e['score']
-                            user_rank = r_idx + 1
-                            break
+        # Combine DB scores and any in-memory entries (keeping highest score per player)
+        best_by_player: dict[int, dict] = {}
+        try:
+            from app.models import GameScore
+            db_scores = (
+                GameScore.query
+                .filter(GameScore.game_name.in_(names))
+                .order_by(GameScore.score.desc(), GameScore.achieved_at.asc())
+                .all()
+            )
+            for s in db_scores:
+                if s.player_id not in best_by_player:
+                    best_by_player[s.player_id] = s.to_dict()
+        except Exception:
+            db_scores = []
 
-                return {
-                    'game_name': clean_game,
-                    'leaderboard': top_list,
-                    'user_best': user_best,
-                    'world_record': world_record,
-                    'user_rank': user_rank,
-                    'total_scores_logged': len(mem_entries),
-                    'source': 'memory_live'
+        for entry in mem_entries:
+            pid = entry.get('player_id')
+            if pid is None:
+                continue
+            existing = best_by_player.get(pid)
+            better_score = existing is None or entry['score'] > existing['score']
+            better_name = (
+                existing is not None
+                and entry['score'] == existing['score']
+                and existing.get('username') in (None, '', 'Guest')
+                and bool(entry.get('username'))
+            )
+            if better_score or better_name:
+                best_by_player[pid] = {
+                    'username': entry.get('username') or (existing['username'] if existing else 'Guest'),
+                    'score': entry['score'],
+                    'player_id': pid,
+                    'achieved_at': entry.get('achieved_at'),
                 }
 
-        # 3. Database Fallback & Cache Warming
-        return self._fetch_and_warm_db_leaderboard(clean_game, names, limit, current_player_id)
+        merged_sorted = sorted(best_by_player.values(), key=lambda x: x['score'], reverse=True)
+        top_list = [
+            {'username': e['username'], 'score': e['score'], 'player_id': e['player_id']}
+            for e in merged_sorted[:limit]
+        ]
+        world_record = {
+            'score': merged_sorted[0]['score'],
+            'username': merged_sorted[0]['username'],
+            'achieved_at': merged_sorted[0].get('achieved_at')
+        } if merged_sorted else None
+
+        user_best = None
+        user_rank = None
+        if current_player_id:
+            for r_idx, e in enumerate(merged_sorted):
+                if e['player_id'] == current_player_id:
+                    user_best = e['score']
+                    user_rank = r_idx + 1
+                    break
+
+        return {
+            'game_name': clean_game,
+            'leaderboard': top_list,
+            'user_best': user_best,
+            'world_record': world_record,
+            'user_rank': user_rank,
+            'total_scores_logged': max(len(mem_entries), db_result.get('total_scores_logged', 0)),
+            'source': 'memory_live'
+        }
 
     def _fetch_and_warm_db_leaderboard(
         self,
@@ -560,15 +609,17 @@ class TelemetryQueueManager:
                     user_rank = rank_idx + 1
                     break
 
-        # Warm Redis cache with top 50 scores if Redis is alive
-        if self.redis_enabled and self.redis_client and all_scores:
+        # Warm Redis cache with all unique player bests + recent entries if Redis is alive
+        if self.redis_enabled and self.redis_client:
             try:
                 pipe = self.redis_client.pipeline()
+                for s in unique_best_scores:
+                    username = s.player.username if s.player else 'Guest'
+                    pipe.zadd(self.key(f'lb:bests:{clean_game}'), {f'{s.player_id}:{username}': s.score}, gt=True)
                 for s in all_scores[:50]:
                     s_dict = s.to_dict()
-                    pipe.zadd(f'{self.key_prefix}lb:entries:{clean_game}', {json.dumps(s_dict): s.score})
-                    username = s.player.username if s.player else 'Guest'
-                    pipe.zadd(f'{self.key_prefix}lb:bests:{clean_game}', {f'{s.player_id}:{username}': s.score}, gt=True)
+                    pipe.zadd(self.key(f'lb:entries:{clean_game}'), {json.dumps(s_dict): s.score})
+                pipe.set(self.key(f'lb:warmed:{clean_game}'), '1', ex=3600)
                 pipe.execute()
             except Exception as err:
                 logger.warning("Failed to warm Redis leaderboard: %s", err)
@@ -616,7 +667,7 @@ class TelemetryQueueManager:
             try:
                 pipe = self.redis_client.pipeline()
                 for _ in range(max_items):
-                    pipe.rpop(f'{self.key_prefix}queue:scores')
+                    pipe.rpop(self.key('queue:scores'))
                 results = pipe.execute()
                 for raw in results:
                     if raw:
@@ -641,7 +692,7 @@ class TelemetryQueueManager:
             try:
                 pipe = self.redis_client.pipeline()
                 for _ in range(max_items):
-                    pipe.rpop(f'{self.key_prefix}queue:sessions')
+                    pipe.rpop(self.key('queue:sessions'))
                 results = pipe.execute()
                 for raw in results:
                     if raw:
@@ -777,8 +828,8 @@ class TelemetryQueueManager:
 
         if self.redis_enabled and self.redis_client:
             try:
-                score_q_len = self.redis_client.llen(f'{self.key_prefix}queue:scores')
-                session_q_len = self.redis_client.llen(f'{self.key_prefix}queue:sessions')
+                score_q_len = self.redis_client.llen(self.key('queue:scores'))
+                session_q_len = self.redis_client.llen(self.key('queue:sessions'))
                 redis_status = "ONLINE (Cluster Active)"
             except Exception:
                 redis_status = "DEGRADED (Redis Unreachable)"

@@ -37,6 +37,7 @@ def create_app(config_name=None):
         if not k.startswith('_')
     }
     app.app_context = lambda: AppContext()
+    telemetry_queue.init_app(app)
 
     # Seed initial games if database is empty
     if config_name != 'testing':
