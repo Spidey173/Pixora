@@ -20,7 +20,7 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from app.config import settings  # noqa: E402
-from app.database import db, db_url  # noqa: E402
+from app.database import db  # noqa: E402
 from app.models import GameplaySession, GameScore, User  # noqa: E402
 
 
