@@ -967,7 +967,7 @@
 
                 <div class="hero-stage-media">
                     <div class="stage-media-card">
-                        <img src="/static/Games/Images/neon-cyber-racer.webp" alt="Neon Cyber Racer" onerror="this.src='/static/Pixora.webp'">
+                        <img src="/static/Games/Images/neon-cyber-racer.webp" alt="Neon Cyber Racer" width="640" height="360" fetchpriority="high" decoding="async" onerror="this.src='/static/Pixora.webp'">
                     </div>
                 </div>
             </div>
@@ -994,7 +994,7 @@
                 {% for g in games_list %}
                 <a href="/play/{{ g.slug }}" class="artwork-game-card" data-category="{{ g.category|lower }}" data-title="{{ g.title|lower }}">
                     <div class="game-media-viewport">
-                        <img src="{{ g.thumbnail_url }}" alt="{{ g.title }}" loading="lazy" onerror="this.src='/static/Pixora.webp'">
+                        <img src="{{ g.thumbnail_url }}" alt="{{ g.title }}" width="320" height="180" loading="lazy" decoding="async" onerror="this.src='/static/Pixora.webp'">
                         <span class="card-genre-badge">{{ g.category }}</span>
                         {% if 'r2.dev' in g.play_url or g.r2_asset_key %}
                             <span class="card-edge-badge"><i class="fa-solid fa-bolt"></i> EDGE</span>
