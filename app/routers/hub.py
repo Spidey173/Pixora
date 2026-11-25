@@ -3,7 +3,6 @@ import asyncio
 from datetime import datetime, timezone
 import json
 import queue
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
@@ -13,123 +12,13 @@ from app.auth_deps import get_current_user
 from app.extensions import db
 from app.models import AnonymousUser, Game, GameplaySession, GameScore, User
 from app.templates import templates
+from app.utils.game_resolver import (
+    build_normalized_all_titles_leaderboard,
+    resolve_game,
+)
 from app.utils.telemetry_queue import telemetry_queue
 
 hub_router = APIRouter(tags=["hub"])
-
-GAME_NAME_ALIASES = {
-    '2048': '2048',
-    '2048 cyber grid': '2048',
-    'updown': '2048',
-    'flappy bird': 'flappybird',
-    'flappy birds': 'flappybird',
-    'flappybird': 'flappybird',
-    'mole': 'mole',
-    'whack a mole': 'mole',
-    'wake a mole': 'mole',
-    'mole invasion: whack back!': 'mole',
-    'moleeasy': 'mole',
-    'molemedium': 'mole',
-    'molehard': 'mole',
-    'speedtype': 'speedtype',
-    'speedtype pro': 'speedtype',
-    'speedtypepro': 'speedtype',
-    'maze': 'maze',
-    'cyber labyrinth': 'maze',
-    'mazeeasy': 'maze',
-    'mazemedium': 'maze',
-    'mazehard': 'maze',
-    'mazeveasy': 'maze',
-    'pong': 'pong',
-    'vector pong classic': 'pong',
-    'pong easy': 'pong',
-    'pongeasy': 'pong',
-    'pongmedium': 'pong',
-    'ponghard': 'pong',
-    'football': 'pong',
-    'candy crush': 'candy-crush',
-    'candy_crush': 'candy-crush',
-    'cyber crush': 'candy-crush',
-    'memorymatch': 'memorymatch',
-    'memory match': 'memorymatch',
-    'memory matrix': 'memorymatch',
-    'memory match easy': 'memorymatch',
-    'matchingeasy': 'memorymatch',
-    'matchingmedium': 'memorymatch',
-    'matchinghard': 'memorymatch',
-    'matchinginsane': 'memorymatch',
-    'tictactoe': 'tictactoe',
-    'tic-tac-toe': 'tictactoe',
-    'quantum tic-tac-toe': 'tictactoe',
-    'towerblock': 'towerblock',
-    'tower block': 'towerblock',
-    'skyline tower block': 'towerblock',
-    'crossword': 'crossword',
-    'cross word': 'crossword',
-    'neural crossword': 'crossword',
-    'animal': 'crossword',
-    'anime': 'crossword',
-    'cities': 'crossword',
-    'movie': 'crossword',
-    'sport': 'crossword',
-    'state': 'crossword',
-    'quiz': 'quiz',
-    'cyber quiz matrix': 'quiz',
-    'trivia': 'quiz',
-    'trivia madness': 'quiz',
-    'aanimal': 'quiz',
-    'cartoon': 'quiz',
-    'food': 'quiz',
-    'gk': 'quiz',
-    'history': 'quiz',
-    'indiansport': 'quiz',
-    'movies': 'quiz',
-    'place': 'quiz',
-    'riddle': 'quiz',
-    'stonepapersissors': 'stonepapersissors',
-    'stone paper scissors': 'stonepapersissors',
-    'rock paper scissors': 'stonepapersissors',
-    'stonepapersissor': 'stonepapersissors',
-    'tricky': 'tricky',
-    'tricky brain quest': 'tricky',
-    'trickygame': 'tricky',
-    'relationship': 'relationship',
-    'relations': 'relationship',
-    'relationshipeasy': 'relationship',
-    'relationshiphard': 'relationship',
-    'blood relations mystery': 'relationship',
-    'blood relations': 'relationship',
-    'sequence': 'sequence',
-    'mathsequence': 'sequence',
-    'mathsequencegame': 'sequence',
-    'sequence number logic': 'sequence',
-    'neon cyber racer': 'neon-cyber-racer',
-    'neon-cyber-racer': 'neon-cyber-racer',
-}
-
-
-def resolve_game(game_name: str) -> Optional[Game]:
-    """Resolve any game title, slug, or alias to its canonical Game model instance."""
-    if not game_name or not game_name.strip():
-        return None
-    clean = game_name.strip()
-    norm = clean.lower()
-
-    matched = Game.query.filter((Game.title.ilike(clean)) | (Game.slug.ilike(clean))).first()
-    if matched:
-        return matched
-
-    target_slug = GAME_NAME_ALIASES.get(norm)
-    if not target_slug:
-        for alias_key, alias_slug in GAME_NAME_ALIASES.items():
-            if alias_key in norm or norm in alias_key:
-                target_slug = alias_slug
-                break
-
-    if target_slug:
-        return Game.query.filter_by(slug=target_slug).first()
-
-    return None
 
 
 def render_hub_view(request: Request, user: User | AnonymousUser, active_tab: str = 'games'):
@@ -169,10 +58,11 @@ def render_hub_view(request: Request, user: User | AnonymousUser, active_tab: st
 
     selected_game = request.query_params.get('game', '').strip()
     active_game_title = 'ALL TITLES (HALL OF FAME)'
+    is_all_titles = not selected_game or selected_game.lower() == 'all'
 
     score_query = GameScore.query
-    if selected_game and selected_game.lower() not in ('all', ''):
-        matched_game = Game.query.filter((Game.title == selected_game) | (Game.slug == selected_game)).first()
+    if not is_all_titles:
+        matched_game = resolve_game(selected_game)
         names_to_match = [selected_game]
         if matched_game:
             names_to_match = list(set([matched_game.title, matched_game.slug, selected_game]))
@@ -183,15 +73,17 @@ def render_hub_view(request: Request, user: User | AnonymousUser, active_tab: st
 
     all_scores = score_query.order_by(GameScore.score.desc(), GameScore.achieved_at.asc()).all()
 
-    # Keep highest score per player on the leaderboard
-    unique_pilot_scores = []
-    seen_players = set()
-    for s in all_scores:
-        if s.player_id not in seen_players:
-            seen_players.add(s.player_id)
-            unique_pilot_scores.append(s)
-
-    top_scores = unique_pilot_scores[:30]
+    if is_all_titles:
+        top_scores = build_normalized_all_titles_leaderboard(all_scores, limit=30)
+    else:
+        # Keep highest score per player on single-game leaderboard
+        unique_pilot_scores = []
+        seen_players = set()
+        for s in all_scores:
+            if s.player_id not in seen_players:
+                seen_players.add(s.player_id)
+                unique_pilot_scores.append(s)
+        top_scores = unique_pilot_scores[:30]
 
     return templates.TemplateResponse(
         'Games/game.html',
@@ -205,7 +97,8 @@ def render_hub_view(request: Request, user: User | AnonymousUser, active_tab: st
             'top_scores': top_scores,
             'active_tab': active_tab,
             'selected_game': selected_game,
-            'active_game_title': active_game_title
+            'active_game_title': active_game_title,
+            'is_all_titles': is_all_titles,
         }
     )
 

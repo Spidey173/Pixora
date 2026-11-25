@@ -1031,6 +1031,9 @@
                         <h2 class="arena-title">CHAMPIONSHIP LEADERBOARDS</h2>
                         <div style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent-cyan); margin-top: 4px;">
                             CATEGORY: <strong style="color: var(--text-pure);">{{ active_game_title }}</strong>
+                            {% if is_all_titles %}
+                            <span style="color: var(--text-dim); font-size: 0.75rem; margin-left: 8px;">(RANKED BY NORMALIZED % OF WORLD RECORD)</span>
+                            {% endif %}
                         </div>
                     </div>
                     <div style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent-emerald);">
@@ -1065,8 +1068,12 @@
                             <span style="color: #cbd5e1; font-family: var(--font-mono); font-size: 0.75rem; display: block; font-weight: 700;">(YOU)</span>
                             {% endif %}
                         </div>
-                        <div class="podium-pts">{{ "{:,}".format(top_scores[1].score) }}</div>
-                        <div class="podium-title-tag">{{ top_scores[1].game_name }}</div>
+                        <div class="podium-pts">
+                            {% if is_all_titles %}{{ "%.1f"|format(top_scores[1].normalized_pct) }}% WR{% else %}{{ "{:,}".format(top_scores[1].score) }}{% endif %}
+                        </div>
+                        <div class="podium-title-tag">
+                            {{ top_scores[1].game_name }}{% if is_all_titles %} · {{ "{:,}".format(top_scores[1].score) }} PTS{% endif %}
+                        </div>
                     </div>
                     <div class="podium-box gold">
                         <div class="podium-rank-icon">🥇</div>
@@ -1076,8 +1083,12 @@
                             <span style="color: var(--accent-gold); font-family: var(--font-mono); font-size: 0.75rem; display: block; font-weight: 700;">(YOU)</span>
                             {% endif %}
                         </div>
-                        <div class="podium-pts" style="color: var(--accent-gold);">{{ "{:,}".format(top_scores[0].score) }}</div>
-                        <div class="podium-title-tag">{{ top_scores[0].game_name }}</div>
+                        <div class="podium-pts" style="color: var(--accent-gold);">
+                            {% if is_all_titles %}{{ "%.1f"|format(top_scores[0].normalized_pct) }}% WR{% else %}{{ "{:,}".format(top_scores[0].score) }}{% endif %}
+                        </div>
+                        <div class="podium-title-tag">
+                            {{ top_scores[0].game_name }}{% if is_all_titles %} · {{ "{:,}".format(top_scores[0].score) }} PTS{% endif %}
+                        </div>
                     </div>
                     <div class="podium-box bronze">
                         <div class="podium-rank-icon">🥉</div>
@@ -1087,8 +1098,12 @@
                             <span style="color: #cd7f32; font-family: var(--font-mono); font-size: 0.75rem; display: block; font-weight: 700;">(YOU)</span>
                             {% endif %}
                         </div>
-                        <div class="podium-pts">{{ "{:,}".format(top_scores[2].score) }}</div>
-                        <div class="podium-title-tag">{{ top_scores[2].game_name }}</div>
+                        <div class="podium-pts">
+                            {% if is_all_titles %}{{ "%.1f"|format(top_scores[2].normalized_pct) }}% WR{% else %}{{ "{:,}".format(top_scores[2].score) }}{% endif %}
+                        </div>
+                        <div class="podium-title-tag">
+                            {{ top_scores[2].game_name }}{% if is_all_titles %} · {{ "{:,}".format(top_scores[2].score) }} PTS{% endif %}
+                        </div>
                     </div>
                 </div>
                 {% endif %}
@@ -1101,7 +1116,7 @@
                                 <th style="width: 80px;">RANK</th>
                                 <th>PILOT CODENAME</th>
                                 <th>GAME TITLE</th>
-                                <th>HIGH SCORE</th>
+                                <th>{% if is_all_titles %}NORMALIZED (% WR){% else %}HIGH SCORE{% endif %}</th>
                                 <th>ACHIEVED (UTC)</th>
                             </tr>
                         </thead>
@@ -1124,7 +1139,14 @@
                                 </td>
                                 <td><span style="font-family: var(--font-mono); color: var(--text-dim);">{{ score.game_name }}</span></td>
                                 <td style="font-family: var(--font-mono); font-weight: 800; color: var(--accent-cyan); font-size: 1.05rem;">
-                                    {{ "{:,}".format(score.score) }}
+                                    {% if is_all_titles %}
+                                        {{ "%.1f"|format(score.normalized_pct) }}% WR
+                                        <span style="display: block; font-size: 0.74rem; color: var(--text-dim); font-weight: 500;">
+                                            {{ "{:,}".format(score.score) }} / {{ "{:,}".format(score.world_record) }} pts
+                                        </span>
+                                    {% else %}
+                                        {{ "{:,}".format(score.score) }}
+                                    {% endif %}
                                 </td>
                                 <td style="font-family: var(--font-mono); color: var(--text-muted); font-size: 0.8rem;">
                                     {{ score.achieved_at.strftime('%Y-%m-%d %H:%M') if score.achieved_at else 'Verified' }}
