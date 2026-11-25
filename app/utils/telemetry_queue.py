@@ -440,10 +440,13 @@ class TelemetryQueueManager:
                 except Exception:
                     is_warmed = True
 
+                if not is_warmed:
+                    self._fetch_and_warm_db_leaderboard(clean_game, names, limit, current_player_id)
+
                 bests_raw = self.redis_client.zrevrange(
                     bests_key, 0, limit - 1, withscores=True
                 )
-                if bests_raw and is_warmed:
+                if bests_raw:
                     top_list = []
                     for member_key, best_score in bests_raw:
                         parts = member_key.split(':', 1)
@@ -612,10 +615,23 @@ class TelemetryQueueManager:
         # Warm Redis cache with all unique player bests + recent entries if Redis is alive
         if self.redis_enabled and self.redis_client:
             try:
+                bests_key = self.key(f'lb:bests:{clean_game}')
+                existing_members = {}
+                try:
+                    for m_key, m_score in self.redis_client.zrevrange(bests_key, 0, -1, withscores=True):
+                        pid_str = m_key.split(':', 1)[0]
+                        existing_members[pid_str] = (m_key, m_score)
+                except Exception:
+                    existing_members = {}
+
                 pipe = self.redis_client.pipeline()
                 for s in unique_best_scores:
+                    pid_str = str(s.player_id)
+                    existing = existing_members.get(pid_str)
+                    if existing and existing[1] >= s.score:
+                        continue
                     username = s.player.username if s.player else 'Guest'
-                    pipe.zadd(self.key(f'lb:bests:{clean_game}'), {f'{s.player_id}:{username}': s.score}, gt=True)
+                    pipe.zadd(bests_key, {f'{s.player_id}:{username}': s.score}, gt=True)
                 for s in all_scores[:50]:
                     s_dict = s.to_dict()
                     pipe.zadd(self.key(f'lb:entries:{clean_game}'), {json.dumps(s_dict): s.score})
