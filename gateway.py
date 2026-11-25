@@ -623,10 +623,14 @@ if FASTAPI_AVAILABLE:
     if os.path.exists(public_dir):
         app.mount("/public", StaticFiles(directory=public_dir), name="public")
 
-    # Security headers middleware
+    # Security & timing headers middleware
     @app.middleware("http")
     async def set_security_headers(request: Request, call_next):
+        import time as _time
+        t0 = _time.perf_counter()
         response = await call_next(request)
+        dur_ms = (_time.perf_counter() - t0) * 1000
+        response.headers["Server-Timing"] = f"app;dur={dur_ms:.1f}"
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "SAMEORIGIN"
         response.headers["X-XSS-Protection"] = "1; mode=block"
