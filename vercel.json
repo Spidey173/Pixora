@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "regions": ["sin1"],
   "builds": [
     {
       "src": "api/index.py",
@@ -17,10 +18,16 @@
   "routes": [
     {
       "src": "/public/(.*)",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      },
       "dest": "/public/$1"
     },
     {
       "src": "/static/(.*)",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      },
       "dest": "/static/$1"
     },
     {
