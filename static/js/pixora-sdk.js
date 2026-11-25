@@ -17,6 +17,7 @@
             this.version = '2.0.0';
             this.allowedOrigin = allowedOrigin;
             this.sessionToken = null;
+            this.authToken = null;
             this.startTime = null;
             this.gameSlug = null;
             this.initialized = false;
@@ -54,9 +55,12 @@
                             return;
                         }
 
-                        if (e.data && (e.data.type === 'PIXORA_HANDSHAKE_ACK' || e.data.type === 'PIXORA_HANDSHAKE_ACK')) {
+                        if (e.data && e.data.type === 'PIXORA_HANDSHAKE_ACK') {
                             this.initialized = true;
                             this.player = e.data.payload ? e.data.payload.player : null;
+                            if (e.data.payload && e.data.payload.authToken) {
+                                this.authToken = e.data.payload.authToken;
+                            }
                             if (e.data.payload && e.data.payload.sessionToken) {
                                 this.sessionToken = e.data.payload.sessionToken;
                                 this.startTime = e.data.payload.startTimeMs || Date.now();
@@ -114,9 +118,14 @@
             this._actionTimestamps = [];
 
             try {
+                const headers = { 'Content-Type': 'application/json' };
+                if (this.authToken) {
+                    headers['Authorization'] = `Bearer ${this.authToken}`;
+                }
                 const res = await fetch('/api/v2/session/start', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    headers: headers,
                     body: JSON.stringify({ game_slug: this.gameSlug })
                 });
 
@@ -199,9 +208,14 @@
             // If we have an active cryptographic session token, submit directly to v2 REST API
             if (this.sessionToken) {
                 try {
+                    const headers = { 'Content-Type': 'application/json' };
+                    if (this.authToken) {
+                        headers['Authorization'] = `Bearer ${this.authToken}`;
+                    }
                     const res = await fetch('/api/v2/session/end', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'same-origin',
+                        headers: headers,
                         body: JSON.stringify({
                             game_slug: this.gameSlug,
                             score: numScore,
@@ -215,10 +229,26 @@
                     });
 
                     const result = await res.json();
+                    // Consume single-use session token and reset action counters
+                    this.sessionToken = null;
+                    this.actionCount = 0;
+                    this._actionTimestamps = [];
+
                     if (!res.ok) {
                         console.error('[Pixora SDK] Anti-Cheat Rejected Submission:', result);
+                        this._sendToParent('PIXORA_SCORE_REJECTED', result);
                     } else {
                         console.log('%c🛡️ [Pixora SDK v2] Score cryptographically verified & submitted:', 'color: #00f2fe;', result);
+                        this._sendToParent('PIXORA_SCORE_RECORDED', {
+                            score: numScore,
+                            result: result
+                        });
+                    }
+                    // Refresh session token for subsequent replays in the same iframe
+                    if (window.parent && window.parent !== window) {
+                        this._sendToParent('PIXORA_HANDSHAKE', { gameId: this.gameSlug, version: this.version });
+                    } else {
+                        this.startSession(this.gameSlug).catch(() => {});
                     }
                     return result;
                 } catch (e) {
@@ -279,7 +309,19 @@
             const data = event.data;
             if (!data || data.source !== 'PIXORA_PLATFORM_SHELL') return;
 
-            if (data.type === 'PIXORA_MUTE_CHANGED' && this._listeners['MUTE_TOGGLE']) {
+            if (data.type === 'PIXORA_HANDSHAKE_ACK' && data.payload) {
+                this.initialized = true;
+                if (data.payload.player) {
+                    this.player = data.payload.player;
+                }
+                if (data.payload.authToken) {
+                    this.authToken = data.payload.authToken;
+                }
+                if (data.payload.sessionToken) {
+                    this.sessionToken = data.payload.sessionToken;
+                    this.startTime = data.payload.startTimeMs || Date.now();
+                }
+            } else if (data.type === 'PIXORA_MUTE_CHANGED' && this._listeners['MUTE_TOGGLE']) {
                 this.isMuted = !!data.payload.muted;
                 this._listeners['MUTE_TOGGLE'](this.isMuted);
             }
@@ -289,6 +331,5 @@
     // Expose global constructors and singletons
     window.PixoraSDK = PixoraSDK;
     window.Pixora = window.Pixora || new PixoraSDK();
-    window.Pixora = PixoraBridge;
 
 })(typeof window !== 'undefined' ? window : this);

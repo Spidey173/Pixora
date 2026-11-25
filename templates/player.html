@@ -351,7 +351,7 @@
 
         <div style="display: flex; align-items: center; gap: 16px;">
             <span style="color: var(--text-dim); font-size: 0.9rem;">
-                Pilot: <strong style="color: var(--neon-cyan);">{{ current_user.username if current_user.is_authenticated else 'Guest' }}</strong>
+                Pilot: <strong id="headerPilotName" style="color: var(--neon-cyan);">{{ current_user.username if current_user.is_authenticated else 'Guest' }}</strong>
             </span>
             <a href="{{ url_for('main.games') }}" class="back-btn">
                 <i class="fa-solid fa-arrow-left"></i> Arcade Lobby
@@ -433,8 +433,9 @@
     <script>
         const GAME_SLUG = {{ game.slug|tojson }};
         const GAME_TITLE = {{ game.title|tojson }};
-        const CURRENT_USER = {{ (current_user.username if current_user.is_authenticated else 'Guest')|tojson }};
-        const CURRENT_USER_ID = {{ (current_user.id if current_user.is_authenticated else None)|tojson }};
+        let CURRENT_USER = {{ (current_user.username if current_user.is_authenticated else 'Guest')|tojson }};
+        let CURRENT_USER_ID = {{ (current_user.id if current_user.is_authenticated else None)|tojson }};
+        let activeAuthToken = null;
 
         let currentUserPb = null;
         let currentWorldRecord = null;
@@ -507,14 +508,18 @@
                 const win = gameFrame.contentWindow;
                 if (!win || !doc) return;
 
-                // 1. Expose Pixora SDK in the iframe window
+                // 1. Expose Pixora SDK in the iframe window (fallback when pixora-sdk.js is not bundled)
+                let _bridgeActionCount = 0;
                 const bridgeSDK = {
+                    player: { username: CURRENT_USER, id: CURRENT_USER_ID },
+                    getPlayer: function() { return this.player; },
                     init: function() {
                         win.parent.postMessage({
                             source: 'PIXORA_GAME_CLIENT',
                             type: 'PIXORA_HANDSHAKE',
                             payload: { gameId: GAME_SLUG, version: '2.0.0' }
                         }, '*');
+                        return Promise.resolve({ success: true, player: this.player, mode: 'bridge' });
                     },
                     gameplayStart: function() {
                         win.parent.postMessage({
@@ -530,8 +535,20 @@
                             payload: { game: GAME_TITLE, timestamp: Date.now() }
                         }, '*');
                     },
+                    recordAction: function() {
+                        _bridgeActionCount++;
+                    },
                     submitScore: function(val) {
-                        _submitScoreFromBridge(val);
+                        const num = Math.floor(Number(val));
+                        if (isNaN(num) || num < 0 || _bridgeScoreSubmitted) return;
+                        _bridgeScoreSubmitted = true;
+                        window.postMessage({
+                            source: 'PIXORA_GAME_CLIENT',
+                            type: 'PIXORA_SUBMIT_SCORE',
+                            payload: { game: GAME_TITLE, score: num, action_count: Math.max(1, _bridgeActionCount), timestamp: Date.now() }
+                        }, '*');
+                        _bridgeActionCount = 0;
+                        setTimeout(() => { _bridgeScoreSubmitted = false; }, 3000);
                     }
                 };
 
@@ -825,7 +842,9 @@
         // Fetch Hall of Fame / Leaderboard
         async function refreshLeaderboard() {
             try {
-                const res = await fetch(`/api/leaderboard/${encodeURIComponent(GAME_TITLE)}`);
+                const res = await fetch(`/api/leaderboard/${encodeURIComponent(GAME_TITLE)}`, {
+                    credentials: 'same-origin'
+                });
                 const data = await res.json();
 
                 // Update Personal Best Matrix Card
@@ -865,7 +884,7 @@
 
                 data.leaderboard.forEach((item, idx) => {
                     const row = document.createElement('li');
-                    const isCurrentUser = (item.username === CURRENT_USER);
+                    const isCurrentUser = (CURRENT_USER_ID !== null && item.player_id === CURRENT_USER_ID) || (item.username === CURRENT_USER);
                     row.className = `leaderboard-row ${idx === 0 ? 'top-1' : ''}`;
                     if (isCurrentUser) {
                         row.style.border = '1px solid rgba(0, 242, 254, 0.4)';
@@ -927,15 +946,55 @@
 
         let activeV2Session = null;
 
+        function syncIdentityUI(playerId, username) {
+            if (username && username !== 'Guest' && username !== 'Guest Pilot') {
+                CURRENT_USER = username;
+                if (playerId !== undefined && playerId !== null) {
+                    CURRENT_USER_ID = playerId;
+                }
+                const headerEl = document.getElementById('headerPilotName');
+                if (headerEl) {
+                    headerEl.innerText = username;
+                }
+            }
+        }
+
+        async function acquireAuthToken() {
+            try {
+                const res = await fetch('/api/v2/auth/token', {
+                    method: 'POST',
+                    credentials: 'same-origin'
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    activeAuthToken = data.access_token || null;
+                    syncIdentityUI(data.player_id, data.username);
+                    return activeAuthToken;
+                }
+            } catch (e) {
+                console.warn('Auth token acquisition warning:', e);
+            }
+            return null;
+        }
+
         async function acquireV2Session() {
             try {
+                if (!activeAuthToken) {
+                    await acquireAuthToken();
+                }
+                const headers = { 'Content-Type': 'application/json' };
+                if (activeAuthToken) {
+                    headers['Authorization'] = `Bearer ${activeAuthToken}`;
+                }
                 const res = await fetch('/api/v2/session/start', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    headers: headers,
                     body: JSON.stringify({ game_slug: GAME_SLUG, game_name: GAME_TITLE })
                 });
                 if (res.ok) {
                     activeV2Session = await res.json();
+                    syncIdentityUI(activeV2Session.player_id, activeV2Session.username);
                     return activeV2Session;
                 }
             } catch (e) {
@@ -944,8 +1003,22 @@
             return null;
         }
 
-        // Pre-warm cryptographic session on load
-        acquireV2Session();
+        // Pre-warm auth token & cryptographic session on load, then refresh leaderboard with verified identity
+        acquireV2Session().then(() => {
+            if (CURRENT_USER_ID !== null) {
+                refreshLeaderboard();
+            }
+        });
+
+        function showRecordedScoreToast(score) {
+            if (currentWorldRecord !== null && score > currentWorldRecord) {
+                showToast(`👑 NEW WORLD RECORD! Score: ${score.toLocaleString()}!`);
+            } else if (currentUserPb !== null && score > currentUserPb) {
+                showToast(`🔥 NEW PERSONAL BEST! Score: ${score.toLocaleString()}!`);
+            } else {
+                showToast(`🏆 Score ${score.toLocaleString()} recorded to Hall of Fame!`);
+            }
+        }
 
         window.addEventListener('message', async (event) => {
             // Strict Origin Verification: Reject unauthorized cross-origin messaging
@@ -969,11 +1042,29 @@
                             type: 'PIXORA_HANDSHAKE_ACK',
                             payload: {
                                 player: { username: CURRENT_USER, id: CURRENT_USER_ID },
+                                authToken: activeAuthToken,
                                 sessionToken: session ? session.session_token : null,
                                 startTimeMs: session ? session.start_time_ms : Date.now()
                             }
                         }, '*');
                     } catch (e) {}
+                    break;
+
+                case 'PIXORA_SCORE_RECORDED':
+                    activeV2Session = null;
+                    if (data.payload && data.payload.score !== undefined) {
+                        showRecordedScoreToast(Number(data.payload.score));
+                    }
+                    refreshLeaderboard();
+                    acquireV2Session();
+                    break;
+
+                case 'PIXORA_SCORE_REJECTED':
+                    activeV2Session = null;
+                    if (data.payload && data.payload.code === 'ANOMALOUS_VELOCITY') {
+                        showToast(`⚠️ Anti-Cheat Warning: Score rate exceeds physical limits!`);
+                    }
+                    acquireV2Session();
                     break;
 
                 case 'PIXORA_SUBMIT_SCORE':
@@ -983,12 +1074,16 @@
                         const session = activeV2Session;
                         const token = data.payload.session_token || (session ? session.session_token : null);
                         const startMs = data.payload.start_time_ms || (session ? session.start_time_ms : null);
+                        activeV2Session = null;
+
+                        const headers = { 'Content-Type': 'application/json' };
 
                         if (token && startMs) {
                             // High-integrity cryptographic v2 endpoint
                             response = await fetch('/api/v2/session/end', {
                                 method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'same-origin',
+                                headers: headers,
                                 body: JSON.stringify({
                                     game_slug: GAME_SLUG,
                                     score: score,
@@ -1003,7 +1098,8 @@
                             // Fallback to v1 endpoint
                             response = await fetch('/api/scores', {
                                 method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'same-origin',
+                                headers: headers,
                                 body: JSON.stringify({
                                     game_name: GAME_TITLE,
                                     score: score
@@ -1012,13 +1108,7 @@
                         }
 
                         if (response && response.ok) {
-                            if (currentWorldRecord !== null && score > currentWorldRecord) {
-                                showToast(`👑 NEW WORLD RECORD! Flight Distance: ${score.toLocaleString()} KM!`);
-                            } else if (currentUserPb !== null && score > currentUserPb) {
-                                showToast(`🔥 NEW PERSONAL BEST! Flight Distance: ${score.toLocaleString()} KM!`);
-                            } else {
-                                showToast(`🏆 Flight Score ${score.toLocaleString()} recorded to Hall of Fame!`);
-                            }
+                            showRecordedScoreToast(Number(score));
                             refreshLeaderboard();
                         } else {
                             const errData = await response.json();

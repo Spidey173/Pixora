@@ -5,6 +5,7 @@ from fastapi import Cookie, Depends, Header, HTTPException, Request, Response, s
 from itsdangerous import URLSafeTimedSerializer
 from markupsafe import Markup
 
+from app.extensions import db
 from app.models import AnonymousUser, User
 from app.services.anti_cheat import AntiCheatValidator
 
@@ -96,7 +97,7 @@ async def get_current_user(
         if len(parts) == 2 and parts[0].lower() == "bearer":
             token_data = AntiCheatValidator.verify_player_token(parts[1])
             if token_data and "player_id" in token_data:
-                user = User.query.get(int(token_data["player_id"]))
+                user = db.session.get(User, int(token_data["player_id"]))
                 if user:
                     return user
 
@@ -107,7 +108,7 @@ async def get_current_user(
         if sess_data and "_user_id" in sess_data:
             try:
                 uid = int(sess_data["_user_id"])
-                user = User.query.get(uid)
+                user = db.session.get(User, uid)
                 if user:
                     return user
             except (ValueError, TypeError):

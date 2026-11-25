@@ -233,7 +233,6 @@ def _generate_embedded_sdk_script(slug: str, title: str) -> str:
     }};
 
     window.Pixora = window.Pixora || PixoraBridge;
-    window.Pixora = window.Pixora || PixoraBridge;
 
     // Auto-initiate handshake with parent theater shell
     PixoraBridge.init();

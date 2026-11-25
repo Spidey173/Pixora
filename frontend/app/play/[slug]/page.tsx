@@ -112,7 +112,7 @@ export default function GameTheaterPage() {
               source: 'PIXORA_PLATFORM_SHELL',
               type: 'PIXORA_HANDSHAKE_ACK',
               payload: {
-                player: { username: 'Pilot', id: 1 },
+                player: { username: session.username || 'Guest', id: session.player_id ?? null },
                 sessionToken: session.session_token,
                 startTimeMs: session.start_time_ms,
               },
@@ -120,9 +120,12 @@ export default function GameTheaterPage() {
             '*'
           );
         } catch (e) {}
-      } else if (data.type === 'PIXORA_SUBMIT_SCORE') {
+      } else if (data.type === 'PIXORA_SUBMIT_SCORE' || data.type === 'PIXORA_SCORE_RECORDED') {
         loadData();
-        showToast(`🏆 Score ${data.payload.score} verified and recorded!`);
+        const scoreVal = data.payload?.score ?? data.payload?.result?.score?.score;
+        if (scoreVal !== undefined) {
+          showToast(`🏆 Score ${scoreVal} verified and recorded!`);
+        }
       }
     };
 
