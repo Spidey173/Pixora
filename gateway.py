@@ -331,9 +331,12 @@ if FASTAPI_AVAILABLE:
                 pass
         if redis_client:
             try:
-                await redis_client.aclose()
-            except AttributeError:
-                await redis_client.close()
+                if hasattr(redis_client, "aclose"):
+                    await redis_client.aclose()
+                elif hasattr(redis_client, "close"):
+                    await redis_client.close()
+            except Exception:
+                pass
 
     # REST API endpoints
     @app.get("/health")
