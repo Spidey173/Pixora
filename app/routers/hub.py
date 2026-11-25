@@ -7,6 +7,7 @@ import queue
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import joinedload
 
 from app.auth_deps import get_current_user
 from app.extensions import db
@@ -60,7 +61,7 @@ def render_hub_view(request: Request, user: User | AnonymousUser, active_tab: st
     active_game_title = 'ALL TITLES (HALL OF FAME)'
     is_all_titles = not selected_game or selected_game.lower() == 'all'
 
-    score_query = GameScore.query
+    score_query = GameScore.query.options(joinedload(GameScore.player))
     if not is_all_titles:
         matched_game = resolve_game(selected_game)
         names_to_match = [selected_game]
@@ -399,7 +400,17 @@ async def infrastructure_page(
 @hub_router.get("/health")
 @hub_router.get("/api/health")
 async def health_check():
-    """Application health check and telemetry status API."""
+    """Lightweight liveness health check (zero DB/Redis calls)."""
+    return JSONResponse({
+        "status": "healthy",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "version": "1.2.0"
+    })
+
+
+@hub_router.get("/health/deep")
+async def deep_health_check():
+    """Deep health check verifying database and Redis telemetry queue."""
     try:
         score_count = db.session.query(db.func.count(GameScore.id)).scalar() or 0
         db_status = "connected"
@@ -409,7 +420,7 @@ async def health_check():
 
     q_metrics = telemetry_queue.get_metrics()
     return JSONResponse({
-        "status": "healthy",
+        "status": "healthy" if db_status == "connected" else "degraded",
         "database": db_status,
         "scores_logged": score_count,
         "event_queue": q_metrics,
