@@ -1,9 +1,10 @@
 """Database connection and SQLAlchemy session setup for Pixora."""
+import os
 from sqlalchemy import (
     Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text, create_engine, func
 )
 from sqlalchemy.orm import declarative_base, relationship, scoped_session, sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.pool import NullPool, StaticPool
 
 from app.config import settings
 
@@ -17,6 +18,11 @@ if db_url.startswith('sqlite'):
     engine_kwargs['connect_args'] = {'check_same_thread': False}
     if db_url == 'sqlite:///:memory:':
         engine_kwargs['poolclass'] = StaticPool
+else:
+    engine_kwargs['pool_pre_ping'] = True
+    engine_kwargs['connect_args'] = {'connect_timeout': 5}
+    if os.environ.get('VERCEL') or '-pooler.' in db_url:
+        engine_kwargs['poolclass'] = NullPool
 
 engine = create_engine(db_url, **engine_kwargs)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
