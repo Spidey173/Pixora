@@ -168,6 +168,26 @@ Pixora/
 
 ---
 
+## Safe Data Reset (Production / Staging)
+
+1. **Create a Neon backup branch** in the Neon Console (Branches -> Create Branch from `main`).
+2. **Run dry-run** (no changes made):
+   ```bash
+   python scripts/reset_data.py
+   ```
+3. **Run confirmed reset** (exports `backups/<timestamp>/` JSON backups first, then deletes `GameScore`, `GameplaySession`, non-admin `User`s, and Redis keys under `pixora:*` / `glitch4ce:*` via `SCAN`):
+   ```bash
+   python scripts/reset_data.py --confirm
+   ```
+4. **Rebuild leaderboards** if needed:
+   ```bash
+   python -m app.utils.rebuild_leaderboards
+   ```
+
+Demo players and scores are **opt-in** and only seeded when `SEED_DEMO_DATA=true` is set explicitly.
+
+---
+
 ## License
 
 MIT License.

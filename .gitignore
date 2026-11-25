@@ -36,6 +36,7 @@ env/
 *.db
 *.sqlite3
 instance/
+backups/
 
 # IDEs & OS artifacts
 .DS_Store

@@ -245,7 +245,7 @@ def _populate_catalog_entries():
 
     # Seed baseline pilots and leaderboard scores if table is empty
     from app.models import User, GameScore, GameplaySession
-    if GameScore.query.count() == 0:
+    if os.environ.get("SEED_DEMO_DATA", "").lower() == "true" and GameScore.query.count() == 0:
         try:
             from app.utils.reset_and_seed import PILOTS, CURATED_SCORES
             user_map = {}
