@@ -16,22 +16,24 @@ if not os.environ.get("DATABASE_URL") or os.environ.get("DATABASE_URL", "").star
     os.environ["DATABASE_URL"] = f"sqlite:///{tmp_db}"
 
 from gateway import app  # noqa: E402
-from app.extensions import db  # noqa: E402
-from app.models import Game  # noqa: E402
-from app.utils.seed_games import seed_catalog  # noqa: E402
-from app.utils.seed_admin import seed_admin  # noqa: E402
 
-# Ensure database tables and catalog are initialized in /tmp on cold boot
-try:
-    db.create_all()
-    if Game.query.count() == 0:
-        seed_catalog()
-    seed_admin()
-except Exception:
+# Only initialize/seed SQLite /tmp fallback on cold boot; production Postgres is managed via migrations
+if os.environ.get("DATABASE_URL", "").startswith("sqlite"):
+    from app.extensions import db  # noqa: E402
+    from app.models import Game  # noqa: E402
+    from app.utils.seed_games import seed_catalog  # noqa: E402
+    from app.utils.seed_admin import seed_admin  # noqa: E402
+
     try:
-        db.session.rollback()
+        db.create_all()
+        if Game.query.count() == 0:
+            seed_catalog()
+        seed_admin()
     except Exception:
-        pass
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
 
 # Expose ASGI application
 app = app
