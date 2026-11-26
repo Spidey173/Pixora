@@ -28,7 +28,7 @@ except ImportError:
     AIOREDIS_AVAILABLE = False
 
 from app.services.anti_cheat import AntiCheatValidator
-from app.utils.game_resolver import canonical_game_title, resolve_game
+from app.utils.game_resolver import canonical_game_title
 from app.utils.redis_keys import get_stream_key, redis_key
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
